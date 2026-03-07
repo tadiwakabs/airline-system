@@ -31,3 +31,6 @@
 /Users/tadiwakabs/Documents/Important_Docs/School/Code/airline-system/server/AirlineAPI/obj/Debug/net10.0/AirlineAPI.pdb
 /Users/tadiwakabs/Documents/Important_Docs/School/Code/airline-system/server/AirlineAPI/obj/Debug/net10.0/AirlineAPI.genruntimeconfig.cache
 /Users/tadiwakabs/Documents/Important_Docs/School/Code/airline-system/server/AirlineAPI/obj/Debug/net10.0/ref/AirlineAPI.dll
+/Users/tadiwakabs/Documents/Important_Docs/School/Code/airline-system/server/AirlineAPI/bin/Debug/net10.0/DotNetEnv.dll
+/Users/tadiwakabs/Documents/Important_Docs/School/Code/airline-system/server/AirlineAPI/bin/Debug/net10.0/MySqlConnector.dll
+/Users/tadiwakabs/Documents/Important_Docs/School/Code/airline-system/server/AirlineAPI/bin/Debug/net10.0/Sprache.dll

@@ -1,4 +1,13 @@
 .idea/*
+.vscode/
 .DS_Store
-server/.env
 client/.env
+server/AirlineAPI/.env
+
+# ASP.NET / .NET user files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.cache
+*.cache.json
