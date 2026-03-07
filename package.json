@@ -1,0 +1,14 @@
+{
+  "name": "airline-system",
+  "version": "1.0.0",
+  "description": "Airline Ticketing System",
+  "scripts": {
+    "install:client": "cd ./client && npm install",
+    "client": "cd ./client && npm run dev",
+    "server": "cd ./server/AirlineAPI && dotnet run",
+    "dev": "concurrently -n SERVER,CLIENT \"npm run server\" \"npm run client\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
