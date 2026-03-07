@@ -10,27 +10,32 @@ Follow the steps below to run the project locally.
 
 ---
 
-# 1. Install .NET SDK
+# 1. Install Node.js and .NET SDK
 
-Download and install the **.NET SDK**:
+Download and insall NodeJS: https://nodejs.org/en/download
 
-https://dotnet.microsoft.com/en-us/download
 
-After installation, verify it is available in your terminal.
+Download and install the **.NET SDK**: https://dotnet.microsoft.com/en-us/download
+
+After installation, verify they are available in your terminal.
 
 ### Windows
 
 ```bash
+node -v
+npm -v
 dotnet --info
 ```
 
 ### macOS
 
 ```bash
+node -v
+npm -v
 dotnet --version
 ```
 
-If the command is not recognized, ensure the **.NET SDK is added to your system PATH**.
+If the command is not recognized, ensure that Node.js and .NET SDK is added to your system PATH.
 
 ---
 

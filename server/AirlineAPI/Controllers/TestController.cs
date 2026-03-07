@@ -1,3 +1,4 @@
+// Testing database connection.
 using Microsoft.AspNetCore.Mvc;
 using MySqlConnector;
 

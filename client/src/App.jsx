@@ -3,7 +3,7 @@ import { Routes, Route } from "react-router-dom";
 import './globals.css'
 
 // Route Imports
-import Home from './Pages/Home'
+import Home from './pages/Home'
 
 function App() {
     return (
