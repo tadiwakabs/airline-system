@@ -3,8 +3,11 @@
 .DS_Store
 client/.env
 server/AirlineAPI/.env
+node_modules/
 
 # ASP.NET / .NET user files
+bin/
+obj/
 *.user
 *.suo
 *.userosscache
