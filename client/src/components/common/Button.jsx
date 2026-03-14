@@ -21,7 +21,7 @@ export default function Button({
                                    type = "button",
                                    onClick,
                                    disabled = false,
-                                   className = "",
+                                   className = "cursor-pointer",
                                }) {
     return (
         <button
