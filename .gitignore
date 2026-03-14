@@ -14,3 +14,6 @@ obj/
 *.sln.docstates
 *.cache
 *.cache.json
+
+# Extras
+db-queries/*.sql

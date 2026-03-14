@@ -8,7 +8,15 @@ import Home from './pages/Home'
 function App() {
     return (
         <Routes>
+            {/* Open Routes */}
             <Route path="/" element={<Home />} />
+
+            {/* User-Authenticated Routes */}
+
+            {/* Employee-Authenticated Routes */}
+
+            {/* Administrator-Authenticated Routes */}
+            
         </Routes>
         
     );
