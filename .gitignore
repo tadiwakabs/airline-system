@@ -4,6 +4,7 @@
 client/.env
 server/AirlineAPI/.env
 node_modules/
+server/AirlineAPI/client.env
 
 # ASP.NET / .NET user files
 bin/
