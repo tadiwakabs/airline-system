@@ -46,7 +46,19 @@ namespace AirlineAPI.Data
                 entity.Property(u => u.Title)
                     .HasColumnName("title")
                     .HasConversion(
-                        v => v == null ? null : v.ToString()!.Replace("NonBinary", "Non-Binary"),
+                        v => v switch
+                        {
+                            UserTitle.Dr => "Dr.",
+                            UserTitle.Ms => "Ms.",
+                            UserTitle.Mr => "Mr.",
+                            UserTitle.Miss => "Miss.",
+                            UserTitle.Mrs => "Mrs.",
+                            UserTitle.Mstr => "Mstr.",
+                            UserTitle.Prof => "Prof",
+                            UserTitle.Rev => "Rev.",
+                            null => null,
+                            _ => null
+                        },
                         v => string.IsNullOrEmpty(v) ? null : v switch
                         {
                             "Dr." => UserTitle.Dr,

@@ -1,7 +1,7 @@
 using System.Text;
 using DotNetEnv;
-using AirlineApi.Data;
-using AirlineApi.Services;
+using AirlineAPI.Data;
+using AirlineAPI.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 
@@ -48,6 +48,8 @@ builder.Configuration["Jwt:Audience"] = jwtAudience;
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<DbConnection>();
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
 builder.Services.AddScoped<JwtService>();
 
 // Configure JWT
