@@ -3,7 +3,9 @@ using DotNetEnv;
 using AirlineAPI.Data;
 using AirlineAPI.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using System.Text.Json.Serialization;
 
 Env.Load();
 
@@ -45,7 +47,11 @@ builder.Configuration["Jwt:Issuer"] = jwtIssuer;
 builder.Configuration["Jwt:Audience"] = jwtAudience;
 
 // Add services
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<DbConnection>();
 builder.Services.AddDbContext<AppDbContext>(options =>
