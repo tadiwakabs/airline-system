@@ -1,4 +1,5 @@
 using DotNetEnv;
+using AirlineApi.Data;
 
 Env.Load();
 
@@ -23,6 +24,7 @@ builder.Configuration["ConnectionStrings:DefaultConnection"] = connectionString;
 // Add services
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+builder.Services.AddScoped<DbConnection>();
 
 // Configure CORS
 builder.Services.AddCors(options =>
