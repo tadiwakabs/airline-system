@@ -15,7 +15,7 @@ Follow the steps below to run the project locally.
 Download and insall NodeJS: https://nodejs.org/en/download
 
 
-Download and install the **.NET SDK**: https://dotnet.microsoft.com/en-us/download
+Download and install the **.NET SDK**: https://dotnet.microsoft.com/en-us/download/dotnet/9.0
 
 After installation, verify they are available in your terminal.
 
