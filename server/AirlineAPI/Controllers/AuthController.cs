@@ -58,7 +58,7 @@ namespace AirlineAPI.Controllers
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
-            var token = "";
+            var token = _jwtService.GenerateToken(user);
 
             var response = new AuthenticationDto
             {
