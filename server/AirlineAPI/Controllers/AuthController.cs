@@ -58,9 +58,9 @@ namespace AirlineAPI.Controllers
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
-            var token = _jwtService.GenerateToken(user);
+            var token = "";
 
-            var response = new AuthDto
+            var response = new AuthenticationDto
             {
                 UserId = user.UserId,
                 Username = user.Username,
@@ -84,8 +84,8 @@ namespace AirlineAPI.Controllers
 
             var user = await _context.Users
                 .FirstOrDefaultAsync(u =>
-                    u.Username == request.UsernameOrEmail ||
-                    u.Email == request.UsernameOrEmail);
+                    u.Username == request.Username ||
+                    u.Email == request.Username);
 
             if (user == null)
                 return Unauthorized(new { message = "Invalid username/email or password." });
@@ -97,7 +97,7 @@ namespace AirlineAPI.Controllers
 
             var token = _jwtService.GenerateToken(user);
 
-            var response = new AuthDto
+            var response = new AuthenticationDto
             {
                 UserId = user.UserId,
                 Username = user.Username,
