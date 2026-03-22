@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema; 
+using System.Text.Json.Serialization;
 
 namespace AirlineAPI.Models
 {
@@ -27,15 +28,19 @@ namespace AirlineAPI.Models
 
         [Required]
         [StringLength(3)]
+        [JsonPropertyName("currentAirportCode")]
         public string currentAirport{get;set;}= string.Empty;
 
+        [JsonPropertyName("currentFlightId")]
         public int? currentFlight{get;set;} //to do: set unique
 
         //------links-------//
         [ForeignKey("currentAirport")]
+        [JsonPropertyName("currentAirportDetails")]
         public Airport? CurrentAirport{get;set;}
 
         [ForeignKey("currentFlight")]
+        [JsonPropertyName("currentFlightDetails")]
         public Flight? CurrentFlight{get;set;}
 
     }

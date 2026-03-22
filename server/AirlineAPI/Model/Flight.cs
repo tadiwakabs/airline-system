@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace AirlineAPI.Models
 {
@@ -28,10 +29,13 @@ namespace AirlineAPI.Models
 
         [Required]
         [StringLength(30)]
+        [JsonPropertyName("departingPortCode")]
         public string departingPort { get; set; } = string.Empty;
 
         [Required]
         [StringLength(30)]
+        [JsonPropertyName("arrivingPortCode")]
+
         public string arrivingPort { get; set; } = string.Empty;
 
         public bool isDomestic { get; set; }
@@ -43,9 +47,11 @@ namespace AirlineAPI.Models
         public Aircraft? Aircraft{get;set;}
 
         [ForeignKey("departingPort")]
+        [JsonPropertyName("departingPortData")]
         public Airport? DepartingPort{get;set;}
 
         [ForeignKey("arrivingPort")]
+        [JsonPropertyName("arrivingPortData")]
         public Airport? ArrivingPort{get;set;}
     }
 }
