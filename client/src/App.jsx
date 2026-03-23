@@ -6,22 +6,28 @@ import AppLayout from "./components/layout/AppLayout.jsx";
 // Route Imports
 import Home from './pages/Home'
 import Register from './pages/Register'
+import Login from "./pages/Login.jsx";
+import {AuthProvider} from "./contexts/AuthContext.jsx";
 
 function App() {
     return (
             <AppLayout>
-                <Routes>
-                    {/* Open Routes */}
-                    <Route path="/" element={<Home />} />
-                    <Route path="/register" element={<Register />} />
+                <AuthProvider>
+                    <Routes>
+                        {/* Open Routes */}
+                        <Route path="/" element={<Home />} />
+                        <Route path="/register" element={<Register />} />
+                        <Route path="/login" element={<Login />} />
 
-                    {/* User-Authenticated Routes */}
+                        {/* User-Authenticated Routes */}
 
-                    {/* Employee-Authenticated Routes */}
+                        {/* Employee-Authenticated Routes */}
 
-                    {/* Administrator-Authenticated Routes */}
+                        {/* Administrator-Authenticated Routes */}
 
-                </Routes>
+                    </Routes>
+                </AuthProvider>
+                
             </AppLayout>
         
     );
