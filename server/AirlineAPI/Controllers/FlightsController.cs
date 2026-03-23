@@ -1,5 +1,6 @@
 using AirlineAPI.Data;
 using AirlineAPI.Models;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,8 +27,9 @@ namespace AirlineAPI.Controllers
 
         // GET: api/flights/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<Flight>> GetFlight(int id)
+        public async Task<ActionResult<Flight>> GetFlightbyId(int id)
         {
+            //searching for row with the ID given above
             var flight = await _context.Flights.FindAsync(id);
 
             if (flight == null)
@@ -35,8 +37,62 @@ namespace AirlineAPI.Controllers
                 return NotFound(new { message = "Flight not found" });
             }
 
-            return flight;
+            return Ok(flight);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> CreateFlight([FromBody] Flight newFlight)
+        {
+            if (newFlight == null)
+            {
+                return BadRequest("Flight data is missing!");
+            }
+
+            _context.Flights.Add(newFlight);
+
+            await _context.SaveChangesAsync();
+
+            return Ok(newFlight);
+        }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateFlight(int id, [FromBody] Flight updatedFlight)
+        {
+            if (id!= updatedFlight.flightNum)
+            {
+                return BadRequest("Id mismatch");
+            }
+
+            _context.Entry(updatedFlight).State= EntityState.Modified;
+            await _context.SaveChangesAsync();
+            return Ok("Flight successfully updated!");
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteFlight(int id,[FromBody] Flight deletedFlight)
+        {
+            var flight= await _context.Flights.FindAsync(id);
+
+            if (flight==null)
+            {
+                return NotFound("Flight not found.");
+            }
+
+            _context.Flights.Remove(flight);
+            await _context.SaveChangesAsync();
+            return Ok("Flight Deleted");
+        }
+
+        [HttpGet("search")]
+        public async Task<IActionResult> SearchbyDestination([FromQuery] string dest)
+        {
+            var results= await _context.Flights 
+                .Where(f=> f.arrivingPort==dest)
+                .ToListAsync();
+
+            return Ok(results);
         }
     }
+
 }
 
