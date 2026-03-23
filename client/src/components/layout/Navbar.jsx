@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import Button from "../common/Button";
+import { useAuth } from "../../contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const navLinkBase =
     "text-sm font-medium text-gray-700 transition-colors hover:text-blue-600";
@@ -9,11 +11,18 @@ const navLinkActive = "text-blue-600";
 
 export default function Navbar() {
     const [searchValue, setSearchValue] = useState("");
+    const { isAuthenticated, user, logout } = useAuth();
+    const navigate = useNavigate();
 
     const handleSearch = (e) => {
         e.preventDefault();
         console.log("Search:", searchValue);
         // TODO: Connect search functionality to backend
+    };
+
+    const handleLogout = () => {
+        logout();
+        navigate("/login");
     };
 
     return (
@@ -74,15 +83,38 @@ export default function Navbar() {
                         </Button>
                     </form>
 
-                    <NavLink to="/login">
-                        <Button variant="outline" size="sm">
-                            Login
-                        </Button>
-                    </NavLink>
+                    {!isAuthenticated ? (
+                        <>
+                            <NavLink to="/login">
+                                <Button variant="outline" size="sm">
+                                    Login
+                                </Button>
+                            </NavLink>
 
-                    <NavLink to="/register">
-                        <Button size="sm">Register</Button>
-                    </NavLink>
+                            <NavLink to="/register">
+                                <Button size="sm">Register</Button>
+                            </NavLink>
+                        </>
+                    ) : (
+                        <div className="flex items-center gap-3">
+                            {/* Profile */}
+                            <Link to="/profile">
+                                <div className="h-8 w-8 flex items-center justify-center rounded-full bg-blue-600 text-white text-sm font-semibold">
+                                    {user?.firstName?.[0] || user?.username?.[0] || "U"}
+                                </div>
+                            </Link>
+
+                            {/* Logout */}
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleLogout}
+                                className="text-red-600 border-red-600 cursor-pointer hover:bg-red-100"
+                            >
+                                Logout
+                            </Button>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -131,17 +163,30 @@ export default function Navbar() {
                     </form>
 
                     <div className="flex gap-2">
-                        <NavLink to="/login" className="flex-1">
-                            <Button variant="outline" size="sm" className="w-full">
-                                Login
-                            </Button>
-                        </NavLink>
+                        {!isAuthenticated ? (
+                            <>
+                                <NavLink to="/login" className="flex-1">
+                                    <Button variant="outline" size="sm" className="w-full">
+                                        Login
+                                    </Button>
+                                </NavLink>
 
-                        <NavLink to="/register" className="flex-1">
-                            <Button size="sm" className="w-full">
-                                Register
+                                <NavLink to="/register" className="flex-1">
+                                    <Button size="sm" className="w-full">
+                                        Register
+                                    </Button>
+                                </NavLink>
+                            </>
+                        ) : (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full"
+                                onClick={logout}
+                            >
+                                Logout
                             </Button>
-                        </NavLink>
+                        )}
                     </div>
                 </div>
             </div>

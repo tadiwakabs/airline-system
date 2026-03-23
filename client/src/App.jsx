@@ -11,25 +11,23 @@ import {AuthProvider} from "./contexts/AuthContext.jsx";
 
 function App() {
     return (
+        <AuthProvider>
             <AppLayout>
-                <AuthProvider>
-                    <Routes>
-                        {/* Open Routes */}
-                        <Route path="/" element={<Home />} />
-                        <Route path="/register" element={<Register />} />
-                        <Route path="/login" element={<Login />} />
+                <Routes>
+                    {/* Open Routes */}
+                    <Route path="/" element={<Home />} />
+                    <Route path="/register" element={<Register />} />
+                    <Route path="/login" element={<Login />} />
 
-                        {/* User-Authenticated Routes */}
+                    {/* User-Authenticated Routes */}
 
-                        {/* Employee-Authenticated Routes */}
+                    {/* Employee-Authenticated Routes */}
 
-                        {/* Administrator-Authenticated Routes */}
+                    {/* Administrator-Authenticated Routes */}
 
-                    </Routes>
-                </AuthProvider>
-                
+                </Routes>
             </AppLayout>
-        
+        </AuthProvider>
     );
 }
 
