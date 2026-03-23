@@ -12,6 +12,8 @@ namespace AirlineAPI.Data
         public DbSet<User> Users => Set<User>();
         public DbSet<Flight> Flights{get; set;}
 
+        public DbSet<Aircraft> Aircraft { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
