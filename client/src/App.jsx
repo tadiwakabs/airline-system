@@ -12,6 +12,11 @@ import {AuthProvider} from "./contexts/AuthContext.jsx";
 import Profile from "./pages/passenger/Profile.jsx";
 import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
 
+//dashboard
+import Admin from './pages/admin';
+import Employee from './pages/employee';
+
+
 function App() {
     return (
         <AuthProvider>
@@ -33,6 +38,8 @@ function App() {
 
                     {/* Administrator-Authenticated Routes */}
                     <Route path="/aircraft" element={<Aircraft />} />
+                    <Route path="/admin" element={<Admin />} />
+                    <Route path='/employee' element={<Employee />} />
 
                 </Routes>
             </AppLayout>
