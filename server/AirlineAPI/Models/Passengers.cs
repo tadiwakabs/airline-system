@@ -12,9 +12,9 @@ namespace AirlineAPI.Models
         public string passengerId { get; set; } = string.Empty;
 
         [ForeignKey("passengerId")]
-        public Users? Users { get; set; }
+        public User? Users { get; set; }
 
-        public Title? title { get; set; }
+        public UserTitle? title { get; set; }
 
         [Required]
         [StringLength(30)]
