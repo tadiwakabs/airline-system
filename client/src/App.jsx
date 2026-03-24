@@ -13,8 +13,8 @@ import Profile from "./pages/passenger/Profile.jsx";
 import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
 
 //dashboard
-import Admin from './pages/admin';
-import Employee from './pages/employee';
+import Admin from './pages/admin/AdminDashboard.jsx';
+import Employee from './pages/employee/EmployeeDashboard.jsx';
 
 
 function App() {
