@@ -1,23 +1,25 @@
 CREATE TABLE `Flight` (
       `flightNum` int NOT NULL,
-      `departTime` varchar(30) NOT NULL,
-      `arrivalTime` varchar(30) NOT NULL,
+      `departTime` datetime NOT NULL,
+      `arrivalTime` datetime NOT NULL,
       `aircraftUsed` varchar(10) NOT NULL,
-      `status` enum('Unloading','Boarding','Delayed','Airborne') NOT NULL,
+      `status` enum('On Time','Delayed','Cancelled','Boarding','Departed','Airborne') NOT NULL,
       `departingPort` char(3) NOT NULL,
       `arrivingPort` char(3) NOT NULL,
       `isDomestic` tinyint(1) NOT NULL,
       `distance` int NOT NULL,
       `flightChange` tinyint(1) DEFAULT NULL,
+      `recurringScheduleId` int DEFAULT NULL,
       PRIMARY KEY (`flightNum`),
       KEY `aircraftUsed` (`aircraftUsed`),
       KEY `fk_flight_depart_airport` (`departingPort`),
       KEY `fk_flight_arrive_airport` (`arrivingPort`),
-      CONSTRAINT `fk_flight_arrive_airport` FOREIGN KEY (`arrivingPort`) REFERENCES `Airport` (`airportCode`) 
-          ON DELETE RESTRICT ON UPDATE CASCADE,
-      CONSTRAINT `fk_flight_depart_airport` FOREIGN KEY (`departingPort`) REFERENCES `Airport` (`airportCode`) 
-          ON DELETE RESTRICT ON UPDATE CASCADE,
-      CONSTRAINT `Flight_ibfk_1` FOREIGN KEY (`aircraftUsed`) REFERENCES `Aircraft` (`tailNumber`) 
-          ON DELETE RESTRICT ON UPDATE CASCADE,
+      KEY `idx_flight_aircraft_time` (`aircraftUsed`,`departTime`,`arrivalTime`),
+      KEY `fk_flight_schedule` (`recurringScheduleId`),
+      CONSTRAINT `fk_flight_arrive_airport` FOREIGN KEY (`arrivingPort`) REFERENCES `Airport` (`airportCode`) ON DELETE RESTRICT ON UPDATE CASCADE,
+      CONSTRAINT `fk_flight_depart_airport` FOREIGN KEY (`departingPort`) REFERENCES `Airport` (`airportCode`) ON DELETE RESTRICT ON UPDATE CASCADE,
+      CONSTRAINT `fk_flight_schedule` FOREIGN KEY (`recurringScheduleId`) REFERENCES `RecurringSchedule` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+      CONSTRAINT `Flight_ibfk_1` FOREIGN KEY (`aircraftUsed`) REFERENCES `Aircraft` (`tailNumber`) ON DELETE RESTRICT ON UPDATE CASCADE,
       CONSTRAINT `Flight_chk_1` CHECK ((`flightNum` between 0 and 9999))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+
