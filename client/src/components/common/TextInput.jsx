@@ -17,6 +17,7 @@ export default function TextInput({
       value,
       onChange,
       error,
+      disabled = false,
       className = "",
   }) {
     const inputId = id || name;
@@ -43,6 +44,11 @@ export default function TextInput({
                     "w-full rounded-xl border bg-white",
                     "focus:outline-none focus:ring-2 focus:ring-blue-500",
                     error ? "border-red-500" : "border-gray-300",
+                    disabled
+                        ? "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-500"
+                        : error
+                        ? "border-red-500"
+                        : "border-gray-300",
                     sizeClasses[size],
                     className
                 )}
