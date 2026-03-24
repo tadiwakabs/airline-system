@@ -40,7 +40,7 @@ namespace AirlineAPI.Controllers
             return Ok(flight);
         }
 
-        [HttpPost]
+        [HttpPost("/api/add-flights")]
         public async Task<IActionResult> CreateFlight([FromBody] Flight newFlight)
         {
             if (newFlight == null)
