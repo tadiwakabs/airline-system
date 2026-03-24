@@ -1,5 +1,5 @@
 using AirlineAPI.Data;
-using AirlineAPI.DTOs.Flights;
+using AirlineAPI.DTOs.Flight;
 using AirlineAPI.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -77,38 +77,63 @@ namespace AirlineAPI.Controllers
         }
 
         [HttpPost("recurring")]
-        public async Task<IActionResult> CreateRecurringFlights([FromBody] CreateRecurringFlightDto dto)
+        public async Task<ActionResult> CreateRecurringFlights([FromBody] RecurringScheduleUpsertDto dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            if (dto.EndDate.Date < dto.StartDate.Date)
-                return BadRequest(new { message = "End date must be on or after start date." });
+            if (dto.StartDate.Date > dto.EndDate.Date)
+                return BadRequest(new { message = "Start date cannot be after end date." });
+
+            if (dto.DepartingPortCode == dto.ArrivingPortCode)
+                return BadRequest(new { message = "Departing and arriving airports cannot be the same." });
 
             if (dto.DaysOfWeek == null || dto.DaysOfWeek.Count == 0)
-                return BadRequest(new { message = "Select at least one day of the week." });
+                return BadRequest(new { message = "At least one day of week must be selected." });
 
-            int nextFlightNum = await _context.Flights.AnyAsync()
+            var schedule = new RecurringSchedule
+            {
+                DepartingPort = dto.DepartingPortCode,
+                ArrivingPort = dto.ArrivingPortCode,
+                DepartureTimeOfDay = dto.DepartureTimeOfDay,
+                ArrivalTimeOfDay = dto.ArrivalTimeOfDay,
+                AircraftUsed = dto.AircraftUsed,
+                Status = dto.Status,
+                IsDomestic = dto.IsDomestic,
+                Distance = dto.Distance,
+                FlightChange = dto.FlightChange,
+                StartDate = dto.StartDate.Date,
+                EndDate = dto.EndDate.Date,
+                DaysOfWeek = string.Join(",", dto.DaysOfWeek.OrderBy(d => d).Distinct())
+            };
+
+            _context.RecurringSchedules.Add(schedule);
+            await _context.SaveChangesAsync();
+
+            var selectedDays = dto.DaysOfWeek.Distinct().ToHashSet();
+            var flightsToCreate = new List<Flight>();
+
+            int nextFlightNum = (_context.Flights.Any())
                 ? await _context.Flights.MaxAsync(f => f.flightNum) + 1
                 : 1;
 
-            var createdFlights = new List<Flight>();
-
             for (var date = dto.StartDate.Date; date <= dto.EndDate.Date; date = date.AddDays(1))
             {
-                if (!dto.DaysOfWeek.Contains(date.DayOfWeek))
+                var dayNum = (int)date.DayOfWeek; // 0=Sun ... 6=Sat
+
+                if (!selectedDays.Contains(dayNum))
                     continue;
 
-                var depart = date.Add(dto.DepartureTimeOfDay);
-                var arrive = date.Add(dto.ArrivalTimeOfDay);
+                var departDateTime = date.Add(dto.DepartureTimeOfDay);
+                var arrivalDateTime = date.Add(dto.ArrivalTimeOfDay);
 
-                if (arrive <= depart)
-                    arrive = arrive.AddDays(1);
+                if (arrivalDateTime <= departDateTime)
+                    arrivalDateTime = arrivalDateTime.AddDays(1);
 
                 var validationError = await ValidateFlightAsync(
                     dto.AircraftUsed,
-                    depart,
-                    arrive,
+                    departDateTime,
+                    arrivalDateTime,
                     dto.DepartingPortCode,
                     dto.ArrivingPortCode,
                     null
@@ -118,31 +143,43 @@ namespace AirlineAPI.Controllers
                 {
                     return BadRequest(new
                     {
-                        message = $"Recurring generation failed on {date:yyyy-MM-dd}: {validationError}"
+                        message = $"Could not create recurring flight on {date:yyyy-MM-dd}: {validationError}"
                     });
                 }
 
-                var flight = new Flight
+                flightsToCreate.Add(new Flight
                 {
                     flightNum = nextFlightNum++,
-                    departTime = depart,
-                    arrivalTime = arrive,
+                    departTime = departDateTime,
+                    arrivalTime = arrivalDateTime,
                     aircraftUsed = dto.AircraftUsed,
                     status = dto.Status,
                     departingPort = dto.DepartingPortCode,
                     arrivingPort = dto.ArrivingPortCode,
                     isDomestic = dto.IsDomestic,
                     distance = dto.Distance,
-                    flightChange = dto.FlightChange
-                };
-
-                createdFlights.Add(flight);
+                    flightChange = dto.FlightChange,
+                    recurringScheduleId = schedule.Id
+                });
             }
 
-            _context.Flights.AddRange(createdFlights);
+            if (flightsToCreate.Count == 0)
+            {
+                return BadRequest(new
+                {
+                    message = "No flights were generated from the selected date range and days of week."
+                });
+            }
+
+            _context.Flights.AddRange(flightsToCreate);
             await _context.SaveChangesAsync();
 
-            return Ok(createdFlights);
+            return Ok(new
+            {
+                message = "Recurring schedule created successfully.",
+                recurringScheduleId = schedule.Id,
+                flightsCreated = flightsToCreate.Count
+            });
         }
 
         [HttpPut("{id}")]

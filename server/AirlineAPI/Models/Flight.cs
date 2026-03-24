@@ -39,6 +39,7 @@ namespace AirlineAPI.Models
         public bool isDomestic { get; set; }
         public int distance { get; set; }
         public bool? flightChange { get; set; }
+        public int? recurringScheduleId { get; set; }
 
         //----Links----
         [ForeignKey("aircraftUsed")]
@@ -51,5 +52,8 @@ namespace AirlineAPI.Models
         [ForeignKey("arrivingPort")]
         [JsonPropertyName("arrivingPortData")]
         public Airport? ArrivingPort{get;set;}
+        
+        [ForeignKey("recurringScheduleId")]
+        public RecurringSchedule? RecurringSchedule { get; set; }
     }
 }
