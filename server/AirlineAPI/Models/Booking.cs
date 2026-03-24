@@ -14,6 +14,7 @@ namespace AirlineAPI.Models
     [Table("Booking")]
     public class Booking
     {
+        [Key]
         [Required]
         [StringLength(50)]
         public string bookingId { get; set; } = string.Empty;
@@ -28,10 +29,9 @@ namespace AirlineAPI.Models
         [Range(0, 99999999.99)]
         public decimal totalPrice { get; set; }
 
-        [Key]
         [Required]
         [StringLength(50)]
-        public string usersId { get; set; } = string.Empty;
+        public string userId { get; set; } = string.Empty;
 
         [ForeignKey("userId")]
         public User? Users { get; set; }
