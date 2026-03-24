@@ -257,7 +257,7 @@ export default function Flights() {
         const arr = getAirportCoords(formData.arrivingPortCode);
         setFormData((p) => ({
             ...p,
-            distance: dep && arr ? haversineDistance(dep.latitude, dep.longitude, arr.latitude, arr.longitude) : "",
+            distance: dep && arr ? haversineDistance(dep.lat, dep.lng, arr.lat, arr.lng) : "",
         }));
     }, [formData.departingPortCode, formData.arrivingPortCode]);
 
@@ -266,7 +266,7 @@ export default function Flights() {
         const arr = getAirportCoords(recurringData.arrivingPortCode);
         setRecurringData((p) => ({
             ...p,
-            distance: dep && arr ? haversineDistance(dep.latitude, dep.longitude, arr.latitude, arr.longitude) : "",
+            distance: dep && arr ? haversineDistance(dep.lat, dep.lng, arr.lat, arr.lng) : "",
         }));
     }, [recurringData.departingPortCode, recurringData.arrivingPortCode]);
 
@@ -275,7 +275,7 @@ export default function Flights() {
         const arr = getAirportCoords(scheduleForm.arrivingPortCode);
         setScheduleForm((p) => ({
             ...p,
-            distance: dep && arr ? haversineDistance(dep.latitude, dep.longitude, arr.latitude, arr.longitude) : "",
+            distance: dep && arr ? haversineDistance(dep.lat, dep.lng, arr.lat, arr.lng) : "",
         }));
     }, [scheduleForm.departingPortCode, scheduleForm.arrivingPortCode]);
 
@@ -332,8 +332,8 @@ export default function Flights() {
             arrivalTime:       formatForDateTimeLocal(flight.arrivalTime),
             aircraftUsed:      flight.aircraftUsed ?? "",
             status:            flight.status ?? "",
-            departingPortCode: flight.departingPortCode ?? flight.departingPortCode ?? "",
-            arrivingPortCode:  flight.arrivingPortCode ?? flight.arrivingPortCode ?? "",
+            departingPortCode: flight.departingPortCode ?? flight.departingPort ?? "",
+            arrivingPortCode:  flight.arrivingPortCode ?? flight.arrivingPort ?? "",
             isDomestic:        !!flight.isDomestic,
             distance:          flight.distance ?? "",
             flightChange:      !!flight.flightChange,
@@ -535,8 +535,8 @@ export default function Flights() {
                 String(f.flightNum).toLowerCase().includes(term) ||
                 (f.aircraftUsed || "").toLowerCase().includes(term) ||
                 (f.status || "").toLowerCase().includes(term) ||
-                (f.departingPortCode || f.departingPortCode || "").toLowerCase().includes(term) ||
-                (f.arrivingPortCode  || f.arrivingPortCode  || "").toLowerCase().includes(term)
+                (f.departingPortCode || f.departingPort || "").toLowerCase().includes(term) ||
+                (f.arrivingPortCode  || f.arrivingPort  || "").toLowerCase().includes(term)
             );
         }
         if (statusFilter) result = result.filter((f) => f.status === statusFilter);
@@ -740,8 +740,8 @@ export default function Flights() {
                                         <td className="px-3 py-3">{formatDisplayDateTime(flight.arrivalTime)}</td>
                                         <td className="px-3 py-3">{flight.aircraftUsed}</td>
                                         <td className="px-3 py-3">
-                                            {flight.departingPortCode ?? flight.departingPortCode} →{" "}
-                                            {flight.arrivingPortCode  ?? flight.arrivingPortCode}
+                                            {flight.departingPortCode ?? flight.departingPort} →{" "}
+                                            {flight.arrivingPortCode  ?? flight.arrivingPort}
                                         </td>
                                         <td className="px-3 py-3">{flight.status}</td>
                                         <td className="px-3 py-3">{flight.distance}</td>
@@ -796,7 +796,7 @@ export default function Flights() {
                                 {schedules.map((s) => (
                                     <tr key={s.id} className="rounded-xl bg-gray-50 text-sm">
                                         <td className="px-3 py-3 font-medium text-gray-900">{s.id}</td>
-                                        <td className="px-3 py-3">{s.departingPortCode} → {s.arrivingPortCode}</td>
+                                        <td className="px-3 py-3">{s.departingPort} → {s.arrivingPort}</td>
                                         <td className="px-3 py-3">{formatTime(s.departureTimeOfDay)}</td>
                                         <td className="px-3 py-3">{formatTime(s.arrivalTimeOfDay)}</td>
                                         <td className="px-3 py-3">{s.aircraftUsed}</td>
