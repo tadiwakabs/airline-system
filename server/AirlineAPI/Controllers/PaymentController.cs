@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace AirlineAPI.Controllers
 {
     [ApiController]
-    [Route("api/[contoller]")]
+    [Route("api/[controller]")]
 
     public class PaymentController:ControllerBase
     {
