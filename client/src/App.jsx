@@ -6,6 +6,7 @@ import AppLayout from "./components/layout/AppLayout.jsx";
 // Route Imports
 import Home from './pages/Home'
 import Register from './pages/Register'
+import Flights from "./pages/Flights";
 
 function App() {
     return (
@@ -18,6 +19,7 @@ function App() {
                     {/* User-Authenticated Routes */}
 
                     {/* Employee-Authenticated Routes */}
+                    <Route path="/flights" element={<Flights />} />
 
                     {/* Administrator-Authenticated Routes */}
 

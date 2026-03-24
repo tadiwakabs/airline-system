@@ -40,6 +40,7 @@ namespace AirlineAPI.Controllers
             return Ok(flight);
         }
 
+        // POST: api/flights
         [HttpPost]
         public async Task<IActionResult> CreateFlight([FromBody] Flight newFlight)
         {
@@ -55,6 +56,7 @@ namespace AirlineAPI.Controllers
             return Ok(newFlight);
         }
 
+        // PUT: api/flights/5
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateFlight(int id, [FromBody] Flight updatedFlight)
         {
@@ -68,6 +70,7 @@ namespace AirlineAPI.Controllers
             return Ok("Flight successfully updated!");
         }
 
+        // DELETE: api/flights/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteFlight(int id,[FromBody] Flight deletedFlight)
         {
@@ -92,6 +95,10 @@ namespace AirlineAPI.Controllers
 
             return Ok(results);
         }
+        
+        // POST: api/flights/recurring
+        [HttpPost("recurring")]
+        public async Task<IActionResult> CreateRecurringFlights(CreateRecurringFlightDto dto)
     }
 
 }
