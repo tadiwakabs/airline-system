@@ -35,5 +35,7 @@ namespace AirlineAPI.Models
 
         [ForeignKey("userId")]
         public User? Users { get; set; }
+
+        public List<Payment> Payments {get;set;}= new List<Payment>(); 
     }
 }
