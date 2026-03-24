@@ -15,3 +15,6 @@ export const searchFlightsByDestination = (dest) =>
 
 export const createRecurringFlights = (data) =>
     api.post("/flights/recurring", data);
+
+export const upsertFlightPricing = (flightNum, data) => 
+    api.put(`/flights/${flightNum}/pricing`, data);

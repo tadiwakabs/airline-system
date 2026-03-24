@@ -86,8 +86,8 @@ export default function PassengerSelector({ label = "Passengers", value, onChang
 
     const canIncrement = (key) => {
         if (total >= MAX_TOTAL) return false;
-        if (key === "infants" && counts.infants >= counts.adults) return false;
-        return true;
+        return !(key === "infants" && counts.infants >= counts.adults);
+        
     };
 
     const canDecrement = (key) => {
@@ -109,8 +109,12 @@ export default function PassengerSelector({ label = "Passengers", value, onChang
                             focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors
                             ${error ? "border-red-500" : "border-gray-300"}`}
             >
-                <span className="text-gray-800">{summaryText}</span>
-                <span className="float-right text-gray-400 mt-0.5">{isOpen ? "▲" : "▼"}</span>
+                <div className="flex items-center justify-between">
+                    <span className="text-gray-800">{summaryText}</span>
+                    <svg className={`w-4 h-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+                    </svg>
+                </div>
             </button>
 
             {error && <p className="text-sm text-red-600">{error}</p>}
