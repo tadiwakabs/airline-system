@@ -8,29 +8,55 @@ const sizeClasses = {
 };
 
 export default function TextInput({
-                                      label,
-                                      type = "text",
-                                      size = "md",
-                                      placeholder = "",
-                                      value,
-                                      onChange,
-                                      className = "",
-                                  }) {
+      label,
+      name,
+      id,
+      type = "text",
+      size = "md",
+      placeholder = "",
+      value,
+      onChange,
+      error,
+      disabled = false,
+      className = "",
+  }) {
+    const inputId = id || name;
+
     return (
         <div className="space-y-1">
-            {label && <label className="block text-sm font-medium text-gray-700">{label}</label>}
+            {label && (
+                <label
+                    htmlFor={inputId}
+                    className="block text-sm font-medium text-gray-700"
+                >
+                    {label}
+                </label>
+            )}
+
             <input
+                id={inputId}
+                name={name}
                 type={type}
                 placeholder={placeholder}
                 value={value}
                 onChange={onChange}
                 className={cn(
-                    "w-full rounded-xl border border-gray-300 bg-white",
+                    "w-full rounded-xl border bg-white",
                     "focus:outline-none focus:ring-2 focus:ring-blue-500",
+                    error ? "border-red-500" : "border-gray-300",
+                    disabled
+                        ? "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-500"
+                        : error
+                        ? "border-red-500"
+                        : "border-gray-300",
                     sizeClasses[size],
                     className
                 )}
             />
+
+            {error && (
+                <p className="text-sm text-red-600">{error}</p>
+            )}
         </div>
     );
 }

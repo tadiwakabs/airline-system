@@ -15,7 +15,7 @@ namespace AirlineAPI.Data
         public DbSet<Passenger> Passenger{get;set;}
         public DbSet<Booking> Booking{get;set;}
         public DbSet<Payment> Payments{get;set;}
-        
+        public DbSet<RecurringSchedule> RecurringSchedules { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

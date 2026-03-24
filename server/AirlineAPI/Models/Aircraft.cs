@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace AirlineAPI.Models
 {
-    [Table("aircraftTable")]
+    [Table("Aircraft")]
     public class Aircraft
     {
         [Key]

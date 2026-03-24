@@ -9,6 +9,7 @@ export default function Modal({
       footer,
       closeOnOverlayClick = true,
       className = "",
+      contentClassName = "",
   }) {
     useEffect(() => {
         if (!isOpen) return;
@@ -71,7 +72,7 @@ export default function Modal({
                     </button>
                 </div>
 
-                <div className="max-h-[60vh] overflow-y-auto px-5 py-4">
+                <div className={cn("max-h-[60vh] overflow-y-auto px-5 py-4", contentClassName)}>
                     {children}
                 </div>
 
