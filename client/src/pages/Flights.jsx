@@ -13,9 +13,23 @@ import {
     updateFlight,
     deleteFlight,
 } from "../services/flightService";
-//import { getAllAircraft } from "../services/aircraftService";
+import { getAllAircraft } from "../services/aircraftService";
 import airportOptions from "../dropdownData/airports.json";
-import {getAllAircraft} from "../services/aircraftService.js";
+
+function haversineDistance(lat1, lng1, lat2, lng2) {
+    const R = 3958.8; // miles
+    const toRad = (deg) => (deg * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+    return Math.round(R * 2 * Math.asin(Math.sqrt(a)));
+}
+
+function getAirportCoords(code) {
+    return airportOptions.find((a) => a.value === code) ?? null;
+}
 
 const statusFilterOptions = [
     { label: "All Statuses", value: "" },
@@ -156,6 +170,34 @@ export default function Flights() {
         setFormMode("single");
         setIsModalOpen(false);
     };
+
+    // Auto-compute distance when both airports are selected (single form)
+    useEffect(() => {
+        const dep = getAirportCoords(formData.departingPortCode);
+        const arr = getAirportCoords(formData.arrivingPortCode);
+        if (dep && arr) {
+            setFormData((p) => ({
+                ...p,
+                distance: haversineDistance(dep.lat, dep.lng, arr.lat, arr.lng),
+            }));
+        } else {
+            setFormData((p) => ({ ...p, distance: "" }));
+        }
+    }, [formData.departingPortCode, formData.arrivingPortCode]);
+
+    // Auto-compute distance for recurring form
+    useEffect(() => {
+        const dep = getAirportCoords(recurringData.departingPortCode);
+        const arr = getAirportCoords(recurringData.arrivingPortCode);
+        if (dep && arr) {
+            setRecurringData((p) => ({
+                ...p,
+                distance: haversineDistance(dep.lat, dep.lng, arr.lat, arr.lng),
+            }));
+        } else {
+            setRecurringData((p) => ({ ...p, distance: "" }));
+        }
+    }, [recurringData.departingPortCode, recurringData.arrivingPortCode]);
 
     const handleFormChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -583,11 +625,13 @@ export default function Flights() {
                         </div>
 
                         <TextInput
-                            label="Distance"
+                            label="Distance (miles)"
                             name="distance"
                             type="number"
                             value={formData.distance}
                             onChange={handleFormChange}
+                            disabled={true}
+                            className="bg-gray-50 text-gray-500 cursor-not-allowed"
                         />
 
                         <label className="flex items-center gap-2 text-sm text-gray-700">
@@ -708,11 +752,13 @@ export default function Flights() {
                         </div>
 
                         <TextInput
-                            label="Distance"
+                            label="Distance (miles) — auto-calculated"
                             name="distance"
                             type="number"
                             value={recurringData.distance}
                             onChange={handleRecurringChange}
+                            disabled={true}
+                            className="bg-gray-50 text-gray-500 cursor-not-allowed"
                         />
 
                         <label className="flex items-center gap-2 text-sm text-gray-700">
