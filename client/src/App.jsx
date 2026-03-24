@@ -7,10 +7,12 @@ import AppLayout from "./components/layout/AppLayout.jsx";
 import Home from './pages/Home'
 import Register from './pages/Register'
 import Aircraft from './pages/Aircraft'
+import Flight from './pages/Flights'
 import Login from "./pages/Login.jsx";
 import {AuthProvider} from "./contexts/AuthContext.jsx";
 import Profile from "./pages/passenger/Profile.jsx";
 import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
+import Flights from "./pages/Flights";
 
 function App() {
     return (
@@ -30,7 +32,8 @@ function App() {
                                 </ProtectedRoute>} />
 
                     {/* Employee-Authenticated Routes */}
-
+                    <Route path="/flights" element={<Flights />} />
+                    
                     {/* Administrator-Authenticated Routes */}
                     <Route path="/aircraft" element={<Aircraft />} />
 

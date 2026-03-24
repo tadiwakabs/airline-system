@@ -15,6 +15,7 @@ import {
 } from "../services/flightService";
 //import { getAllAircraft } from "../services/aircraftService";
 import airportOptions from "../dropdownData/airports.json";
+import {getAllAircraft} from "../services/aircraftService.js";
 
 const statusFilterOptions = [
     { label: "All Statuses", value: "" },
@@ -125,8 +126,8 @@ export default function Flights() {
         try {
             const res = await getAllAircraft();
             const opts = res.data.map((a) => ({
-                label: a.tailNumber,
-                value: a.tailNumber,
+                label: a.tailnumber,
+                value: a.tailnumber,
             }));
             setAircraftOptions(opts);
             setFilteredAircraftOptions(opts);
