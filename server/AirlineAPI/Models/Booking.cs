@@ -14,6 +14,7 @@ namespace AirlineAPI.Models
     [Table("Booking")]
     public class Booking
     {
+        [Key]
         [Required]
         [StringLength(50)]
         public string bookingId { get; set; } = string.Empty;
