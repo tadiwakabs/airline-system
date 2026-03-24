@@ -6,6 +6,7 @@ import Dropdown from "../components/common/Dropdown";
 import Combobox from "../components/common/Combobox";
 import Separator from "../components/common/Separator";
 import Modal from "../components/common/Modal";
+import Dialog from "../components/common/Dialog";
 import {
     getAllFlights,
     createFlight,
@@ -165,6 +166,8 @@ export default function Flights() {
     const [flightFormMode, setFlightFormMode] = useState("single");
     const [formData, setFormData] = useState(emptyForm);
     const [recurringData, setRecurringData] = useState(emptyRecurringForm);
+    const [isDeleteFlightDialogOpen, setIsDeleteFlightDialogOpen] = useState(false);
+    const [flightToDelete, setFlightToDelete] = useState(null);
     // airport filter states — flights tab
     const [apDepF,  setApDepF]  = useState(airportOptions);
     const [apArrF,  setApArrF]  = useState(airportOptions);
@@ -177,6 +180,9 @@ export default function Flights() {
     const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
     const [editingScheduleId, setEditingScheduleId] = useState(null);
     const [scheduleForm, setScheduleForm] = useState(emptyRecurringForm);
+    const [isDeleteScheduleDialogOpen, setIsDeleteScheduleDialogOpen] = useState(false);
+    const [scheduleToDelete, setScheduleToDelete] = useState(null);
+    const [deleteScheduleMode, setDeleteScheduleMode] = useState("unlink"); // "unlink" | "delete"
     // airport filter states — schedule modal
     const [apDepS, setApDepS] = useState(airportOptions);
     const [apArrS, setApArrS] = useState(airportOptions);
@@ -251,7 +257,7 @@ export default function Flights() {
         const arr = getAirportCoords(formData.arrivingPortCode);
         setFormData((p) => ({
             ...p,
-            distance: dep && arr ? haversineDistance(dep.lat, dep.lng, arr.lat, arr.lng) : "",
+            distance: dep && arr ? haversineDistance(dep.latitude, dep.longitude, arr.latitude, arr.longitude) : "",
         }));
     }, [formData.departingPortCode, formData.arrivingPortCode]);
 
@@ -260,7 +266,7 @@ export default function Flights() {
         const arr = getAirportCoords(recurringData.arrivingPortCode);
         setRecurringData((p) => ({
             ...p,
-            distance: dep && arr ? haversineDistance(dep.lat, dep.lng, arr.lat, arr.lng) : "",
+            distance: dep && arr ? haversineDistance(dep.latitude, dep.longitude, arr.latitude, arr.longitude) : "",
         }));
     }, [recurringData.departingPortCode, recurringData.arrivingPortCode]);
 
@@ -269,7 +275,7 @@ export default function Flights() {
         const arr = getAirportCoords(scheduleForm.arrivingPortCode);
         setScheduleForm((p) => ({
             ...p,
-            distance: dep && arr ? haversineDistance(dep.lat, dep.lng, arr.lat, arr.lng) : "",
+            distance: dep && arr ? haversineDistance(dep.latitude, dep.longitude, arr.latitude, arr.longitude) : "",
         }));
     }, [scheduleForm.departingPortCode, scheduleForm.arrivingPortCode]);
 
@@ -326,8 +332,8 @@ export default function Flights() {
             arrivalTime:       formatForDateTimeLocal(flight.arrivalTime),
             aircraftUsed:      flight.aircraftUsed ?? "",
             status:            flight.status ?? "",
-            departingPortCode: flight.departingPortCode ?? flight.departingPort ?? "",
-            arrivingPortCode:  flight.arrivingPortCode ?? flight.arrivingPort ?? "",
+            departingPortCode: flight.departingPortCode ?? flight.departingPortCode ?? "",
+            arrivingPortCode:  flight.arrivingPortCode ?? flight.arrivingPortCode ?? "",
             isDomestic:        !!flight.isDomestic,
             distance:          flight.distance ?? "",
             flightChange:      !!flight.flightChange,
@@ -335,13 +341,27 @@ export default function Flights() {
         setIsFlightModalOpen(true);
     };
 
-    const handleDelete = async (flightNum) => {
-        if (!window.confirm(`Delete flight ${flightNum}? This cannot be undone.`)) return;
+    const handleDelete = (flight) => {
+        setError("");
+        setSuccessMessage("");
+        setFlightToDelete(flight);
+        setIsDeleteFlightDialogOpen(true);
+    };
+
+    const confirmDeleteFlight = async () => {
+        if (!flightToDelete) return;
+
         try {
             setError("");
             setSuccessMessage("");
-            await deleteFlight(flightNum);
-            setSuccessMessage("Flight deleted successfully.");
+
+            await deleteFlight(flightToDelete.flightNum);
+
+            setSuccessMessage(`Flight ${flightToDelete.flightNum} deleted successfully.`);
+
+            setIsDeleteFlightDialogOpen(false);
+            setFlightToDelete(null);
+
             await loadFlights();
         } catch (err) {
             setError(err?.response?.data?.message || "Failed to delete flight.");
@@ -432,8 +452,8 @@ export default function Flights() {
         setError("");
         setEditingScheduleId(schedule.id);
         setScheduleForm({
-            departingPortCode:  schedule.departingPort ?? "",
-            arrivingPortCode:   schedule.arrivingPort ?? "",
+            departingPortCode:  schedule.departingPortCode ?? "",
+            arrivingPortCode:   schedule.arrivingPortCode ?? "",
             departureTimeOfDay: schedule.departureTimeOfDay?.slice(0, 5) ?? "",
             arrivalTimeOfDay:   schedule.arrivalTimeOfDay?.slice(0, 5) ?? "",
             aircraftUsed:       schedule.aircraftUsed ?? "",
@@ -448,19 +468,34 @@ export default function Flights() {
         setIsScheduleModalOpen(true);
     };
 
-    const handleDeleteSchedule = async (id) => {
-        const deleteFlights = window.confirm(
-            "Also delete all future flights in this schedule?\n\nOK = delete future flights too\nCancel = keep flights but unlink them"
-        );
+    const handleDeleteSchedule = (schedule) => {
+        setSuccessMessage("");
+        setError("");
+        setScheduleToDelete(schedule);
+        setDeleteScheduleMode("unlink");
+        setIsDeleteScheduleDialogOpen(true);
+    };
+
+    const confirmDeleteSchedule = async () => {
+        if (!scheduleToDelete) return;
+
+        const deleteFlights = deleteScheduleMode === "delete";
+
         try {
             setError("");
             setSuccessMessage("");
-            await deleteRecurringSchedule(id, deleteFlights);
+
+            await deleteRecurringSchedule(scheduleToDelete.id, deleteFlights);
+
             setSuccessMessage(
                 deleteFlights
                     ? "Schedule and future flights deleted."
                     : "Schedule deleted. Existing flights have been unlinked."
             );
+
+            setIsDeleteScheduleDialogOpen(false);
+            setScheduleToDelete(null);
+
             await loadSchedules();
             await loadFlights();
         } catch (err) {
@@ -500,8 +535,8 @@ export default function Flights() {
                 String(f.flightNum).toLowerCase().includes(term) ||
                 (f.aircraftUsed || "").toLowerCase().includes(term) ||
                 (f.status || "").toLowerCase().includes(term) ||
-                (f.departingPortCode || f.departingPort || "").toLowerCase().includes(term) ||
-                (f.arrivingPortCode  || f.arrivingPort  || "").toLowerCase().includes(term)
+                (f.departingPortCode || f.departingPortCode || "").toLowerCase().includes(term) ||
+                (f.arrivingPortCode  || f.arrivingPortCode  || "").toLowerCase().includes(term)
             );
         }
         if (statusFilter) result = result.filter((f) => f.status === statusFilter);
@@ -705,8 +740,8 @@ export default function Flights() {
                                         <td className="px-3 py-3">{formatDisplayDateTime(flight.arrivalTime)}</td>
                                         <td className="px-3 py-3">{flight.aircraftUsed}</td>
                                         <td className="px-3 py-3">
-                                            {flight.departingPortCode ?? flight.departingPort} →{" "}
-                                            {flight.arrivingPortCode  ?? flight.arrivingPort}
+                                            {flight.departingPortCode ?? flight.departingPortCode} →{" "}
+                                            {flight.arrivingPortCode  ?? flight.arrivingPortCode}
                                         </td>
                                         <td className="px-3 py-3">{flight.status}</td>
                                         <td className="px-3 py-3">{flight.distance}</td>
@@ -717,7 +752,7 @@ export default function Flights() {
                                                 <Button
                                                     size="sm" variant="outline"
                                                     className="border-red-300 text-red-600 hover:bg-red-50"
-                                                    onClick={() => handleDelete(flight.flightNum)}
+                                                    onClick={() => handleDelete(flight)}
                                                 >
                                                     Delete
                                                 </Button>
@@ -761,7 +796,7 @@ export default function Flights() {
                                 {schedules.map((s) => (
                                     <tr key={s.id} className="rounded-xl bg-gray-50 text-sm">
                                         <td className="px-3 py-3 font-medium text-gray-900">{s.id}</td>
-                                        <td className="px-3 py-3">{s.departingPort} → {s.arrivingPort}</td>
+                                        <td className="px-3 py-3">{s.departingPortCode} → {s.arrivingPortCode}</td>
                                         <td className="px-3 py-3">{formatTime(s.departureTimeOfDay)}</td>
                                         <td className="px-3 py-3">{formatTime(s.arrivalTimeOfDay)}</td>
                                         <td className="px-3 py-3">{s.aircraftUsed}</td>
@@ -778,7 +813,7 @@ export default function Flights() {
                                                 <Button
                                                     size="sm" variant="outline"
                                                     className="border-red-300 text-red-600 hover:bg-red-50"
-                                                    onClick={() => handleDeleteSchedule(s.id)}
+                                                    onClick={() => handleDeleteSchedule(s)}
                                                 >
                                                     Delete
                                                 </Button>
@@ -887,7 +922,7 @@ export default function Flights() {
                 className="!max-w-2xl"
                 contentClassName="!max-h-[78vh]"
             >
-                <p className="mb-4 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-sm">
+                <p className="mb-4 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                     Changes apply to all future flights in this schedule. If the date range
                     or days of week change, future flights will be deleted and regenerated.
                 </p>
@@ -914,11 +949,140 @@ export default function Flights() {
                     {renderCheckboxes(scheduleForm, handleScheduleFormChange)}
                     {renderDaysOfWeek(scheduleForm.daysOfWeek, toggleScheduleDay)}
                     <div className="flex gap-3 pt-2">
-                        <Button type="submit">Save &amp; Regenerate Future Flights</Button>
+                        <Button type="submit">Save Changes</Button>
                         <Button type="button" variant="outline" onClick={resetScheduleForm}>Cancel</Button>
                     </div>
                 </form>
             </Modal>
+
+            {/* ════════════════════════════════════════════════════════════════
+                DELETE FLIGHT DIALOG
+            ════════════════════════════════════════════════════════════════ */}
+            <Dialog
+                isOpen={isDeleteFlightDialogOpen}
+                onClose={() => {
+                    setIsDeleteFlightDialogOpen(false);
+                    setFlightToDelete(null);
+                }}
+                title="Delete Flight"
+                description={
+                    flightToDelete
+                        ? `Are you sure you want to delete flight #${flightToDelete.flightNum}?`
+                        : "Are you sure you want to delete this flight?"
+                }
+                confirmText="Delete Flight"
+                confirmVariant="danger"
+                onConfirm={confirmDeleteFlight}
+                className="!max-w-md"
+            >
+                <div className="space-y-4">
+                    <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                        This action cannot be undone.
+                    </div>
+
+                    {flightToDelete && (
+                        <div className="rounded-lg bg-gray-50 px-3 py-3 text-sm text-gray-700">
+                            <p>
+                                <span className="font-medium">Flight #:</span>{" "}
+                                {flightToDelete.flightNum}
+                            </p>
+                            <p>
+                                <span className="font-medium">Route:</span>{" "}
+                                {flightToDelete.departingPortCode ?? flightToDelete.departingPort}
+                                {" → "}
+                                {flightToDelete.arrivingPortCode ?? flightToDelete.arrivingPort}
+                            </p>
+                            <p>
+                                <span className="font-medium">Departure:</span>{" "}
+                                {formatDisplayDateTime(flightToDelete.departTime)}
+                            </p>
+                        </div>
+                    )}
+                </div>
+            </Dialog>
+            
+            
+            {/* ════════════════════════════════════════════════════════════════
+                DELETE RECURRING SCHEDULE DIALOG
+            ════════════════════════════════════════════════════════════════ */}
+            <Dialog
+                isOpen={isDeleteScheduleDialogOpen}
+                onClose={() => {
+                    setIsDeleteScheduleDialogOpen(false);
+                    setScheduleToDelete(null);
+                    setDeleteScheduleMode("unlink");
+                }}
+                title="Delete Recurring Schedule"
+                description={
+                    scheduleToDelete
+                        ? `Are you sure you want to delete recurring schedule #${scheduleToDelete.id}?`
+                        : "Are you sure you want to delete this recurring schedule?"
+                }
+                confirmText={
+                    deleteScheduleMode === "delete"
+                        ? "Delete Schedule & Flights"
+                        : "Delete Schedule"
+                }
+                confirmVariant="danger"
+                onConfirm={confirmDeleteSchedule}
+                className="!max-w-xl"
+            >
+                <div className="space-y-4">
+                    <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                        This action cannot be undone.
+                    </div>
+
+                    <div className="space-y-3">
+                        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 p-3 hover:bg-gray-50">
+                            <input
+                                type="radio"
+                                name="deleteScheduleMode"
+                                checked={deleteScheduleMode === "unlink"}
+                                onChange={() => setDeleteScheduleMode("unlink")}
+                                className="mt-1"
+                            />
+                            <div>
+                                <p className="font-medium text-gray-900">Delete schedule only</p>
+                                <p className="text-sm text-gray-600">
+                                    Keep existing/future generated flights, but unlink them from this schedule.
+                                </p>
+                            </div>
+                        </label>
+
+                        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 p-3 hover:bg-gray-50">
+                            <input
+                                type="radio"
+                                name="deleteScheduleMode"
+                                checked={deleteScheduleMode === "delete"}
+                                onChange={() => setDeleteScheduleMode("delete")}
+                                className="mt-1"
+                            />
+                            <div>
+                                <p className="font-medium text-gray-900">Delete schedule and future flights</p>
+                                <p className="text-sm text-gray-600">
+                                    Remove the recurring schedule and also delete the future flights generated from it.
+                                </p>
+                            </div>
+                        </label>
+                    </div>
+
+                    {scheduleToDelete && (
+                        <div className="rounded-lg bg-gray-50 px-3 py-3 text-sm text-gray-700">
+                            <p>
+                                <span className="font-medium">Route:</span>{" "}
+                                {scheduleToDelete.departingPortCode} → {scheduleToDelete.arrivingPortCode}
+                            </p>
+                            <p>
+                                <span className="font-medium">Aircraft:</span> {scheduleToDelete.aircraftUsed}
+                            </p>
+                            <p>
+                                <span className="font-medium">Date Range:</span>{" "}
+                                {scheduleToDelete.startDate?.slice(0, 10)} – {scheduleToDelete.endDate?.slice(0, 10)}
+                            </p>
+                        </div>
+                    )}
+                </div>
+            </Dialog>
 
         </div>
     );

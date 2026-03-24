@@ -72,9 +72,60 @@ namespace AirlineAPI.Controllers
             schedule.DaysOfWeek = string.Join(",", dto.DaysOfWeek.OrderBy(d => d).Distinct());
 
             await _context.SaveChangesAsync();
+            
+            // Regenerate future flights
+            var now = DateTime.Now;
 
-            // Later:
-            // regenerate future flights here
+            // Delete future flights tied to this schedule
+            var futureFlights = await _context.Flights
+                .Where(f => f.recurringScheduleId == id && f.departTime >= now)
+                .ToListAsync();
+            
+            // Regenerate future flights based on new schedule
+            var selectedDays = dto.DaysOfWeek.Distinct().ToHashSet();
+            var flightsToCreate = new List<Flight>();
+
+            int nextFlightNum = await _context.Flights.AnyAsync()
+                ? await _context.Flights.MaxAsync(f => f.flightNum) + 1
+                : 1;
+
+            for (var date = dto.StartDate.Date; date <= dto.EndDate.Date; date = date.AddDays(1))
+            {
+                var dayNum = (int)date.DayOfWeek; // 0=Sun ... 6=Sat
+                if (!selectedDays.Contains(dayNum))
+                    continue;
+
+                var departDateTime = date.Add(dto.DepartureTimeOfDay);
+                var arrivalDateTime = date.Add(dto.ArrivalTimeOfDay);
+
+                if (arrivalDateTime <= departDateTime)
+                    arrivalDateTime = arrivalDateTime.AddDays(1);
+
+                // optional: skip already-past departures
+                if (departDateTime < now)
+                    continue;
+
+                flightsToCreate.Add(new Flight
+                {
+                    flightNum = nextFlightNum++,
+                    departTime = departDateTime,
+                    arrivalTime = arrivalDateTime,
+                    aircraftUsed = dto.AircraftUsed,
+                    status = dto.Status,
+                    departingPort = dto.DepartingPortCode,
+                    arrivingPort = dto.ArrivingPortCode,
+                    isDomestic = dto.IsDomestic,
+                    distance = dto.Distance,
+                    flightChange = dto.FlightChange,
+                    recurringScheduleId = id
+                });
+            }
+
+            _context.Flights.AddRange(flightsToCreate);
+            await _context.SaveChangesAsync();
+
+            _context.Flights.RemoveRange(futureFlights);
+            await _context.SaveChangesAsync();
 
             return Ok(new
             {
@@ -88,10 +139,25 @@ namespace AirlineAPI.Controllers
             var schedule = await _context.RecurringSchedules.FindAsync(id);
             if (schedule == null)
                 return NotFound(new { message = "Recurring schedule not found." });
+            
+            // If deleteFlights == true -> delete future flights tied to this schedule
+            var now = DateTime.Now;
 
-            // Later:
-            // if deleteFlights == true -> delete future flights tied to this schedule
-            // else unlink them by setting recurringScheduleId = null
+            var futureFlights = await _context.Flights
+                .Where(f => f.recurringScheduleId == id && f.departTime >= now)
+                .ToListAsync();
+
+            _context.Flights.RemoveRange(futureFlights);
+            
+            // Else, unlink them by setting recurringScheduleId = null
+            var linkedFlights = await _context.Flights
+                .Where(f => f.recurringScheduleId == id)
+                .ToListAsync();
+
+            foreach (var flight in linkedFlights)
+            {
+                flight.recurringScheduleId = null;
+            }
 
             _context.RecurringSchedules.Remove(schedule);
             await _context.SaveChangesAsync();
