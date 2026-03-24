@@ -221,7 +221,6 @@ export default function Profile() {
                                 />
                                 <TextInput
                                     label="Date of Birth"
-                                    type="date"
                                     value={profile.dateOfBirth?.split("T")[0] || ""}
                                     disabled
                                     className="bg-gray-50"
@@ -233,7 +232,7 @@ export default function Profile() {
                                     className="bg-gray-50"
                                 />
                                 <TextInput
-                                    label="Created At"
+                                    label="Account Creation Date"
                                     value={
                                         profile.createdAt
                                             ? new Date(profile.createdAt).toLocaleString()
@@ -303,7 +302,7 @@ export default function Profile() {
                                 Change Password
                             </h1>
                             <p className="mt-1 text-sm text-gray-500">
-                                Update your password securely.
+                                Update your password.
                             </p>
 
                             <Separator className="my-6" />
