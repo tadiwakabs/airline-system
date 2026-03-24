@@ -12,3 +12,6 @@ export const deleteFlight = (id) => api.delete(`/flights/${id}`);
 
 export const searchFlightsByDestination = (dest) =>
     api.get(`/flights/search?dest=${encodeURIComponent(dest)}`);
+
+export const createRecurringFlights = (data) =>
+    api.post("/flights/recurring", data);

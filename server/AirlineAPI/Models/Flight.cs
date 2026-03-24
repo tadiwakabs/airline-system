@@ -13,12 +13,10 @@ namespace AirlineAPI.Models
         public int flightNum { get; set; }
 
         [Required]
-        [StringLength(30)]
-        public string departTime { get; set; } = string.Empty;
+        public DateTime departTime { get; set; }
 
         [Required]
-        [StringLength(30)]
-        public string arrivalTime { get; set; } = string.Empty;
+        public DateTime arrivalTime { get; set; }
         
         [Required]
         [StringLength(10)]
