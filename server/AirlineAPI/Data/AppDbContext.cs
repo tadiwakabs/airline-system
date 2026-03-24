@@ -11,7 +11,10 @@ namespace AirlineAPI.Data
 
         public DbSet<User> Users => Set<User>();
         public DbSet<Flight> Flights{get; set;}
-        public DbSet<Aircraft> Aircraft { get; set; }
+        public DbSet<Aircraft> Aircraft { get; set;}
+        public DbSet<Passenger> Passenger{get;set;}
+        public DbSet<RecurringSchedule> RecurringSchedules { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -83,6 +86,58 @@ namespace AirlineAPI.Data
                     .HasColumnName("createdAt");
 
                 entity.Property(u => u.UpdatedAt)
+                    .HasColumnName("updatedAt");
+            });
+            
+            modelBuilder.Entity<RecurringSchedule>(entity =>
+            {
+                entity.ToTable("RecurringSchedule");
+
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Id)
+                    .HasColumnName("id");
+
+                entity.Property(e => e.DepartingPort)
+                    .HasColumnName("departingPort");
+
+                entity.Property(e => e.ArrivingPort)
+                    .HasColumnName("arrivingPort");
+
+                entity.Property(e => e.DepartureTimeOfDay)
+                    .HasColumnName("departureTimeOfDay");
+
+                entity.Property(e => e.ArrivalTimeOfDay)
+                    .HasColumnName("arrivalTimeOfDay");
+
+                entity.Property(e => e.AircraftUsed)
+                    .HasColumnName("aircraftUsed");
+
+                entity.Property(e => e.Status)
+                    .HasColumnName("status");
+
+                entity.Property(e => e.IsDomestic)
+                    .HasColumnName("isDomestic");
+
+                entity.Property(e => e.Distance)
+                    .HasColumnName("distance");
+
+                entity.Property(e => e.FlightChange)
+                    .HasColumnName("flightChange");
+
+                entity.Property(e => e.StartDate)
+                    .HasColumnName("startDate");
+
+                entity.Property(e => e.EndDate)
+                    .HasColumnName("endDate");
+
+                entity.Property(e => e.DaysOfWeek)
+                    .HasColumnName("daysOfWeek");
+
+                entity.Property(e => e.CreatedAt)
+                    .HasColumnName("createdAt");
+
+                entity.Property(e => e.UpdatedAt)
                     .HasColumnName("updatedAt");
             });
         }
