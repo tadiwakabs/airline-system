@@ -3,7 +3,7 @@ import Dropdown from "../common/Dropdown.jsx";
 import Button from "../common/Button.jsx";
 import Combobox from "../common/Combobox.jsx";
 import RadioGroup from "../common/RadioGroup.jsx";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import PassengerSelector from "./PassengerSelector.jsx";
 
 import AIRPORTS from "../../dropdownData/airports.json";
@@ -36,6 +36,17 @@ export default function FlightSearchPanel({ onSearch, initialValues = {} }) {
     );
     const [cabinClass, setCabinClass] = useState(initialValues.cabinClass || "economy");
     const [errors, setErrors] = useState({});
+
+    useEffect(() => {
+        setFlightType(initialValues.flightType || "one-way");
+        setDeparture(initialValues.departure || "");
+        setArrival(initialValues.arrival || "");
+        setDateDepart(initialValues.dateDepart || "");
+        setDateReturn(initialValues.dateReturn || "");
+        setPassengers(initialValues.passengers || { adults: 1, children: 0, infants: 0 });
+        setCabinClass(initialValues.cabinClass || "economy");
+        setErrors({});
+    }, [initialValues]);
 
     const isReturn = flightType === "return";
 

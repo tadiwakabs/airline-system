@@ -17,6 +17,14 @@ function formatDuration(start, end) {
     return `${hours}h ${mins}m`;
 }
 
+function formatDate(dateStr) {
+    return new Date(dateStr).toLocaleDateString([], {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+    });
+}
+
 export default function FlightCard({ type, flights, pricing }) {
     const [expanded, setExpanded] = useState(false);
 
@@ -36,6 +44,9 @@ export default function FlightCard({ type, flights, pricing }) {
                     <p className="text-lg font-semibold">
                         {first.departingPort} → {last.arrivingPort}
                     </p>
+                    <p className="text-sm text-gray-500">
+                        {formatDate(first.departTime)}
+                    </p>
                 </div>
 
                 <div className="text-right">
@@ -52,7 +63,7 @@ export default function FlightCard({ type, flights, pricing }) {
                 </div>
 
                 <div className="flex-1 flex items-center justify-center">
-                    <div className="h-[1px] w-full bg-gray-300" />
+                    <div className="h-px w-full bg-gray-300" />
                 </div>
 
                 <div className="text-right">
@@ -93,7 +104,7 @@ export default function FlightCard({ type, flights, pricing }) {
                                     {f.departingPort} → {f.arrivingPort}
                                 </p>
                                 <p className="text-gray-500">
-                                    {formatTime(f.departTime)} - {formatTime(f.arrivalTime)}
+                                    {formatDate(f.departTime)} • {formatTime(f.departTime)} - {formatTime(f.arrivalTime)}
                                 </p>
                             </div>
                             <p>Flight #{f.flightNum}</p>
