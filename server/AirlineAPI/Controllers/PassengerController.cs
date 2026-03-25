@@ -36,5 +36,17 @@ namespace AirlineAPI.Controllers
 
             return Ok(pass);
         }
+        
+        [HttpGet("by-user/{userId}")]
+        public async Task<IActionResult> GetByUserId(string userId)
+        {
+            var passenger = await _context.Passenger
+                .FirstOrDefaultAsync(p => p.UserId == userId);
+
+            if (passenger == null)
+                return NotFound(new { message = "Passenger profile not found." });
+
+            return Ok(passenger);
+        }
     }
 }

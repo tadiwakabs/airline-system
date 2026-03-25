@@ -13,6 +13,7 @@ import {AuthProvider} from "./contexts/AuthContext.jsx";
 import Profile from "./pages/passenger/Profile.jsx";
 import Flights from "./pages/employee/Flights";
 import FlightSearch from "./pages/FlightSearch";
+import BookingPassengers from "./pages/booking/BookingPassengers.jsx";
 
 function App() {
     return (
@@ -31,6 +32,7 @@ function App() {
                         element={<ProtectedRoute>
                                     <Profile />
                                 </ProtectedRoute>} />
+                    <Route path="/booking/passengers" element={<BookingPassengers />} />
 
                     {/* Employee-Authenticated Routes */}
                     <Route path="/flights" element={<Flights />} />

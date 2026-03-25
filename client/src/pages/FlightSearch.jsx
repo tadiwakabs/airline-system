@@ -122,6 +122,15 @@ export default function FlightSearch() {
         navigate("/flight-search", { state: params, replace: true });
     };
 
+    const handleSelectFlight = (selectedItinerary) => {
+        navigate("/booking/passengers", {
+            state: {
+                selectedItinerary,
+                searchParams,
+            },
+        });
+    };
+
     const searchSummary = useMemo(() => {
         return {
             route:
@@ -237,6 +246,7 @@ export default function FlightSearch() {
                                 {...result}
                                 cabinClass={searchParams.cabinClass}
                                 passengers={searchParams.passengers}
+                                onSelect={handleSelectFlight}
                             />
                         ))}
                     </div>

@@ -60,7 +60,15 @@ function formatMoney(value) {
     return Number(value).toFixed(2);
 }
 
-export default function FlightCard({ type, flights, pricing, quote, cabinClass = "economy", passengers }) {
+export default function FlightCard({
+       type,
+       flights,
+       pricing,
+       quote,
+       cabinClass = "economy",
+       passengers,
+       onSelect,
+    }) {
     const [expanded, setExpanded] = useState(false);
 
     const first = flights[0];
@@ -144,7 +152,20 @@ export default function FlightCard({ type, flights, pricing, quote, cabinClass =
                     {expanded ? "Hide Details" : "View Details"}
                 </Button>
 
-                <Button>Select</Button>
+                <Button
+                    onClick={() =>
+                        onSelect?.({
+                            type,
+                            flights,
+                            pricing,
+                            quote,
+                            cabinClass,
+                            passengers,
+                        })
+                    }
+                >
+                    Select
+                </Button>
             </div>
 
             {/* Expanded Section */}

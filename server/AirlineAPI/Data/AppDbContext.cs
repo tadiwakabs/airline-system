@@ -1,5 +1,6 @@
 using AirlineAPI.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace AirlineAPI.Data
 {
@@ -166,6 +167,18 @@ namespace AirlineAPI.Data
                     .WithMany(f => f.Pricing)
                     .HasForeignKey(e => e.FlightNum)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+            
+            modelBuilder.Entity<Passenger>(entity =>
+            {
+                entity.Property(p => p.Title)
+                    .HasConversion<string>();
+
+                entity.Property(p => p.Gender)
+                    .HasConversion<string>();
+
+                entity.Property(p => p.PassengerType)
+                    .HasConversion<string>();
             });
         }
 
