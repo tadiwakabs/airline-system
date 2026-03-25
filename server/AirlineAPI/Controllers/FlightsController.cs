@@ -38,13 +38,8 @@ namespace AirlineAPI.Controllers
             return Ok(flight);
         }
 
-<<<<<<< HEAD
-        [HttpPost("/api/add-flights")]
-        public async Task<IActionResult> CreateFlight([FromBody] Flight newFlight)
-=======
         [HttpPost]
         public async Task<IActionResult> CreateFlight([FromBody] CreateFlightDto dto)
->>>>>>> 4f75e7b96e95b79a745ad055964b8b0b6cbd5ef0
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);

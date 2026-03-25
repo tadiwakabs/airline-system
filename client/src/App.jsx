@@ -12,6 +12,8 @@ import {AuthProvider} from "./contexts/AuthContext.jsx";
 import Profile from "./pages/passenger/Profile.jsx";
 import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
 import Flights from "./pages/employee/Flights";
+import HelpPage from './pages/HelpPage.jsx';
+
 
 function App() {
     return (
@@ -22,7 +24,7 @@ function App() {
                     <Route path="/" element={<Home />} />
                     <Route path="/register" element={<Register />} />
                     <Route path="/login" element={<Login />} />
-
+                    <Route path="/help" element={<HelpPage />} />
                     {/* User-Authenticated Routes */}
                     <Route 
                         path="/profile" 
