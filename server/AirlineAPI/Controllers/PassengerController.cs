@@ -48,5 +48,33 @@ namespace AirlineAPI.Controllers
 
             return Ok(passenger);
         }
+        
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdatePassenger(string id, [FromBody] Passenger updated)
+        {
+            var passenger = await _context.Passenger.FindAsync(id);
+
+            if (passenger == null)
+                return NotFound("Passenger not found");
+
+            passenger.PhoneNumber = updated.PhoneNumber;
+            passenger.Email = updated.Email;
+
+            passenger.DLNumber = updated.DLNumber;
+            passenger.DLState = updated.DLState;
+
+            passenger.PassportNumber = updated.PassportNumber;
+            passenger.PassportCountryCode = updated.PassportCountryCode;
+            passenger.PassportExpirationDate = updated.PassportExpirationDate;
+            passenger.PlaceOfBirth = updated.PlaceOfBirth;
+            passenger.Nationality = updated.Nationality;
+
+            passenger.Gender = updated.Gender;
+            passenger.DateOfBirth = updated.DateOfBirth;
+
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
     }
 }

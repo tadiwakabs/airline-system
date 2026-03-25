@@ -41,10 +41,13 @@ namespace AirlineAPI.Models
 
         public int? DLNumber { get; set; }
 
+        [StringLength(2)]
+        public string? DLState { get; set; }
+
         [StringLength(20)]
         public string? PassportNumber { get; set; }
 
-        [StringLength(3)]
+        [StringLength(2)]
         public string? PassportCountryCode { get; set; }
 
         public DateTime? PassportExpirationDate { get; set; }
@@ -52,7 +55,7 @@ namespace AirlineAPI.Models
         [StringLength(30)]
         public string? PlaceOfBirth { get; set; }
 
-        [StringLength(3)]
+        [StringLength(2)]
         public string? Nationality { get; set; }
 
         [Required]

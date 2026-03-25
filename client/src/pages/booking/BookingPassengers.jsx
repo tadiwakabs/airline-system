@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Card from "../../components/common/Card.jsx";
 import Button from "../../components/common/Button.jsx";
-import { getPassengerByUserId } from "../../services/passengerService";
+import Dropdown from "../../components/common/Dropdown.jsx";
+import {getCountries, getPassengerByUserId, getStates, updatePassenger} from "../../services/passengerService";
 
 function capitalize(value) {
     if (!value) return "";
@@ -30,6 +31,7 @@ function createEmptyPassenger(type) {
         placeOfBirth: "",
         nationality: "",
         dlNumber: "",
+        dlState: "",
         isAccountPassenger: false,
     };
 }
@@ -98,17 +100,46 @@ export default function BookingPassengers() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [passengerForms, setPassengerForms] = useState(initialPassengerForms);
+    const [countries, setCountries] = useState([]);
+    const [states, setStates] = useState([]);
+
+    const countryOptions = countries.map(c => ({
+        label: c.name,
+        value: c.code
+    }));
+
+    const stateOptions = states.map(s => ({
+        label: `${s.name} (${s.code})`,
+        value: s.code
+    }));
 
     useEffect(() => {
         if (!selectedItinerary || !searchParams) {
             navigate("/flight-search");
-            return;
         }
     }, [selectedItinerary, searchParams, navigate]);
 
     useEffect(() => {
         setPassengerForms(buildInitialPassengers(searchParams?.passengers));
     }, [searchParams?.passengers]);
+
+    useEffect(() => {
+        const fetchLookups = async () => {
+            try {
+                const [countriesRes, statesRes] = await Promise.all([
+                    getCountries(),
+                    getStates(),
+                ]);
+
+                setCountries(countriesRes.data);
+                setStates(statesRes.data);
+            } catch (err) {
+                console.error("Error loading lookup data", err);
+            }
+        };
+
+        fetchLookups();
+    }, []);
 
     useEffect(() => {
         if (!selectedItinerary || !searchParams) return;
@@ -159,6 +190,7 @@ export default function BookingPassengers() {
                             placeOfBirth: savedProfile?.placeOfBirth || "",
                             nationality: savedProfile?.nationality || "",
                             dlNumber: savedProfile?.dlNumber || savedProfile?.DLNumber || "",
+                            dlState: savedProfile?.dlState || savedProfile?.DLState || "",
                             isAccountPassenger: true,
                         };
                     }
@@ -184,14 +216,28 @@ export default function BookingPassengers() {
         );
     };
 
-    const handleContinue = () => {
-        navigate("/booking/review", {
-            state: {
-                selectedItinerary,
-                searchParams,
-                passengers: passengerForms,
-            },
-        });
+    const handleContinue = async () => {
+        try {
+            const auth = JSON.parse(localStorage.getItem("user"));
+            const userId = auth?.userId;
+
+            // find account passenger
+            const accountPassenger = passengerForms.find(p => p.isAccountPassenger);
+
+            if (accountPassenger && profile?.passengerId) {
+                await updatePassenger(profile.passengerId, accountPassenger);
+            }
+
+            navigate("/booking/review", {
+                state: {
+                    selectedItinerary,
+                    searchParams,
+                    passengers: passengerForms,
+                },
+            });
+        } catch (err) {
+            console.error("Error saving passenger:", err);
+        }
     };
 
     if (!selectedItinerary || !searchParams) return null;
@@ -315,6 +361,90 @@ export default function BookingPassengers() {
                                             onChange={(e) =>
                                                 handlePassengerChange(index, "gender", e.target.value)
                                             }
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    {passenger.passengerType === "Adult" && (
+                                        <>
+                                            <div>
+                                                <label className="block text-sm text-gray-600 mb-1">DL / ID Number</label>
+                                                <input
+                                                    className="w-full border rounded-lg px-3 py-2"
+                                                    value={passenger.dlNumber}
+                                                    onChange={(e) =>
+                                                        handlePassengerChange(index, "dlNumber", e.target.value)
+                                                    }
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <Dropdown
+                                                    label="DL / ID State"
+                                                    value={passenger.dlState}
+                                                    onChange={(val) =>
+                                                        handlePassengerChange(index, "dlState", val)
+                                                    }
+                                                    options={stateOptions}
+                                                />
+                                            </div>
+                                        </>
+                                    )}
+
+                                    <div>
+                                        <label className="block text-sm text-gray-600 mb-1">Passport Number</label>
+                                        <input
+                                            className="w-full border rounded-lg px-3 py-2"
+                                            value={passenger.passportNumber}
+                                            onChange={(e) =>
+                                                handlePassengerChange(index, "passportNumber", e.target.value)
+                                            }
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <Dropdown
+                                            label="Passport Country"
+                                            value={passenger.passportCountryCode}
+                                            onChange={(val) =>
+                                                handlePassengerChange(index, "passportCountryCode", val)
+                                            }
+                                            options={countryOptions}
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm text-gray-600 mb-1">Passport Expiration Date</label>
+                                        <input
+                                            type="date"
+                                            className="w-full border rounded-lg px-3 py-2"
+                                            value={passenger.passportExpirationDate}
+                                            onChange={(e) =>
+                                                handlePassengerChange(index, "passportExpirationDate", e.target.value)
+                                            }
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm text-gray-600 mb-1">Place of Birth</label>
+                                        <input
+                                            className="w-full border rounded-lg px-3 py-2"
+                                            value={passenger.placeOfBirth}
+                                            onChange={(e) =>
+                                                handlePassengerChange(index, "placeOfBirth", e.target.value)
+                                            }
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <Dropdown
+                                            label="Nationality"
+                                            value={passenger.nationality}
+                                            onChange={(val) =>
+                                                handlePassengerChange(index, "nationality", val)
+                                            }
+                                            options={countryOptions}
                                         />
                                     </div>
                                 </div>
