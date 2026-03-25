@@ -19,7 +19,7 @@ namespace AirlineAPI.Controllers
         [HttpGet("countries")]
         public async Task<IActionResult> GetCountries()
         {
-            var countries = await _context.Set<Countries>()
+            var countries = await _context.Countries
                 .OrderBy(c => c.name)
                 .ToListAsync();
 
@@ -29,7 +29,7 @@ namespace AirlineAPI.Controllers
         [HttpGet("states")]
         public async Task<IActionResult> GetStates()
         {
-            var states = await _context.Set<States>()
+            var states = await _context.States
                 .OrderBy(s => s.name)
                 .ToListAsync();
 

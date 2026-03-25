@@ -16,6 +16,8 @@ namespace AirlineAPI.Data
         public DbSet<Passenger> Passenger { get; set; }
         public DbSet<RecurringSchedule> RecurringSchedules { get; set; }
         public DbSet<FlightPricing> FlightPricing { get; set; }
+        public DbSet<Countries> Countries { get; set; }
+        public DbSet<States> States { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
