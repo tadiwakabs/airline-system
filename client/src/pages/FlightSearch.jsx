@@ -93,6 +93,7 @@ export default function FlightSearch() {
                         status: f.status,
                         aircraftUsed: f.aircraftUsed,
                         distance: f.distance,
+                        isDomestic: f.isDomestic,
                     })),
                     pricing: {
                         economy: item.pricing?.economy ?? 0,

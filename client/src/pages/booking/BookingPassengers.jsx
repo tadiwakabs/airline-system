@@ -240,6 +240,11 @@ export default function BookingPassengers() {
         }
     };
 
+    console.log(selectedItinerary.flights);
+
+    const isDomesticItinerary =
+        selectedItinerary?.flights?.every((f) => f.isDomestic) ?? true;
+
     if (!selectedItinerary || !searchParams) return null;
 
     return (
@@ -366,7 +371,7 @@ export default function BookingPassengers() {
                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    {passenger.passengerType === "Adult" && (
+                                    {passenger.passengerType === "Adult" && isDomesticItinerary && (
                                         <>
                                             <div>
                                                 <label className="block text-sm text-gray-600 mb-1">DL / ID Number</label>
@@ -392,61 +397,66 @@ export default function BookingPassengers() {
                                         </>
                                     )}
 
-                                    <div>
-                                        <label className="block text-sm text-gray-600 mb-1">Passport Number</label>
-                                        <input
-                                            className="w-full border rounded-lg px-3 py-2"
-                                            value={passenger.passportNumber}
-                                            onChange={(e) =>
-                                                handlePassengerChange(index, "passportNumber", e.target.value)
-                                            }
-                                        />
-                                    </div>
+                                    {!isDomesticItinerary && (
+                                        <>
+                                            <div>
+                                                <label className="block text-sm text-gray-600 mb-1">Passport Number</label>
+                                                <input
+                                                    className="w-full border rounded-lg px-3 py-2"
+                                                    value={passenger.passportNumber}
+                                                    onChange={(e) =>
+                                                        handlePassengerChange(index, "passportNumber", e.target.value)
+                                                    }
+                                                />
+                                            </div>
 
-                                    <div>
-                                        <Dropdown
-                                            label="Passport Country"
-                                            value={passenger.passportCountryCode}
-                                            onChange={(val) =>
-                                                handlePassengerChange(index, "passportCountryCode", val)
-                                            }
-                                            options={countryOptions}
-                                        />
-                                    </div>
+                                            <div>
+                                                <Dropdown
+                                                    label="Passport Country"
+                                                    value={passenger.passportCountryCode}
+                                                    onChange={(val) =>
+                                                        handlePassengerChange(index, "passportCountryCode", val)
+                                                    }
+                                                    options={countryOptions}
+                                                />
+                                            </div>
 
-                                    <div>
-                                        <label className="block text-sm text-gray-600 mb-1">Passport Expiration Date</label>
-                                        <input
-                                            type="date"
-                                            className="w-full border rounded-lg px-3 py-2"
-                                            value={passenger.passportExpirationDate}
-                                            onChange={(e) =>
-                                                handlePassengerChange(index, "passportExpirationDate", e.target.value)
-                                            }
-                                        />
-                                    </div>
+                                            <div>
+                                                <label className="block text-sm text-gray-600 mb-1">Passport Expiration Date</label>
+                                                <input
+                                                    type="date"
+                                                    className="w-full border rounded-lg px-3 py-2"
+                                                    value={passenger.passportExpirationDate}
+                                                    onChange={(e) =>
+                                                        handlePassengerChange(index, "passportExpirationDate", e.target.value)
+                                                    }
+                                                />
+                                            </div>
 
-                                    <div>
-                                        <label className="block text-sm text-gray-600 mb-1">Place of Birth</label>
-                                        <input
-                                            className="w-full border rounded-lg px-3 py-2"
-                                            value={passenger.placeOfBirth}
-                                            onChange={(e) =>
-                                                handlePassengerChange(index, "placeOfBirth", e.target.value)
-                                            }
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <Dropdown
-                                            label="Nationality"
-                                            value={passenger.nationality}
-                                            onChange={(val) =>
-                                                handlePassengerChange(index, "nationality", val)
-                                            }
-                                            options={countryOptions}
-                                        />
-                                    </div>
+                                            <div>
+                                                <label className="block text-sm text-gray-600 mb-1">Place of Birth</label>
+                                                <input
+                                                    className="w-full border rounded-lg px-3 py-2"
+                                                    value={passenger.placeOfBirth}
+                                                    onChange={(e) =>
+                                                        handlePassengerChange(index, "placeOfBirth", e.target.value)
+                                                    }
+                                                />
+                                            </div>
+                                            
+                                            <div>
+                                                <Dropdown
+                                                    label="Nationality"
+                                                    value={passenger.nationality}
+                                                    onChange={(val) =>
+                                                        handlePassengerChange(index, "nationality", val)
+                                                    }
+                                                    options={countryOptions}
+                                                />
+                                            </div>
+                                        </>
+                                    )}
+                                    
                                 </div>
                             </Card>
                         );

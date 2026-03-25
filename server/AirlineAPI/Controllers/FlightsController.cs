@@ -362,7 +362,8 @@ namespace AirlineAPI.Controllers
                                 ArrivalTime = f.arrivalTime,
                                 Status = f.status,
                                 AircraftUsed = f.aircraftUsed,
-                                Distance = f.distance
+                                Distance = f.distance,
+                                IsDomestic = f.isDomestic
                             }
                         },
                         Pricing = new FlightSearchPricingDto
@@ -429,7 +430,8 @@ namespace AirlineAPI.Controllers
                             ArrivalTime = x.leg1.arrivalTime,
                             Status = x.leg1.status,
                             AircraftUsed = x.leg1.aircraftUsed,
-                            Distance = x.leg1.distance
+                            Distance = x.leg1.distance,
+                            IsDomestic = x.leg1.isDomestic
                         },
                         new FlightLegDto
                         {
@@ -440,7 +442,8 @@ namespace AirlineAPI.Controllers
                             ArrivalTime = x.leg2.arrivalTime,
                             Status = x.leg2.status,
                             AircraftUsed = x.leg2.aircraftUsed,
-                            Distance = x.leg2.distance
+                            Distance = x.leg2.distance,
+                            IsDomestic = x.leg2.isDomestic
                         }
                     },
                     Pricing = new FlightSearchPricingDto
