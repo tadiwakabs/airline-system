@@ -472,8 +472,8 @@ export default function Flights() {
         setError("");
         setEditingScheduleId(schedule.id);
         setScheduleForm({
-            departingPortCode:  schedule.departingPortCode ?? "",
-            arrivingPortCode:   schedule.arrivingPortCode ?? "",
+            departingPortCode:  schedule.departingPortCode ?? schedule.departingPort ?? "",
+            arrivingPortCode:   schedule.arrivingPortCode ?? schedule.arrivingPort ?? "",
             departureTimeOfDay: schedule.departureTimeOfDay?.slice(0, 5) ?? "",
             arrivalTimeOfDay:   schedule.arrivalTimeOfDay?.slice(0, 5) ?? "",
             aircraftUsed:       schedule.aircraftUsed ?? "",
