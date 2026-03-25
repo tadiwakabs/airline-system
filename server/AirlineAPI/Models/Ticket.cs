@@ -74,5 +74,12 @@ namespace AirlineAPI.Models
         public DateTime? reservationTIme { get; set; }
 
         public DateOnly? datetime { get; set; }
+
+        public int flightNum {get;set;}
+
+        [ForeignKey("flightNum,seatNumber")]
+        public Seating? seating{get;set;}
+    
+
     }
 }

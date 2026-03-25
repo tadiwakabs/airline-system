@@ -50,11 +50,11 @@ namespace AirlineAPI.Controllers
             return Ok("Booknig Canceled!");
         }
 
-        [HttpGet("{id}/payments")]
+        /*[HttpGet("{id}/payments")]
         public async Task<ActionResult<Booking>>GetBookingHistory(string id)
         {
             var history= await _context.Booking
-                .Include(b=>b.Payments)
+                .Include(b=>b.)
                 .FirstOrDefaultAsync(b=>b.bookingId == id);
 
             if (history==null)
@@ -62,7 +62,7 @@ namespace AirlineAPI.Controllers
                 return NotFound("No payment history found");
             }
             return Ok(history);
-        }
+        }*/
 
     }   
 
