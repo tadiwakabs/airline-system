@@ -13,13 +13,14 @@ namespace AirlineAPI.Data
         public DbSet<User> Users => Set<User>();
         public DbSet<Flight> Flights{get; set;}
         public DbSet<Aircraft> Aircraft { get; set;}
-        public DbSet<Passenger> Passenger { get; set; }
+        public DbSet<Passenger> Passenger{get;set;}
+        public DbSet<Booking> Booking{get;set;}
+        public DbSet<Payment> Payments{get;set;}
         public DbSet<RecurringSchedule> RecurringSchedules { get; set; }
-        public DbSet<FlightPricing> FlightPricing { get; set; }
-        public DbSet<Countries> Countries { get; set; }
-        public DbSet<States> States { get; set; }
-        public DbSet<Seating> Seating { get; set; }
+        public DbSet<Airport> Airports {get;set;}
 
+
+        public DbSet<Ticket> Ticket { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -93,107 +94,13 @@ namespace AirlineAPI.Data
                 entity.Property(u => u.UpdatedAt)
                     .HasColumnName("updatedAt");
             });
-            
-            modelBuilder.Entity<RecurringSchedule>(entity =>
-            {
-                entity.ToTable("RecurringSchedule");
-
-                entity.HasKey(e => e.Id);
-
-                entity.Property(e => e.Id)
-                    .HasColumnName("id");
-
-                entity.Property(e => e.DepartingPort)
-                    .HasColumnName("departingPort");
-
-                entity.Property(e => e.ArrivingPort)
-                    .HasColumnName("arrivingPort");
-
-                entity.Property(e => e.DepartureTimeOfDay)
-                    .HasColumnName("departureTimeOfDay");
-
-                entity.Property(e => e.ArrivalTimeOfDay)
-                    .HasColumnName("arrivalTimeOfDay");
-
-                entity.Property(e => e.AircraftUsed)
-                    .HasColumnName("aircraftUsed");
-
-                entity.Property(e => e.Status)
-                    .HasColumnName("status");
-
-                entity.Property(e => e.IsDomestic)
-                    .HasColumnName("isDomestic");
-
-                entity.Property(e => e.Distance)
-                    .HasColumnName("distance");
-
-                entity.Property(e => e.FlightChange)
-                    .HasColumnName("flightChange");
-
-                entity.Property(e => e.StartDate)
-                    .HasColumnName("startDate");
-
-                entity.Property(e => e.EndDate)
-                    .HasColumnName("endDate");
-
-                entity.Property(e => e.DaysOfWeek)
-                    .HasColumnName("daysOfWeek");
-
-                entity.Property(e => e.CreatedAt)
-                    .HasColumnName("createdAt");
-
-                entity.Property(e => e.UpdatedAt)
-                    .HasColumnName("updatedAt");
-            });
-            
-            modelBuilder.Entity<FlightPricing>(entity =>
-            {
-                entity.ToTable("FlightPricing");
- 
-                entity.HasKey(e => new { e.FlightNum, e.CabinClass });
- 
-                entity.Property(e => e.FlightNum)
-                    .HasColumnName("flightNum");
- 
-                entity.Property(e => e.CabinClass)
-                    .HasColumnName("cabinClass")
-                    .HasConversion(
-                        v => v.ToString(),
-                        v => (CabinClass)Enum.Parse(typeof(CabinClass), v)
-                    );
- 
-                entity.Property(e => e.Price)
-                    .HasColumnName("price")
-                    .HasColumnType("decimal(10,2)");
- 
-                entity.HasOne(e => e.Flight)
-                    .WithMany(f => f.Pricing)
-                    .HasForeignKey(e => e.FlightNum)
-                    .OnDelete(DeleteBehavior.Cascade);
-            });
-            
-            modelBuilder.Entity<Passenger>(entity =>
-            {
-                entity.Property(p => p.Title)
-                    .HasConversion<string>();
-
-                entity.Property(p => p.Gender)
-                    .HasConversion<string>();
-
-                entity.Property(p => p.PassengerType)
-                    .HasConversion<string>();
-            });
-            
             modelBuilder.Entity<Seating>()
-                .HasKey(s => new { s.flightNum, s.seatNumber });
-            
-            modelBuilder.Entity<Seating>()
-                .Property(s => s.seatStatus)
-                .HasConversion<string>();
+                        .HasKey(s => new { s.flightNum, s.seatNumber});
 
-            modelBuilder.Entity<Seating>()
-                .Property(s => s.seatclass)
-                .HasConversion<string>();
+            modelBuilder.Entity<Ticket>()
+                        .HasOne(t => t.Seating)
+                        .WithMany()
+                        .HasForeignKey(t => new { t.flightNum, t.seatNumber });
         }
 
         private static string? ConvertTitleToDb(UserTitle? title)
@@ -256,6 +163,32 @@ namespace AirlineAPI.Data
                 case "Female": return Gender.Female;
                 case "Non-Binary": return Gender.NonBinary;
                 case "Other": return Gender.Other;
+                default: return null;
+            }
+        }
+
+        private static TicketStatus? ConvertTicketStatusFromDb(string? ticketStatus)
+        {
+            if (string.IsNullOrEmpty(ticketStatus)) return null;
+
+            switch (ticketStatus)
+            {
+                case "Booked": return TicketStatus.Booked;
+                case "Cancelled": return TicketStatus.Cancelled;
+                case "Pending": return TicketStatus.Pending;
+                default: return null;
+            }
+        }
+
+        private static TicketClass? ConvertTicketClassFromDb(string? ticketClass)
+        {
+            if (string.IsNullOrEmpty(ticketClass)) return null;
+
+            switch (ticketClass)
+            {
+                case "Economy": return TicketClass.Economy;
+                case "Buisness": return TicketClass.Buisness;
+                case "First": return TicketClass.First;
                 default: return null;
             }
         }

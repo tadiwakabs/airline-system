@@ -1,0 +1,98 @@
+.help-page-layout {
+  display: flex;
+  min-height: 80vh;
+  font-family: Arial, sans-serif;
+  background-color: #f9f9f9;
+}
+
+/* SIDEBAR STYLES */
+.help-sidebar {
+  width: 250px;
+  background: #333;
+  color: white;
+  padding: 20px;
+}
+
+.help-sidebar h2 {
+  font-size: 1.2rem;
+  border-bottom: 1px solid #555;
+  padding-bottom: 10px;
+}
+
+.help-sidebar ul {
+  list-style: none;
+  padding: 0;
+}
+
+.help-sidebar li {
+  padding: 12px;
+  cursor: pointer;
+  transition: 0.3s;
+  border-radius: 4px;
+}
+
+.help-sidebar li:hover {
+  background: #444;
+}
+
+.help-sidebar li.active {
+  background: #007bff; /* Houston Blue */
+  font-weight: bold;
+}
+
+/* CONTENT STYLES */
+.help-content {
+  flex: 1;
+  padding: 40px;
+}
+
+.faq-box {
+  background: white;
+  padding: 20px;
+  margin-bottom: 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.faq-box h3 {
+  margin-top: 0;
+  color: #333;
+  font-size: 1.1rem;
+}
+
+.faq-box p {
+  color: #666;
+  line-height: 1.5;
+}
+
+.contact-info .faq-box h3 {
+  color: #007bff; 
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.contact-info .faq-box p {
+  font-weight: bold;
+  color: #333;
+  margin: 5px 0;
+}
+
+.help-sidebar {
+  width: 250px;
+  background: #333;
+  color: white;
+  padding: 20px;
+  overflow-y: auto; /* Adds a scrollbar to the sidebar if needed */
+  height: 100vh;
+  position: sticky; /* Keeps the sidebar in place while scrolling content */
+  top: 0;
+}
+
+.faq-box h3 {
+  margin-top: 0;
+  color: #007bff; 
+  border-bottom: 1px solid #eee;
+  padding-bottom: 8px;
+}
+
