@@ -4,7 +4,7 @@ import {
     modifyTicket,
     deleteTicket,
     addTicket,
-} from "../services/ticketService";
+} from "../../services/ticketService";
 
 const EmptyForm = {
     ticketCode: "",
