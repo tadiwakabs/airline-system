@@ -6,6 +6,7 @@ import AppLayout from "./components/layout/AppLayout.jsx";
 // Route Imports
 import Home from './pages/Home'
 import Register from './pages/Register'
+import Ticket from './pages/Ticket'
 
 function App() {
     return (
@@ -16,6 +17,7 @@ function App() {
                     <Route path="/register" element={<Register />} />
 
                     {/* User-Authenticated Routes */}
+                    <Route path = "/ticket" element={<Ticket />} />
 
                     {/* Employee-Authenticated Routes */}
 
