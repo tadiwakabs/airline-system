@@ -20,14 +20,14 @@ namespace AirlineAPI.Models
     [Table("Seating")]
     public class Seating
     {
-   
+        [Key]
         [Required]
         public int flightNum { get; set; }
 
         [ForeignKey("flightNum")]
         public Flight? Flight { get; set; }
 
-
+        [Key]
         [Required]
         [StringLength(5)]
         public string seatNumber { get; set; } = string.Empty;

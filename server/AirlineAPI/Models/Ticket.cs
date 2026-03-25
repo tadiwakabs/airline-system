@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace AirlineAPI.Models
 {
-    public enum TicketStatus
+    public enum Status
     {
         Booked,
         Cancelled,
@@ -63,7 +63,7 @@ namespace AirlineAPI.Models
         [ForeignKey("flightCode")]
         public Flight? Flight { get; set; }
 
-        public TicketStatus? status { get; set; }
+        public Status? status { get; set; }
 
         public TicketClass? ticketClass { get; set; }
 
@@ -74,12 +74,5 @@ namespace AirlineAPI.Models
         public DateTime? reservationTIme { get; set; }
 
         public DateOnly? datetime { get; set; }
-
-        public int flightNum {get;set;}
-
-        [ForeignKey("flightNum,seatNumber")]
-        public Seating? seating{get;set;}
-    
-
     }
 }

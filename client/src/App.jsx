@@ -12,6 +12,10 @@ import Login from "./pages/Login.jsx";
 import {AuthProvider} from "./contexts/AuthContext.jsx";
 import Profile from "./pages/passenger/Profile.jsx";
 import Flights from "./pages/employee/Flights";
+import FlightSearch from "./pages/FlightSearch";
+import BookingPassengers from "./pages/booking/BookingPassengers.jsx";
+import BookingReview from "./pages/booking/BookingReview.jsx";
+import BookingSeats from "./pages/booking/BookingSeats.jsx";
 
 function App() {
     return (
@@ -22,6 +26,7 @@ function App() {
                     <Route path="/" element={<Home />} />
                     <Route path="/register" element={<Register />} />
                     <Route path="/login" element={<Login />} />
+                    <Route path="/flight-search" element={<FlightSearch />} />
 
                     {/* User-Authenticated Routes */}
                     <Route 
@@ -29,13 +34,15 @@ function App() {
                         element={<ProtectedRoute>
                                     <Profile />
                                 </ProtectedRoute>} />
+                    <Route path="/booking/passengers" element={<BookingPassengers />} />
+                    <Route path="/booking/review" element={<BookingReview />} />
+                    <Route path="/booking/seat-selection" element={<BookingSeats />} />
 
                     {/* Employee-Authenticated Routes */}
                     <Route path="/flights" element={<Flights />} />
                     
                     {/* Administrator-Authenticated Routes */}
                     <Route path="/aircraft" element={<Aircraft />} />
-                    <Route path= "/airport" element={<Airport />}/>
 
                 </Routes>
             </AppLayout>
