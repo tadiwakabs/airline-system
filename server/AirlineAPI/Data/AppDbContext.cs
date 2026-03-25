@@ -93,6 +93,13 @@ namespace AirlineAPI.Data
                 entity.Property(u => u.UpdatedAt)
                     .HasColumnName("updatedAt");
             });
+            modelBuilder.Entity<Seating>()
+                        .HasKey(s => new { s.flightNum, s.seatNumber});
+
+            modelBuilder.Entity<Ticket>()
+                        .HasOne(t => t.Seating)
+                        .WithMany()
+                        .HasForeignKey(t => new { t.flightNum, t.seatNumber });
         }
 
         private static string? ConvertTitleToDb(UserTitle? title)
