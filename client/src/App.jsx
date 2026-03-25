@@ -15,6 +15,7 @@ import Flights from "./pages/employee/Flights";
 import FlightSearch from "./pages/FlightSearch";
 import BookingPassengers from "./pages/booking/BookingPassengers.jsx";
 import BookingReview from "./pages/booking/BookingReview.jsx";
+import BookingSeats from "./pages/booking/BookingSeats.jsx";
 
 function App() {
     return (
@@ -35,6 +36,7 @@ function App() {
                                 </ProtectedRoute>} />
                     <Route path="/booking/passengers" element={<BookingPassengers />} />
                     <Route path="/booking/review" element={<BookingReview />} />
+                    <Route path="/booking/seat-selection" element={<BookingSeats />} />
 
                     {/* Employee-Authenticated Routes */}
                     <Route path="/flights" element={<Flights />} />

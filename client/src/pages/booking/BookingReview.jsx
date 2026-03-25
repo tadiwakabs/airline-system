@@ -300,7 +300,7 @@ export default function BookingReview() {
     };
 
     const handleConfirm = () => {
-        navigate("/booking/payment", {
+        navigate("/booking/seat-selection", {
             state: {
                 selectedItinerary,
                 searchParams,

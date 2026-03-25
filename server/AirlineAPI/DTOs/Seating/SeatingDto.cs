@@ -20,6 +20,5 @@
         public int FlightNum { get; set; }
         public string SeatNumber { get; set; } = string.Empty;
         public string PassengerId { get; set; } = string.Empty;
-        public string? TicketCode { get; set; }
     }
 }

@@ -6,7 +6,7 @@ namespace AirlineAPI.Models
     public enum SeatClass
     {
         Economy,
-        Buisness,
+        Business,
         First
     }
 
@@ -42,9 +42,10 @@ namespace AirlineAPI.Models
 
         [ForeignKey("passengerId")]
         public Passenger? Passenger { get; set; }
-
-        [StringLength(50)]
-        public string? ticketCode { get; set; }
+        
+        // Remove for now
+        // [StringLength(50)]
+        // public string? ticketCode { get; set; }
 
         public DateTime? holdExpiresAt { get; set; }
     }

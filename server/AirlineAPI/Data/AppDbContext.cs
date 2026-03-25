@@ -186,6 +186,14 @@ namespace AirlineAPI.Data
             
             modelBuilder.Entity<Seating>()
                 .HasKey(s => new { s.flightNum, s.seatNumber });
+            
+            modelBuilder.Entity<Seating>()
+                .Property(s => s.seatStatus)
+                .HasConversion<string>();
+
+            modelBuilder.Entity<Seating>()
+                .Property(s => s.seatclass)
+                .HasConversion<string>();
         }
 
         private static string? ConvertTitleToDb(UserTitle? title)

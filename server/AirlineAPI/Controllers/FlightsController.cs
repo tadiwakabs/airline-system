@@ -580,7 +580,7 @@ namespace AirlineAPI.Controllers
                     {
                         flightNum = flightNum,
                         seatNumber = $"{row}{letter}",
-                        seatclass = SeatClass.Buisness,
+                        seatclass = SeatClass.Business,
                         seatStatus = SeatStatus.Available
                     });
 

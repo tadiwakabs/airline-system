@@ -42,7 +42,6 @@ namespace AirlineAPI.Controllers
                     seat.seatStatus = SeatStatus.Available;
                     seat.passengerId = null;
                     seat.holdExpiresAt = null;
-                    seat.ticketCode = null;
                 }
 
                 await _context.SaveChangesAsync();
@@ -96,7 +95,6 @@ namespace AirlineAPI.Controllers
                 seat.seatStatus = SeatStatus.Available;
                 seat.passengerId = null;
                 seat.holdExpiresAt = null;
-                seat.ticketCode = null;
             }
 
             if (seat.seatStatus == SeatStatus.Occupied)
@@ -125,7 +123,6 @@ namespace AirlineAPI.Controllers
                 existingHeldSeat.seatStatus = SeatStatus.Available;
                 existingHeldSeat.passengerId = null;
                 existingHeldSeat.holdExpiresAt = null;
-                existingHeldSeat.ticketCode = null;
             }
 
             seat.seatStatus = SeatStatus.Reserved;
@@ -166,7 +163,6 @@ namespace AirlineAPI.Controllers
             seat.seatStatus = SeatStatus.Available;
             seat.passengerId = null;
             seat.holdExpiresAt = null;
-            seat.ticketCode = null;
 
             await _context.SaveChangesAsync();
 
@@ -192,7 +188,6 @@ namespace AirlineAPI.Controllers
 
             seat.seatStatus = SeatStatus.Occupied;
             seat.holdExpiresAt = null;
-            seat.ticketCode = request.TicketCode;
 
             await _context.SaveChangesAsync();
 
@@ -203,7 +198,6 @@ namespace AirlineAPI.Controllers
                 seat.seatNumber,
                 seat.seatStatus,
                 seat.passengerId,
-                seat.ticketCode
             });
         }
     }
