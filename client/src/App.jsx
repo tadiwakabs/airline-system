@@ -13,7 +13,8 @@ import Profile from "./pages/passenger/Profile.jsx";
 import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
 import Flights from "./pages/employee/Flights";
 import HelpPage from './pages/HelpPage.jsx';
-import Ticket from './pages/Ticket'
+import Ticket from './pages/passenger/Ticket'
+import Airport from './pages/admin/Airport.jsx';
 
 
 function App() {
@@ -40,6 +41,7 @@ function App() {
                     
                     {/* Administrator-Authenticated Routes */}
                     <Route path="/aircraft" element={<Aircraft />} />
+                    <Route path= "/airport" element={<Airport />}/>
 
                 </Routes>
             </AppLayout>
