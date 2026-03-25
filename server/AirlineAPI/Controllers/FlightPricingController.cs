@@ -21,7 +21,7 @@ namespace AirlineAPI.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<FlightPricingDto>>> GetPricing(int flightNum)
         {
-            var flightExists = await _db.Flights.AnyAsync(f => f.FlightNum == flightNum);
+            var flightExists = await _db.Flights.AnyAsync(f => f.flightNum == flightNum);
             if (!flightExists)
                 return NotFound($"Flight {flightNum} not found.");
 
@@ -42,7 +42,7 @@ namespace AirlineAPI.Controllers
         [HttpPut]
         public async Task<IActionResult> UpsertPricing(int flightNum, [FromBody] UpsertFlightPricingDto dto)
         {
-            var flightExists = await _db.Flights.AnyAsync(f => f.FlightNum == flightNum);
+            var flightExists = await _db.Flights.AnyAsync(f => f.flightNum == flightNum);
             if (!flightExists)
                 return NotFound($"Flight {flightNum} not found.");
 

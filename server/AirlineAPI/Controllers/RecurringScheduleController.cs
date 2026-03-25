@@ -124,6 +124,19 @@ namespace AirlineAPI.Controllers
             _context.Flights.AddRange(flightsToCreate);
             await _context.SaveChangesAsync();
 
+            if (dto.EconomyPrice.HasValue && dto.BusinessPrice.HasValue && dto.FirstPrice.HasValue)
+            {
+                var pricingRows = new List<FlightPricing>();
+                foreach (var flight in flightsToCreate)
+                {
+                    pricingRows.Add(new FlightPricing { FlightNum = flight.flightNum, CabinClass = CabinClass.Economy,  Price = dto.EconomyPrice.Value  });
+                    pricingRows.Add(new FlightPricing { FlightNum = flight.flightNum, CabinClass = CabinClass.Business, Price = dto.BusinessPrice.Value });
+                    pricingRows.Add(new FlightPricing { FlightNum = flight.flightNum, CabinClass = CabinClass.First,    Price = dto.FirstPrice.Value    });
+                }
+                _context.FlightPricing.AddRange(pricingRows);
+                await _context.SaveChangesAsync();
+            }
+
             _context.Flights.RemoveRange(futureFlights);
             await _context.SaveChangesAsync();
 

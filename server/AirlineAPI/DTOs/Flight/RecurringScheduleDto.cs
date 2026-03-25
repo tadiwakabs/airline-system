@@ -41,6 +41,11 @@ namespace AirlineAPI.DTOs.Flight
 
         [Required]
         public List<int> DaysOfWeek { get; set; } = new();
+
+        // Optional — applied to every generated flight's FlightPricing rows
+        public decimal? EconomyPrice { get; set; }
+        public decimal? BusinessPrice { get; set; }
+        public decimal? FirstPrice { get; set; }
     }
     
     public class RecurringScheduleResponseDto

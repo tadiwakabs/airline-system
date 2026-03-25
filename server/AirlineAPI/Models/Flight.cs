@@ -55,5 +55,7 @@ namespace AirlineAPI.Models
         
         [ForeignKey("recurringScheduleId")]
         public RecurringSchedule? RecurringSchedule { get; set; }
+        
+        public ICollection<FlightPricing> Pricing { get; set; } = new List<FlightPricing>();
     }
 }
