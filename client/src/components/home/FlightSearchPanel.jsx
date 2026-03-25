@@ -19,31 +19,35 @@ const FLIGHT_TYPE_OPTIONS = [
     { label: "Return", value: "return" },
 ];
 
+const DEFAULT_PASSENGERS = { adults: 1, children: 0, infants: 0 };
+
 function todayStr() {
     return new Date().toISOString().split("T")[0];
 }
 
-export default function FlightSearchPanel({ onSearch, initialValues = {} }) {
-    const [flightType, setFlightType] = useState(initialValues.flightType || "one-way");
-    const [departure, setDeparture] = useState(initialValues.departure || "");
-    const [arrival, setArrival] = useState(initialValues.arrival || "");
+export default function FlightSearchPanel({ onSearch, initialValues }) {
+    const [flightType, setFlightType] = useState(initialValues?.flightType || "one-way");
+    const [departure, setDeparture] = useState(initialValues?.departure || "");
+    const [arrival, setArrival] = useState(initialValues?.arrival || "");
     const [departureSearch, setDepartureSearch] = useState("");
     const [arrivalSearch, setArrivalSearch] = useState("");
-    const [dateDepart, setDateDepart] = useState(initialValues.dateDepart || "");
-    const [dateReturn, setDateReturn] = useState(initialValues.dateReturn || "");
+    const [dateDepart, setDateDepart] = useState(initialValues?.dateDepart || "");
+    const [dateReturn, setDateReturn] = useState(initialValues?.dateReturn || "");
     const [passengers, setPassengers] = useState(
-        initialValues.passengers || { adults: 1, children: 0, infants: 0 }
+        initialValues?.passengers || DEFAULT_PASSENGERS
     );
-    const [cabinClass, setCabinClass] = useState(initialValues.cabinClass || "economy");
+    const [cabinClass, setCabinClass] = useState(initialValues?.cabinClass || "economy");
     const [errors, setErrors] = useState({});
 
     useEffect(() => {
+        if (!initialValues) return;
+
         setFlightType(initialValues.flightType || "one-way");
         setDeparture(initialValues.departure || "");
         setArrival(initialValues.arrival || "");
         setDateDepart(initialValues.dateDepart || "");
         setDateReturn(initialValues.dateReturn || "");
-        setPassengers(initialValues.passengers || { adults: 1, children: 0, infants: 0 });
+        setPassengers(initialValues.passengers || DEFAULT_PASSENGERS);
         setCabinClass(initialValues.cabinClass || "economy");
         setErrors({});
     }, [initialValues]);
