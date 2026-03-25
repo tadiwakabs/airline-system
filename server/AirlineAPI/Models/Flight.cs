@@ -13,12 +13,10 @@ namespace AirlineAPI.Models
         public int flightNum { get; set; }
 
         [Required]
-        [StringLength(30)]
-        public string departTime { get; set; } = string.Empty;
+        public DateTime departTime { get; set; }
 
         [Required]
-        [StringLength(30)]
-        public string arrivalTime { get; set; } = string.Empty;
+        public DateTime arrivalTime { get; set; }
         
         [Required]
         [StringLength(10)]
@@ -41,6 +39,7 @@ namespace AirlineAPI.Models
         public bool isDomestic { get; set; }
         public int distance { get; set; }
         public bool? flightChange { get; set; }
+        public int? recurringScheduleId { get; set; }
 
         //----Links----
         [ForeignKey("aircraftUsed")]
@@ -53,5 +52,8 @@ namespace AirlineAPI.Models
         [ForeignKey("arrivingPort")]
         [JsonPropertyName("arrivingPortData")]
         public Airport? ArrivingPort{get;set;}
+        
+        [ForeignKey("recurringScheduleId")]
+        public RecurringSchedule? RecurringSchedule { get; set; }
     }
 }
