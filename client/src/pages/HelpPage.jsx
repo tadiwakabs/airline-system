@@ -70,7 +70,7 @@ const HelpPage = () => {
             </div>
           ) : (
             /* REGULAR FAQ LAYOUT */
-            faqData[activeCategory].map((item, index) => (
+            faqData[activeCategory]?.map((item, index) => (
               <div key={index} className="faq-box">
                 <h3>{item.q}</h3>
                 <p>{item.a}</p>
