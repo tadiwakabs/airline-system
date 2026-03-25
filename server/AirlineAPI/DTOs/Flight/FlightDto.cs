@@ -77,6 +77,7 @@ namespace AirlineAPI.DTOs.Flight
         public string Type { get; set; } = "";
         public List<FlightLegDto> Flights { get; set; } = new();
         public FlightSearchPricingDto Pricing { get; set; } = new();
+        public FlightSearchQuoteDto Quote { get; set; } = new();
     }
 
     public class FlightLegDto
@@ -96,5 +97,27 @@ namespace AirlineAPI.DTOs.Flight
         public decimal? Economy { get; set; }
         public decimal? Business { get; set; }
         public decimal? First { get; set; }
+    }
+    
+    public class PassengerCountsDto
+    {
+        public int Adults { get; set; } = 1;
+        public int Children { get; set; } = 0;
+        public int Infants { get; set; } = 0;
+    }
+
+    public class FlightFareBreakdownDto
+    {
+        public decimal? PerAdult { get; set; }
+        public decimal? PerChild { get; set; }
+        public decimal? PerInfant { get; set; }
+        public decimal? Total { get; set; }
+    }
+
+    public class FlightSearchQuoteDto
+    {
+        public FlightFareBreakdownDto Economy { get; set; } = new();
+        public FlightFareBreakdownDto Business { get; set; } = new();
+        public FlightFareBreakdownDto First { get; set; } = new();
     }
 }

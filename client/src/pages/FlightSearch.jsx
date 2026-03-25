@@ -77,6 +77,9 @@ export default function FlightSearch() {
                     from: searchParams.departure,
                     to: searchParams.arrival,
                     date: searchParams.dateDepart,
+                    adults: searchParams.passengers?.adults ?? 1,
+                    children: searchParams.passengers?.children ?? 0,
+                    infants: searchParams.passengers?.infants ?? 0,
                 });
 
                 const normalized = res.data.map((item) => ({
@@ -96,6 +99,7 @@ export default function FlightSearch() {
                         business: item.pricing?.business ?? 0,
                         first: item.pricing?.first ?? 0,
                     },
+                    quote: item.quote,
                 }));
 
                 setResults(normalized);
@@ -228,7 +232,12 @@ export default function FlightSearch() {
                 {!loading && !error && results.length > 0 && (
                     <div className="space-y-4">
                         {results.map((result, index) => (
-                            <FlightCard key={index} {...result} />
+                            <FlightCard
+                                key={index}
+                                {...result}
+                                cabinClass={searchParams.cabinClass}
+                                passengers={searchParams.passengers}
+                            />
                         ))}
                     </div>
                 )}

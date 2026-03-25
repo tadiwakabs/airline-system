@@ -25,13 +25,51 @@ function formatDate(dateStr) {
     });
 }
 
-export default function FlightCard({ type, flights, pricing }) {
+function getBasePrice(pricing, cabinClass) {
+    if (!pricing) return 0;
+    return pricing[cabinClass] ?? 0;
+}
+
+function calculateTotal(basePrice, passengers) {
+    if (!passengers) return basePrice;
+
+    const adults = passengers.adults || 0;
+    const children = passengers.children || 0;
+    const infants = passengers.infants || 0;
+
+    const adultFare = basePrice;
+    const childFare = basePrice * 0.8;
+    const infantFare = basePrice * 0.1;
+
+    return (
+        adults * adultFare +
+        children * childFare +
+        infants * infantFare
+    );
+}
+
+function getSelectedQuote(quote, cabinClass) {
+    if (!quote) return null;
+    if (cabinClass === "business") return quote.business;
+    if (cabinClass === "first") return quote.first;
+    return quote.economy;
+}
+
+function formatMoney(value) {
+    if (value == null) return "—";
+    return Number(value).toFixed(2);
+}
+
+export default function FlightCard({ type, flights, pricing, quote, cabinClass = "economy", passengers }) {
     const [expanded, setExpanded] = useState(false);
 
     const first = flights[0];
     const last = flights[flights.length - 1];
 
     const totalDuration = formatDuration(first.departTime, last.arrivalTime);
+
+    const basePrice = getBasePrice(pricing, cabinClass || "economy");
+    const selectedQuote = getSelectedQuote(quote, cabinClass);
 
     return (
         <Card className="p-5 space-y-4">
@@ -73,11 +111,26 @@ export default function FlightCard({ type, flights, pricing }) {
             </div>
 
             {/* Pricing */}
-            <div className="flex justify-between text-sm">
-                <p>Economy: ${pricing.economy}</p>
-                <p>Business: ${pricing.business}</p>
-                <p>First: ${pricing.first}</p>
+            <div className="flex justify-between items-center text-sm">
+                <div>
+                    <p className="text-gray-500">Price per adult</p>
+                    <p className="font-medium">${formatMoney(selectedQuote?.perAdult)}</p>
+                </div>
+
+                <div className="text-right">
+                    <p className="text-gray-500">Estimated total</p>
+                    <p className="font-semibold">${formatMoney(selectedQuote?.total)}</p>
+                    {passengers && (
+                        <p className="text-xs text-right text-gray-500">
+                            {passengers.adults || 0} Adult{passengers.adults > 1 ? "s" : ""}
+                            {passengers.children ? `, ${passengers.children} Child${passengers.children > 1 ? "ren" : ""}` : ""}
+                            {passengers.infants ? `, ${passengers.infants} Infant${passengers.infants > 1 ? "s" : ""}` : ""}
+                        </p>
+                    )}
+                </div>
+                
             </div>
+            
 
             <Separator />
 

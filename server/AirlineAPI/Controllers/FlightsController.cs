@@ -314,8 +314,17 @@ namespace AirlineAPI.Controllers
         public async Task<IActionResult> SearchResults(
             [FromQuery] string from,
             [FromQuery] string to,
-            [FromQuery] DateTime date)
+            [FromQuery] DateTime date,
+            [FromQuery] int adults = 1,
+            [FromQuery] int children = 0,
+            [FromQuery] int infants = 0)
         {
+            if (adults < 1)
+                return BadRequest(new { message = "At least one adult is required." });
+
+            if (children < 0 || infants < 0)
+                return BadRequest(new { message = "Passenger counts cannot be negative." });
+            
             from = (from ?? "").Trim().ToUpper();
             to = (to ?? "").Trim().ToUpper();
 
@@ -333,29 +342,37 @@ namespace AirlineAPI.Controllers
                     (f.arrivingPort ?? "").Trim().ToUpper() == to &&
                     f.departTime >= dayStart &&
                     f.departTime < dayEnd)
-                .Select(f => new
+                .Select(f =>
                 {
-                    type = "direct",
-                    flights = new[]
+                    var economyBase = f.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Economy)?.Price;
+                    var businessBase = f.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Business)?.Price;
+                    var firstBase = f.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.First)?.Price;
+
+                    return new FlightSearchResultDto
                     {
-                        new
+                        Type = "direct",
+                        Flights = new List<FlightLegDto>
                         {
-                            flightNum = f.flightNum,
-                            departingPortCode = f.departingPort,
-                            arrivingPortCode = f.arrivingPort,
-                            departTime = f.departTime,
-                            arrivalTime = f.arrivalTime,
-                            status = f.status,
-                            aircraftUsed = f.aircraftUsed,
-                            distance = f.distance
-                        }
-                    },
-                    pricing = new
-                    {
-                        economy = f.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Economy)?.Price,
-                        business = f.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Business)?.Price,
-                        first = f.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.First)?.Price
-                    }
+                            new FlightLegDto
+                            {
+                                FlightNum = f.flightNum,
+                                DepartingPortCode = f.departingPort,
+                                ArrivingPortCode = f.arrivingPort,
+                                DepartTime = f.departTime,
+                                ArrivalTime = f.arrivalTime,
+                                Status = f.status,
+                                AircraftUsed = f.aircraftUsed,
+                                Distance = f.distance
+                            }
+                        },
+                        Pricing = new FlightSearchPricingDto
+                        {
+                            Economy = economyBase,
+                            Business = businessBase,
+                            First = firstBase
+                        },
+                        Quote = BuildQuote(economyBase, businessBase, firstBase, adults, children, infants)
+                    };
                 })
                 .ToList();
 
@@ -383,51 +400,114 @@ namespace AirlineAPI.Controllers
                        && leg2.departTime <= leg1.arrivalTime.AddHours(4)
                  select new
                  {
-                     type = "connection",
-                     flights = new[]
-                     {
-                         new
-                         {
-                             flightNum = leg1.flightNum,
-                             departingPortCode = leg1.departingPort,
-                             arrivingPortCode = leg1.arrivingPort,
-                             departTime = leg1.departTime,
-                             arrivalTime = leg1.arrivalTime,
-                             status = leg1.status,
-                             aircraftUsed = leg1.aircraftUsed,
-                             distance = leg1.distance
-                         },
-                         new
-                         {
-                             flightNum = leg2.flightNum,
-                             departingPortCode = leg2.departingPort,
-                             arrivingPortCode = leg2.arrivingPort,
-                             departTime = leg2.departTime,
-                             arrivalTime = leg2.arrivalTime,
-                             status = leg2.status,
-                             aircraftUsed = leg2.aircraftUsed,
-                             distance = leg2.distance
-                         }
-                     },
-                     pricing = new
-                     {
-                         economy = (decimal?)(
-                             (leg1.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Economy)?.Price ?? 0) +
-                             (leg2.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Economy)?.Price ?? 0)
-                         ),
-                         business = (decimal?)(
-                             (leg1.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Business)?.Price ?? 0) +
-                             (leg2.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Business)?.Price ?? 0)
-                         ),
-                         first = (decimal?)(
-                             (leg1.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.First)?.Price ?? 0) +
-                             (leg2.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.First)?.Price ?? 0)
-                         )
-                     }
+                     leg1,
+                     leg2,
+                     economyBase = SumPrices(
+                         leg1.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Economy)?.Price,
+                         leg2.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Economy)?.Price
+                     ),
+                     businessBase = SumPrices(
+                         leg1.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Business)?.Price,
+                         leg2.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Business)?.Price
+                     ),
+                     firstBase = SumPrices(
+                         leg1.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.First)?.Price,
+                         leg2.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.First)?.Price
+                     )
                  })
+                .Select(x => new FlightSearchResultDto
+                {
+                    Type = "connection",
+                    Flights = new List<FlightLegDto>
+                    {
+                        new FlightLegDto
+                        {
+                            FlightNum = x.leg1.flightNum,
+                            DepartingPortCode = x.leg1.departingPort,
+                            ArrivingPortCode = x.leg1.arrivingPort,
+                            DepartTime = x.leg1.departTime,
+                            ArrivalTime = x.leg1.arrivalTime,
+                            Status = x.leg1.status,
+                            AircraftUsed = x.leg1.aircraftUsed,
+                            Distance = x.leg1.distance
+                        },
+                        new FlightLegDto
+                        {
+                            FlightNum = x.leg2.flightNum,
+                            DepartingPortCode = x.leg2.departingPort,
+                            ArrivingPortCode = x.leg2.arrivingPort,
+                            DepartTime = x.leg2.departTime,
+                            ArrivalTime = x.leg2.arrivalTime,
+                            Status = x.leg2.status,
+                            AircraftUsed = x.leg2.aircraftUsed,
+                            Distance = x.leg2.distance
+                        }
+                    },
+                    Pricing = new FlightSearchPricingDto
+                    {
+                        Economy = x.economyBase,
+                        Business = x.businessBase,
+                        First = x.firstBase
+                    },
+                    Quote = BuildQuote(x.economyBase, x.businessBase, x.firstBase, adults, children, infants)
+                })
                 .ToList();
 
             return Ok(directResults.Concat(connectingResults));
+        }
+        
+        private const decimal ChildMultiplier = 0.8m;
+        private const decimal InfantMultiplier = 0.1m;
+
+        private static decimal? SumPrices(decimal? first, decimal? second)
+        {
+            if (!first.HasValue || !second.HasValue)
+                return null;
+
+            return first.Value + second.Value;
+        }
+
+        private static FlightFareBreakdownDto BuildFareBreakdown(
+            decimal? baseFare,
+            int adults,
+            int children,
+            int infants)
+        {
+            if (!baseFare.HasValue)
+                return new FlightFareBreakdownDto();
+
+            var perAdult = baseFare.Value;
+            var perChild = Math.Round(baseFare.Value * ChildMultiplier, 2);
+            var perInfant = Math.Round(baseFare.Value * InfantMultiplier, 2);
+
+            var total =
+                (adults * perAdult) +
+                (children * perChild) +
+                (infants * perInfant);
+
+            return new FlightFareBreakdownDto
+            {
+                PerAdult = perAdult,
+                PerChild = perChild,
+                PerInfant = perInfant,
+                Total = Math.Round(total, 2)
+            };
+        }
+
+        private static FlightSearchQuoteDto BuildQuote(
+            decimal? economyBase,
+            decimal? businessBase,
+            decimal? firstBase,
+            int adults,
+            int children,
+            int infants)
+        {
+            return new FlightSearchQuoteDto
+            {
+                Economy = BuildFareBreakdown(economyBase, adults, children, infants),
+                Business = BuildFareBreakdown(businessBase, adults, children, infants),
+                First = BuildFareBreakdown(firstBase, adults, children, infants)
+            };
         }
 
         private async Task<string?> ValidateFlightAsync(
