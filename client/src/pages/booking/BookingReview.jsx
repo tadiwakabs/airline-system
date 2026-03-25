@@ -185,14 +185,7 @@ function PassengerCard({ passenger, indexWithinType, isDomestic }) {
 
     return (
         <div className="border border-gray-100 rounded-xl p-4 space-y-3 bg-white">
-            <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-gray-800">{label}</p>
-                {passenger.isAccountPassenger && (
-                    <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
-                        Your account
-                    </span>
-                )}
-            </div>
+            <p className="text-sm font-semibold text-gray-800">{label}</p>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3">
                 <LabelValue
@@ -421,7 +414,7 @@ export default function BookingReview() {
                         Back
                     </Button>
                     <Button onClick={handleConfirm}>
-                        Confirm & Continue to Payment
+                        Confirm & Continue
                     </Button>
                 </div>
             </div>
