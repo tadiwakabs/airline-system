@@ -9,60 +9,60 @@ namespace AirlineAPI.Models
         [Key]
         [Required]
         [StringLength(50)]
-        public string passengerId { get; set; } = string.Empty;
+        public string PassengerId { get; set; } = string.Empty;
 
-        [ForeignKey("passengerId")]
-        public User? Users { get; set; }
+        [StringLength(50)]
+        public string? UserId { get; set; }
 
-        public UserTitle? title { get; set; }
+        [ForeignKey(nameof(UserId))]
+        public User? User { get; set; }
+
+        public UserTitle? Title { get; set; }
 
         [Required]
         [StringLength(30)]
-        public string firstName { get; set; } = string.Empty;
+        public string FirstName { get; set; } = string.Empty;
 
         [Required]
         [StringLength(30)]
-        public string lastName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
 
-        public DateTime dateOfBirth { get; set; }
+        [Required]
+        public DateTime DateOfBirth { get; set; }
 
-        public Gender? gender { get; set; }
+        public Gender? Gender { get; set; }
 
-        public int phoneNumber { get; set; }
+        [StringLength(20)]
+        public string? PhoneNumber { get; set; }
 
         [RegularExpression(@".+@.+\..+")]
-        public string? email { get; set; }
+        [StringLength(100)]
+        public string? Email { get; set; }
 
         public int? DLNumber { get; set; }
 
-        [StringLength(30)]
-        public string? passportNumber { get; set; }
-
-        [StringLength(3)]
-        public string? passportCountryCode { get; set; }
-
-        public DateTime? passportExpirationDate { get; set; }
-
-        [StringLength(30)]
-        public string? placeOfBirth { get; set; }
-
-        [StringLength(3)]
-        public string? nationality { get; set; }
-    }
-
-    public class RequireDlOrPassportAttribute : ValidationAttribute
-    {
-        public int? DLNumber { get; set; }
+        [StringLength(20)]
         public string? PassportNumber { get; set; }
 
-        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
-        {
-            if (DLNumber == null && string.IsNullOrWhiteSpace(PassportNumber))
-            {
-                yield return new ValidationResult(
-                    "Either DLNumber or PassportNumber must be provided.",
-                    new[] { nameof(DLNumber), nameof(PassportNumber) });
-            }
-        }
+        [StringLength(3)]
+        public string? PassportCountryCode { get; set; }
+
+        public DateTime? PassportExpirationDate { get; set; }
+
+        [StringLength(30)]
+        public string? PlaceOfBirth { get; set; }
+
+        [StringLength(3)]
+        public string? Nationality { get; set; }
+
+        [Required]
+        public PassengerType PassengerType { get; set; } = PassengerType.Adult;
+    }
+
+    public enum PassengerType
+    {
+        Adult,
+        Child,
+        Infant
     }
 }

@@ -12,7 +12,7 @@ namespace AirlineAPI.Data
         public DbSet<User> Users => Set<User>();
         public DbSet<Flight> Flights{get; set;}
         public DbSet<Aircraft> Aircraft { get; set;}
-        public DbSet<Passenger> Passenger{get;set;}
+        public DbSet<Passenger> Passenger { get; set; }
         public DbSet<RecurringSchedule> RecurringSchedules { get; set; }
         public DbSet<FlightPricing> FlightPricing { get; set; }
 

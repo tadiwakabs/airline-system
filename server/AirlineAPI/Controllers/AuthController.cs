@@ -38,40 +38,75 @@ namespace AirlineAPI.Controllers
 
             if (emailExists)
                 return BadRequest(new { message = "Email is already in use." });
-            
-            var user = new User
+
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
+            try
             {
-                UserId = Guid.NewGuid().ToString(),
-                Username = request.Username,
-                Email = request.Email,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-                Title = request.Title,
-                FirstName = request.FirstName,
-                LastName = request.LastName,
-                DateOfBirth = request.DateOfBirth,
-                Gender = request.Gender,
-                UserRole = UserRole.Passenger,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
+                var user = new User
+                {
+                    UserId = Guid.NewGuid().ToString(),
+                    Username = request.Username,
+                    Email = request.Email,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+                    Title = request.Title,
+                    FirstName = request.FirstName,
+                    LastName = request.LastName,
+                    DateOfBirth = request.DateOfBirth,
+                    Gender = request.Gender,
+                    UserRole = UserRole.Passenger,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
 
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync();
 
-            var token = _jwtService.GenerateToken(user);
+                var passenger = new Passenger
+                {
+                    PassengerId = Guid.NewGuid().ToString(),
+                    UserId = user.UserId,
+                    Title = user.Title,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    DateOfBirth = user.DateOfBirth,
+                    Gender = user.Gender,
+                    Email = user.Email,
+                    PhoneNumber = null,
+                    DLNumber = null,
+                    PassportNumber = null,
+                    PassportCountryCode = null,
+                    PassportExpirationDate = null,
+                    PlaceOfBirth = null,
+                    Nationality = null,
+                    PassengerType = PassengerType.Adult
+                };
 
-            var response = new AuthenticationDto
+                _context.Passenger.Add(passenger);
+                await _context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+
+                var token = _jwtService.GenerateToken(user);
+
+                var response = new AuthenticationDto
+                {
+                    UserId = user.UserId,
+                    Username = user.Username,
+                    Email = user.Email,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    UserRole = user.UserRole.ToString(),
+                    Token = token
+                };
+
+                return Ok(response);
+            }
+            catch
             {
-                UserId = user.UserId,
-                Username = user.Username,
-                Email = user.Email,
-                FirstName = user.FirstName,
-                LastName = user.LastName,
-                UserRole = user.UserRole.ToString(),
-                Token = token
-            };
-
-            return Ok(response);
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         
