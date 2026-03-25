@@ -40,7 +40,7 @@ namespace AirlineAPI.Controllers
         [HttpDelete("{ticketCode}")]
         public async Task<IActionResult> DeleteTicket(string ticketCode, [FromBody] Ticket deletedTicket)
         {
-            var ticket = await _context.Ticket.FindAsync();
+            var ticket = await _context.Ticket.FindAsync(ticketCode);
 
             if (ticket == null)
             {
