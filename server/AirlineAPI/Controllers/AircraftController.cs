@@ -1,13 +1,12 @@
 using AirlineAPI.Data;
 using AirlineAPI.Models;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace AirlineAPI.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/[controller]")] // URL: api/aircraft
     public class AircraftController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -16,73 +15,62 @@ namespace AirlineAPI.Controllers
             _context = context;
         }
 
+        // GET: api/aircraft
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Aircraft>>> GetAircraft()
+        public async Task<ActionResult<IEnumerable<Aircraft>>> GetAllAircraft()
         {
             var aircraft = await _context.Aircraft.ToListAsync();
             return Ok(aircraft);
         }
 
-        [HttpGet("{tailNum}")]
-        public async Task<ActionResult<Aircraft>> GetAircraftByTailNum(string tailNum)
+        // GET: api/aircraft/N12345
+        [HttpGet("{tailnumber}")]
+        public async Task<ActionResult<Aircraft>> GetAircraftByTail(string tailnumber)
         {
-            var aircraft = await _context.Aircraft.FindAsync(tailNum);
+            var aircraft = await _context.Aircraft.FindAsync(tailnumber);
 
             if (aircraft == null)
-            {
-                return NotFound(new { message = "Aircraft not found."});
-            }
+                return NotFound(new { message = "Aircraft not found" });
+
             return Ok(aircraft);
         }
 
+        // POST: api/aircraft
         [HttpPost]
-        public async Task<IActionResult> AddAircraft([FromBody] Aircraft newAircraft)
+        public async Task<IActionResult> CreateAircraft([FromBody] Aircraft newAircraft)
         {
             if (newAircraft == null)
-            {
-                return BadRequest("Missing data for new aircraft.");
-            }
+                return BadRequest("Aircraft data is missing!");
 
             _context.Aircraft.Add(newAircraft);
-
             await _context.SaveChangesAsync();
-
             return Ok(newAircraft);
         }
 
-        [HttpPut("{tailNum}")]
-        public async Task<IActionResult> UpdateAircraft(string tailNum, [FromBody] Aircraft updatedAircaft)
+        // PUT: api/aircraft/N12345
+        [HttpPut("{tailnumber}")]
+        public async Task<IActionResult> UpdateAircraft(string tailnumber, [FromBody] Aircraft updatedAircraft)
         {
-            if (tailNum! == updatedAircaft.tailnumber)
-            {
-                return BadRequest("Tail number is mismatched");
-            }
-            //_context.Entry(updatedAircaft).
+            if (tailnumber != updatedAircraft.tailnumber)
+                return BadRequest("Tail number mismatch");
+
+            _context.Entry(updatedAircraft).State = EntityState.Modified;
             await _context.SaveChangesAsync();
-            return Ok("Aircraft updated");
+            return Ok("Aircraft successfully updated!");
         }
 
-        [HttpDelete("{tailNum}")]
-        public async Task<IActionResult> DeleteAircraft(string tailNum, [FromBody] Aircraft deletedAircraft)
+        // DELETE: api/aircraft/N12345
+        [HttpDelete("{tailnumber}")]
+        public async Task<IActionResult> DeleteAircraft(string tailnumber)
         {
-            var aircraft = await _context.Aircraft.FindAsync();
+            var aircraft = await _context.Aircraft.FindAsync(tailnumber);
 
             if (aircraft == null)
-            {
                 return NotFound("Aircraft not found.");
-            }
 
             _context.Aircraft.Remove(aircraft);
             await _context.SaveChangesAsync();
-            return Ok("Aircraft successfully deleted");
-        }
-
-        [HttpGet("search")]
-        public async Task<IActionResult> SearchByTailNum([FromQuery] string tailNum)
-        {
-            var results = await _context.Aircraft.Where(f=> f.tailnumber == tailNum).ToListAsync();
-
-            return Ok(results);
+            return Ok("Aircraft deleted.");
         }
     }
 }

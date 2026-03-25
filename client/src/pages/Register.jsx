@@ -78,7 +78,7 @@ export default function Register() {
     }
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
+        <div className="flex items-center justify-center min-h-screen p-4">
             <Card className="w-full max-w-xl p-6">
                 <h1 className="text-2xl mb-2">Create Account</h1>
                 <p className="body-2 text-gray-500 mb-4">
@@ -208,7 +208,7 @@ export default function Register() {
 
                 <p className="text-center text-sm text-gray-500">
                     Already have an account?{" "}
-                    <Link to="/login" className="text-blue-600">
+                    <Link to="/login" className="text-blue-600 hover:underline">
                         Login
                     </Link>
                 </p>
