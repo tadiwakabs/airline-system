@@ -1,4 +1,4 @@
-import FlightCard from "../flight/FlightCard.jsx";
+import FeatureCard from "../flight/FeatureCard.jsx";
 import React from "react";
 
 const FEATURED_FLIGHTS = [
@@ -67,7 +67,7 @@ export default function FeaturedFlights() {
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {FEATURED_FLIGHTS.map((flight) => (
-                    <FlightCard
+                    <FeatureCard
                         key={`${flight.origin}-${flight.destination}`}
                         image={flight.image}
                         origin={flight.origin}

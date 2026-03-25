@@ -309,6 +309,126 @@ namespace AirlineAPI.Controllers
 
             return Ok(results);
         }
+        
+        [HttpGet("search-results")]
+        public async Task<IActionResult> SearchResults(
+            [FromQuery] string from,
+            [FromQuery] string to,
+            [FromQuery] DateTime date)
+        {
+            from = (from ?? "").Trim().ToUpper();
+            to = (to ?? "").Trim().ToUpper();
+
+            var dayStart = date.Date;
+            var dayEnd = dayStart.AddDays(1);
+
+            var allFlights = await _context.Flights
+                .Include(f => f.Pricing)
+                .OrderBy(f => f.departTime)
+                .ToListAsync();
+
+            var directResults = allFlights
+                .Where(f =>
+                    (f.departingPort ?? "").Trim().ToUpper() == from &&
+                    (f.arrivingPort ?? "").Trim().ToUpper() == to &&
+                    f.departTime >= dayStart &&
+                    f.departTime < dayEnd)
+                .Select(f => new
+                {
+                    type = "direct",
+                    flights = new[]
+                    {
+                        new
+                        {
+                            flightNum = f.flightNum,
+                            departingPortCode = f.departingPort,
+                            arrivingPortCode = f.arrivingPort,
+                            departTime = f.departTime,
+                            arrivalTime = f.arrivalTime,
+                            status = f.status,
+                            aircraftUsed = f.aircraftUsed,
+                            distance = f.distance
+                        }
+                    },
+                    pricing = new
+                    {
+                        economy = f.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Economy)?.Price,
+                        business = f.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Business)?.Price,
+                        first = f.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.First)?.Price
+                    }
+                })
+                .ToList();
+
+            var candidateFirstLegs = allFlights
+                .Where(f =>
+                    (f.departingPort ?? "").Trim().ToUpper() == from &&
+                    (f.arrivingPort ?? "").Trim().ToUpper() != to &&
+                    f.departTime >= dayStart &&
+                    f.departTime < dayEnd)
+                .ToList();
+
+            var candidateSecondLegs = allFlights
+                .Where(f =>
+                    (f.departingPort ?? "").Trim().ToUpper() != from &&
+                    (f.arrivingPort ?? "").Trim().ToUpper() == to &&
+                    f.departTime >= dayStart &&
+                    f.departTime < dayEnd.AddDays(1))
+                .ToList();
+
+            var connectingResults =
+                (from leg1 in candidateFirstLegs
+                 from leg2 in candidateSecondLegs
+                 where (leg1.arrivingPort ?? "").Trim().ToUpper() == (leg2.departingPort ?? "").Trim().ToUpper()
+                       && leg2.departTime >= leg1.arrivalTime.AddMinutes(30)
+                       && leg2.departTime <= leg1.arrivalTime.AddHours(4)
+                 select new
+                 {
+                     type = "connection",
+                     flights = new[]
+                     {
+                         new
+                         {
+                             flightNum = leg1.flightNum,
+                             departingPortCode = leg1.departingPort,
+                             arrivingPortCode = leg1.arrivingPort,
+                             departTime = leg1.departTime,
+                             arrivalTime = leg1.arrivalTime,
+                             status = leg1.status,
+                             aircraftUsed = leg1.aircraftUsed,
+                             distance = leg1.distance
+                         },
+                         new
+                         {
+                             flightNum = leg2.flightNum,
+                             departingPortCode = leg2.departingPort,
+                             arrivingPortCode = leg2.arrivingPort,
+                             departTime = leg2.departTime,
+                             arrivalTime = leg2.arrivalTime,
+                             status = leg2.status,
+                             aircraftUsed = leg2.aircraftUsed,
+                             distance = leg2.distance
+                         }
+                     },
+                     pricing = new
+                     {
+                         economy = (decimal?)(
+                             (leg1.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Economy)?.Price ?? 0) +
+                             (leg2.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Economy)?.Price ?? 0)
+                         ),
+                         business = (decimal?)(
+                             (leg1.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Business)?.Price ?? 0) +
+                             (leg2.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Business)?.Price ?? 0)
+                         ),
+                         first = (decimal?)(
+                             (leg1.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.First)?.Price ?? 0) +
+                             (leg2.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.First)?.Price ?? 0)
+                         )
+                     }
+                 })
+                .ToList();
+
+            return Ok(directResults.Concat(connectingResults));
+        }
 
         private async Task<string?> ValidateFlightAsync(
             string aircraftUsed,

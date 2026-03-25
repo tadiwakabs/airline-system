@@ -2,6 +2,7 @@ import React from 'react';
 import { Routes, Route } from "react-router-dom";
 import './globals.css'
 import AppLayout from "./components/layout/AppLayout.jsx";
+import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
 
 // Route Imports
 import Home from './pages/Home'
@@ -10,8 +11,8 @@ import Aircraft from './pages/admin/Aircraft'
 import Login from "./pages/Login.jsx";
 import {AuthProvider} from "./contexts/AuthContext.jsx";
 import Profile from "./pages/passenger/Profile.jsx";
-import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
 import Flights from "./pages/employee/Flights";
+import FlightSearch from "./pages/FlightSearch";
 
 function App() {
     return (
@@ -22,6 +23,7 @@ function App() {
                     <Route path="/" element={<Home />} />
                     <Route path="/register" element={<Register />} />
                     <Route path="/login" element={<Login />} />
+                    <Route path="/flight-search" element={<FlightSearch />} />
 
                     {/* User-Authenticated Routes */}
                     <Route 

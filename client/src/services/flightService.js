@@ -10,8 +10,10 @@ export const updateFlight = (id, data) => api.put(`/flights/${id}`, data);
 
 export const deleteFlight = (id) => api.delete(`/flights/${id}`);
 
-export const searchFlightsByDestination = (dest) =>
-    api.get(`/flights/search?dest=${encodeURIComponent(dest)}`);
+export const searchFlightResults = ({ from, to, date }) =>
+    api.get(
+        `/flights/search-results?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&date=${encodeURIComponent(date)}`
+    );
 
 export const createRecurringFlights = (data) =>
     api.post("/flights/recurring", data);

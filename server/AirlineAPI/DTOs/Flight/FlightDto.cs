@@ -71,4 +71,30 @@ namespace AirlineAPI.DTOs.Flight
         public int? RecurringScheduleId { get; set; }
         public List<FlightPricingDto> Pricing { get; set; } = new();
     }
+    
+    public class FlightSearchResultDto
+    {
+        public string Type { get; set; } = "";
+        public List<FlightLegDto> Flights { get; set; } = new();
+        public FlightSearchPricingDto Pricing { get; set; } = new();
+    }
+
+    public class FlightLegDto
+    {
+        public int FlightNum { get; set; }
+        public string DepartingPortCode { get; set; } = "";
+        public string ArrivingPortCode { get; set; } = "";
+        public DateTime DepartTime { get; set; }
+        public DateTime ArrivalTime { get; set; }
+        public string Status { get; set; } = "";
+        public string AircraftUsed { get; set; } = "";
+        public int Distance { get; set; }
+    }
+
+    public class FlightSearchPricingDto
+    {
+        public decimal? Economy { get; set; }
+        public decimal? Business { get; set; }
+        public decimal? First { get; set; }
+    }
 }

@@ -3,7 +3,7 @@ import Dropdown from "../common/Dropdown.jsx";
 import Button from "../common/Button.jsx";
 import Combobox from "../common/Combobox.jsx";
 import RadioGroup from "../common/RadioGroup.jsx";
-import {useState} from "react";
+import { useMemo, useState } from "react";
 import PassengerSelector from "./PassengerSelector.jsx";
 
 import AIRPORTS from "../../dropdownData/airports.json";
@@ -14,62 +14,63 @@ const CLASSES = [
     { label: "First Class", value: "first" },
 ];
 
-
 const FLIGHT_TYPE_OPTIONS = [
     { label: "One-way", value: "one-way" },
     { label: "Return", value: "return" },
 ];
 
-// Get today's date 
 function todayStr() {
     return new Date().toISOString().split("T")[0];
 }
-export default function FlightSearchPanel({ onSearch }) {
-    const [flightType, setFlightType] = useState("one-way");
-    const [departure, setDeparture] = useState("");
-    const [arrival, setArrival] = useState("");
+
+export default function FlightSearchPanel({ onSearch, initialValues = {} }) {
+    const [flightType, setFlightType] = useState(initialValues.flightType || "one-way");
+    const [departure, setDeparture] = useState(initialValues.departure || "");
+    const [arrival, setArrival] = useState(initialValues.arrival || "");
     const [departureSearch, setDepartureSearch] = useState("");
     const [arrivalSearch, setArrivalSearch] = useState("");
-    const [dateDepart, setDateDepart] = useState("");
-    const [dateReturn, setDateReturn] = useState("");
-    const [passengers, setPassengers] = useState({ adults: 1, children: 0, infants: 0 });
-    const [cabinClass, setCabinClass] = useState("economy");
+    const [dateDepart, setDateDepart] = useState(initialValues.dateDepart || "");
+    const [dateReturn, setDateReturn] = useState(initialValues.dateReturn || "");
+    const [passengers, setPassengers] = useState(
+        initialValues.passengers || { adults: 1, children: 0, infants: 0 }
+    );
+    const [cabinClass, setCabinClass] = useState(initialValues.cabinClass || "economy");
     const [errors, setErrors] = useState({});
 
     const isReturn = flightType === "return";
 
-    const airportOptions = AIRPORTS.map(a => ({
-        label: `${a.city} (${a.value})`,
-        value: a.value,
-    }));
+    const airportOptions = useMemo(
+        () =>
+            AIRPORTS.map((a) => ({
+                label: `${a.city} (${a.value})`,
+                value: a.value,
+            })),
+        []
+    );
 
-    const filteredDeparture = airportOptions.filter(a =>
+    const filteredDeparture = airportOptions.filter((a) =>
         a.label.toLowerCase().includes(departureSearch.toLowerCase())
     );
-    const filteredArrival = airportOptions.filter(a =>
+
+    const filteredArrival = airportOptions.filter((a) =>
         a.label.toLowerCase().includes(arrivalSearch.toLowerCase())
     );
-
-    const handlePassengersChange = (e) => {
-        const raw = e.target.value;
-        // Allow empty string while typing, otherwise only positive integers
-        if (raw === "" || /^[1-9][0-9]*$/.test(raw)) {
-            setPassengers(raw);
-        }
-    };
 
     const validate = () => {
         const e = {};
         if (!departure) e.departure = "Please select a departure airport.";
         if (!arrival) e.arrival = "Please select an arrival airport.";
-        if (departure && arrival && departure === arrival)
+        if (departure && arrival && departure === arrival) {
             e.arrival = "Arrival must differ from departure.";
+        }
         if (!dateDepart) e.dateDepart = "Please select a departure date.";
         if (isReturn && !dateReturn) e.dateReturn = "Please select a return date.";
-        if (isReturn && dateDepart && dateReturn && dateReturn < dateDepart)
+        if (isReturn && dateDepart && dateReturn && dateReturn < dateDepart) {
             e.dateReturn = "Return date must be after departure.";
-        if (!passengers.adults || passengers.adults < 1)
+        }
+        if (!passengers.adults || passengers.adults < 1) {
             e.passengers = "At least 1 adult required.";
+        }
         return e;
     };
 
@@ -77,12 +78,20 @@ export default function FlightSearchPanel({ onSearch }) {
         const e = validate();
         setErrors(e);
         if (Object.keys(e).length > 0) return;
-        onSearch?.({ flightType, departure, arrival, dateDepart, dateReturn, passengers, cabinClass });
+
+        onSearch?.({
+            flightType,
+            departure,
+            arrival,
+            dateDepart,
+            dateReturn,
+            passengers,
+            cabinClass,
+        });
     };
 
     return (
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 space-y-5">
-            {/* Flight Type */}
             <RadioGroup
                 name="flightType"
                 options={FLIGHT_TYPE_OPTIONS}
@@ -90,7 +99,6 @@ export default function FlightSearchPanel({ onSearch }) {
                 onChange={setFlightType}
             />
 
-            {/* Row 1: Departure / Arrival */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <Combobox
@@ -105,6 +113,7 @@ export default function FlightSearchPanel({ onSearch }) {
                         <p className="text-xs text-red-600 mt-1">{errors.departure}</p>
                     )}
                 </div>
+
                 <div>
                     <Combobox
                         label="Arrival"
@@ -120,7 +129,6 @@ export default function FlightSearchPanel({ onSearch }) {
                 </div>
             </div>
 
-            {/* Row 2: Dates */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <DatePicker
@@ -133,6 +141,7 @@ export default function FlightSearchPanel({ onSearch }) {
                         <p className="text-xs text-red-600 mt-1">{errors.dateDepart}</p>
                     )}
                 </div>
+
                 <div>
                     <DatePicker
                         label="Return Date"
@@ -142,7 +151,9 @@ export default function FlightSearchPanel({ onSearch }) {
                         disabled={!isReturn}
                     />
                     {!isReturn && (
-                        <p className="text-xs text-gray-400 mt-1">Only available for Return flights.</p>
+                        <p className="text-xs text-gray-400 mt-1">
+                            Only available for Return flights.
+                        </p>
                     )}
                     {errors.dateReturn && (
                         <p className="text-xs text-red-600 mt-1">{errors.dateReturn}</p>
@@ -150,7 +161,6 @@ export default function FlightSearchPanel({ onSearch }) {
                 </div>
             </div>
 
-            {/* Row 3: Passengers / Class */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <PassengerSelector
@@ -160,6 +170,7 @@ export default function FlightSearchPanel({ onSearch }) {
                         error={errors.passengers}
                     />
                 </div>
+
                 <Dropdown
                     label="Cabin Class"
                     value={cabinClass}
@@ -168,7 +179,6 @@ export default function FlightSearchPanel({ onSearch }) {
                 />
             </div>
 
-            {/* Search Button */}
             <div className="pt-1">
                 <Button size="lg" onClick={handleSearch} className="w-full cursor-pointer">
                     Search Flights

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import TabBar from "../components/home/TabBar.jsx";
 import FlightStatusPanel from "../components/home/FlightStatus.jsx";
@@ -8,15 +9,12 @@ import FeaturedFlights from "../components/home/FeaturedFlights.jsx";
 
 export default function Home() {
     const [activeTab, setActiveTab] = useState("search");
+    const navigate = useNavigate();
 
     const handleSearch = (params) => {
         // TODO: navigate to search results page with params
         console.log("Search params:", params);
-        alert(
-            `Searching ${params.departure} → ${params.arrival}\n` +
-            `${params.flightType} · ${params.dateDepart}${params.flightType === "return" ? " → " + params.dateReturn : ""}\n` +
-            `${params.passengers.adults + params.passengers.children + params.passengers.infants} pax · ${params.cabinClass}`
-        );
+        navigate("/flight-search", { state: params });
     };
 
     const handleStatusCheck = (query) => {
