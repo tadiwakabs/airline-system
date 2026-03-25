@@ -72,9 +72,40 @@ namespace AirlineAPI.Controllers
             passenger.Gender = updated.Gender;
             passenger.DateOfBirth = updated.DateOfBirth;
 
+            passenger.FirstName = updated.FirstName;
+            passenger.LastName = updated.LastName;
+            passenger.Title = updated.Title;
+            passenger.PassengerType = updated.PassengerType;
+
             await _context.SaveChangesAsync();
 
             return NoContent();
+        }
+        
+        [HttpPost]
+        public async Task<IActionResult> CreatePassenger([FromBody] Passenger newPassenger)
+        {
+            if (newPassenger == null)
+                return BadRequest("Passenger data is required.");
+
+            if (string.IsNullOrWhiteSpace(newPassenger.FirstName))
+                return BadRequest("First name is required.");
+
+            if (string.IsNullOrWhiteSpace(newPassenger.LastName))
+                return BadRequest("Last name is required.");
+
+            if (newPassenger.DateOfBirth == default)
+                return BadRequest("Date of birth is required.");
+
+            if (string.IsNullOrWhiteSpace(newPassenger.PassengerId))
+            {
+                newPassenger.PassengerId = Guid.NewGuid().ToString("N");
+            }
+
+            _context.Passenger.Add(newPassenger);
+            await _context.SaveChangesAsync();
+
+            return CreatedAtAction(nameof(GetbyPassId), new { id = newPassenger.PassengerId }, newPassenger);
         }
     }
 }

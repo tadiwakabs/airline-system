@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Card from "../../components/common/Card.jsx";
 import Button from "../../components/common/Button.jsx";
 import Dropdown from "../../components/common/Dropdown.jsx";
-import {getCountries, getPassengerByUserId, getStates, updatePassenger} from "../../services/passengerService";
+import {getCountries, getPassengerByUserId, getStates, updatePassenger, createPassenger} from "../../services/passengerService";
 
 function capitalize(value) {
     if (!value) return "";
@@ -82,6 +82,87 @@ function getUserIdFromStorage() {
         auth.data?.userId ||
         null
     );
+}
+
+function normalizeGender(value) {
+    if (!value) return null;
+
+    const lower = String(value).toLowerCase();
+    if (lower === "male") return "Male";
+    if (lower === "female") return "Female";
+
+    return value;
+}
+
+function normalizePassengerType(value) {
+    if (!value) return "Adult";
+
+    const lower = String(value).toLowerCase();
+    if (lower === "adult") return "Adult";
+    if (lower === "child") return "Child";
+    if (lower === "infant") return "Infant";
+
+    return value;
+}
+
+function toPassengerPayload(passenger, { userId = null, linkToUser = false } = {}) {
+    return {
+        userId: linkToUser ? userId : null,
+        title: passenger.title || null,
+        firstName: passenger.firstName?.trim() || "",
+        lastName: passenger.lastName?.trim() || "",
+        dateOfBirth: passenger.dateOfBirth || null,
+        gender: normalizeGender(passenger.gender),
+        phoneNumber: passenger.phoneNumber?.trim() || null,
+        email: passenger.email?.trim() || null,
+
+        dlNumber: passenger.dlNumber ? Number(passenger.dlNumber) : null,
+        dlState: passenger.dlState || null,
+
+        passportNumber: passenger.passportNumber?.trim() || null,
+        passportCountryCode: passenger.passportCountryCode || null,
+        passportExpirationDate: passenger.passportExpirationDate || null,
+        placeOfBirth: passenger.placeOfBirth?.trim() || null,
+        nationality: passenger.nationality || null,
+
+        passengerType: normalizePassengerType(passenger.passengerType),
+    };
+}
+
+function validatePassenger(passenger, isDomesticItinerary) {
+    if (!passenger.firstName?.trim()) {
+        return `${passenger.passengerType} passenger first name is required.`;
+    }
+
+    if (!passenger.lastName?.trim()) {
+        return `${passenger.passengerType} passenger last name is required.`;
+    }
+
+    if (!passenger.dateOfBirth) {
+        return `${passenger.firstName || passenger.passengerType} is missing a date of birth.`;
+    }
+
+    if (passenger.passengerType === "Adult" && isDomesticItinerary) {
+        if (!passenger.dlNumber) {
+            return `${passenger.firstName || "Adult"} is missing a DL / ID number.`;
+        }
+
+        if (!passenger.dlState) {
+            return `${passenger.firstName || "Adult"} is missing a DL / ID state.`;
+        }
+    }
+
+    if (!isDomesticItinerary) {
+        if (!passenger.passportNumber) {
+            return `${passenger.firstName || passenger.passengerType} is missing a passport number.`;
+        }
+
+        if (!passenger.passportCountryCode) {
+            return `${passenger.firstName || passenger.passengerType} is missing a passport country.`;
+        }
+    }
+
+    return "";
 }
 
 export default function BookingPassengers() {
@@ -218,29 +299,61 @@ export default function BookingPassengers() {
 
     const handleContinue = async () => {
         try {
-            const auth = JSON.parse(localStorage.getItem("user"));
-            const userId = auth?.userId;
+            setError("");
 
-            // find account passenger
-            const accountPassenger = passengerForms.find(p => p.isAccountPassenger);
+            const userId = getUserIdFromStorage();
 
-            if (accountPassenger && profile?.passengerId) {
-                await updatePassenger(profile.passengerId, accountPassenger);
+            for (const passenger of passengerForms) {
+                const validationError = validatePassenger(passenger, isDomesticItinerary);
+                if (validationError) {
+                    setError(validationError);
+                    return;
+                }
+            }
+
+            const savedPassengers = [];
+
+            for (const passenger of passengerForms) {
+                const payload = toPassengerPayload(passenger, {
+                    userId,
+                    linkToUser: passenger.isAccountPassenger,
+                });
+
+                if (passenger.isAccountPassenger && profile?.passengerId) {
+                    await updatePassenger(profile.passengerId, payload);
+
+                    savedPassengers.push({
+                        ...passenger,
+                        passengerId: profile.passengerId,
+                        userId: userId || null,
+                    });
+                } else {
+                    const res = await createPassenger(payload);
+
+                    savedPassengers.push({
+                        ...passenger,
+                        passengerId: res.data?.passengerId,
+                        userId: passenger.isAccountPassenger ? userId || null : null,
+                    });
+                }
             }
 
             navigate("/booking/review", {
                 state: {
                     selectedItinerary,
                     searchParams,
-                    passengers: passengerForms,
+                    passengers: savedPassengers,
                 },
             });
         } catch (err) {
-            console.error("Error saving passenger:", err);
+            console.error("Error saving passenger:", err.response?.data || err.message);
+            setError(
+                err.response?.data?.message ||
+                (typeof err.response?.data === "string" ? err.response.data : "") ||
+                "Error saving passenger"
+            );
         }
     };
-
-    console.log(selectedItinerary.flights);
 
     const isDomesticItinerary =
         selectedItinerary?.flights?.every((f) => f.isDomestic) ?? true;

@@ -7,7 +7,6 @@ namespace AirlineAPI.Models
     public class Passenger
     {
         [Key]
-        [Required]
         [StringLength(50)]
         public string PassengerId { get; set; } = string.Empty;
 
