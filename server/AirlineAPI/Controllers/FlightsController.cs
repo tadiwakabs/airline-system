@@ -115,6 +115,17 @@ namespace AirlineAPI.Controllers
 
             _context.Flights.Add(flight);
             await _context.SaveChangesAsync();
+            
+            var aircraft = await _context.Aircraft
+                .FirstOrDefaultAsync(a => a.tailnumber == flight.aircraftUsed);
+
+            if (aircraft == null)
+                return BadRequest("Assigned aircraft not found.");
+
+            var seats = GenerateSeatsForFlight(flight.flightNum, aircraft.numSeats);
+
+            _context.Seating.AddRange(seats);
+            await _context.SaveChangesAsync();
 
             return Ok(flight);
         }
@@ -227,6 +238,23 @@ namespace AirlineAPI.Controllers
             }
 
             _context.Flights.AddRange(flightsToCreate);
+            await _context.SaveChangesAsync();
+            
+            var aircraft = await _context.Aircraft
+                .FirstOrDefaultAsync(a => a.tailnumber == dto.AircraftUsed);
+
+            if (aircraft == null)
+                return BadRequest("Assigned aircraft not found.");
+
+            var allSeats = new List<Seating>();
+
+            foreach (var flight in flightsToCreate)
+            {
+                var seats = GenerateSeatsForFlight(flight.flightNum, aircraft.numSeats);
+                allSeats.AddRange(seats);
+            }
+
+            _context.Seating.AddRange(allSeats);
             await _context.SaveChangesAsync();
 
             if (dto.EconomyPrice.HasValue && dto.BusinessPrice.HasValue && dto.FirstPrice.HasValue)
@@ -511,6 +539,78 @@ namespace AirlineAPI.Controllers
                 Business = BuildFareBreakdown(businessBase, adults, children, infants),
                 First = BuildFareBreakdown(firstBase, adults, children, infants)
             };
+        }
+        
+        private static List<Seating> GenerateSeatsForFlight(int flightNum, int numSeats)
+        {
+            var seats = new List<Seating>();
+
+            var firstLetters = new[] { "A", "B", "C", "D" };
+            var standardLetters = new[] { "A", "B", "C", "D", "E", "F" };
+
+            int created = 0;
+
+            // First class (rows 1–4)
+            for (int row = 1; row <= 4 && created < numSeats; row++)
+            {
+                foreach (var letter in firstLetters)
+                {
+                    if (created >= numSeats) break;
+
+                    seats.Add(new Seating
+                    {
+                        flightNum = flightNum,
+                        seatNumber = $"{row}{letter}",
+                        seatclass = SeatClass.First,
+                        seatStatus = SeatStatus.Available
+                    });
+
+                    created++;
+                }
+            }
+
+            // Business (rows 5–10)
+            for (int row = 5; row <= 10 && created < numSeats; row++)
+            {
+                foreach (var letter in standardLetters)
+                {
+                    if (created >= numSeats) break;
+
+                    seats.Add(new Seating
+                    {
+                        flightNum = flightNum,
+                        seatNumber = $"{row}{letter}",
+                        seatclass = SeatClass.Buisness,
+                        seatStatus = SeatStatus.Available
+                    });
+
+                    created++;
+                }
+            }
+
+            // Economy (remaining)
+            int economyRow = 11;
+            while (created < numSeats)
+            {
+                foreach (var letter in standardLetters)
+                {
+                    if (created >= numSeats) break;
+
+                    seats.Add(new Seating
+                    {
+                        flightNum = flightNum,
+                        seatNumber = $"{economyRow}{letter}",
+                        seatclass = SeatClass.Economy,
+                        seatStatus = SeatStatus.Available
+                    });
+
+                    created++;
+                }
+
+                economyRow++;
+            }
+
+            return seats;
         }
 
         private async Task<string?> ValidateFlightAsync(

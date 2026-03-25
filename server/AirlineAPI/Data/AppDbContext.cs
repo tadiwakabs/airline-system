@@ -18,6 +18,7 @@ namespace AirlineAPI.Data
         public DbSet<FlightPricing> FlightPricing { get; set; }
         public DbSet<Countries> Countries { get; set; }
         public DbSet<States> States { get; set; }
+        public DbSet<Seating> Seating { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -182,6 +183,9 @@ namespace AirlineAPI.Data
                 entity.Property(p => p.PassengerType)
                     .HasConversion<string>();
             });
+            
+            modelBuilder.Entity<Seating>()
+                .HasKey(s => new { s.flightNum, s.seatNumber });
         }
 
         private static string? ConvertTitleToDb(UserTitle? title)
