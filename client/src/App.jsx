@@ -31,6 +31,8 @@ function App() {
                         element={<ProtectedRoute>
                                     <Profile />
                                 </ProtectedRoute>} />
+                                
+                    <Route path = "/ticket" element={<Ticket />} />
 
                     {/* Employee-Authenticated Routes */}
                     <Route path="/flights" element={<Flights />} />
