@@ -13,6 +13,7 @@ import Profile from "./pages/passenger/Profile.jsx";
 import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
 import Flights from "./pages/employee/Flights";
 import HelpPage from './pages/HelpPage.jsx';
+import Ticket from './pages/Ticket'
 
 
 function App() {
