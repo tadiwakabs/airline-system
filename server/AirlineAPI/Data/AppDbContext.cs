@@ -14,6 +14,7 @@ namespace AirlineAPI.Data
         public DbSet<Aircraft> Aircraft { get; set;}
         public DbSet<Passenger> Passenger{get;set;}
         public DbSet<RecurringSchedule> RecurringSchedules { get; set; }
+        public DbSet<FlightPricing> FlightPricing { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -139,6 +140,32 @@ namespace AirlineAPI.Data
 
                 entity.Property(e => e.UpdatedAt)
                     .HasColumnName("updatedAt");
+            });
+            
+            modelBuilder.Entity<FlightPricing>(entity =>
+            {
+                entity.ToTable("FlightPricing");
+ 
+                entity.HasKey(e => new { e.FlightNum, e.CabinClass });
+ 
+                entity.Property(e => e.FlightNum)
+                    .HasColumnName("flightNum");
+ 
+                entity.Property(e => e.CabinClass)
+                    .HasColumnName("cabinClass")
+                    .HasConversion(
+                        v => v.ToString(),
+                        v => (CabinClass)Enum.Parse(typeof(CabinClass), v)
+                    );
+ 
+                entity.Property(e => e.Price)
+                    .HasColumnName("price")
+                    .HasColumnType("decimal(10,2)");
+ 
+                entity.HasOne(e => e.Flight)
+                    .WithMany(f => f.Pricing)
+                    .HasForeignKey(e => e.FlightNum)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
         }
 

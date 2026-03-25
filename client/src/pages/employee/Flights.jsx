@@ -13,6 +13,7 @@ import {
     createRecurringFlights,
     updateFlight,
     deleteFlight,
+    upsertFlightPricing,
 } from "../../services/flightService";
 import { getAllAircraft } from "../../services/aircraftService";
 import {
@@ -107,6 +108,9 @@ const emptyForm = {
     isDomestic: false,
     distance: "",
     flightChange: false,
+    economyPrice: "",
+    businessPrice: "",
+    firstPrice: "",
 };
 
 const emptyRecurringForm = {
@@ -122,6 +126,9 @@ const emptyRecurringForm = {
     distance: "",
     flightChange: false,
     daysOfWeek: [],
+    economyPrice: "",
+    businessPrice: "",
+    firstPrice: "",
 };
 
 // ── Small shared sub-component ────────────────────────────────────────────────
@@ -257,7 +264,7 @@ export default function Flights() {
         const arr = getAirportCoords(formData.arrivingPortCode);
         setFormData((p) => ({
             ...p,
-            distance: dep && arr ? haversineDistance(dep.latitude, dep.longitude, arr.latitude, arr.longitude) : "",
+            distance: dep && arr ? haversineDistance(dep.lat, dep.lng, arr.lat, arr.lng) : "",
         }));
     }, [formData.departingPortCode, formData.arrivingPortCode]);
 
@@ -266,7 +273,7 @@ export default function Flights() {
         const arr = getAirportCoords(recurringData.arrivingPortCode);
         setRecurringData((p) => ({
             ...p,
-            distance: dep && arr ? haversineDistance(dep.latitude, dep.longitude, arr.latitude, arr.longitude) : "",
+            distance: dep && arr ? haversineDistance(dep.lat, dep.lng, arr.lat, arr.lng) : "",
         }));
     }, [recurringData.departingPortCode, recurringData.arrivingPortCode]);
 
@@ -275,7 +282,7 @@ export default function Flights() {
         const arr = getAirportCoords(scheduleForm.arrivingPortCode);
         setScheduleForm((p) => ({
             ...p,
-            distance: dep && arr ? haversineDistance(dep.latitude, dep.longitude, arr.latitude, arr.longitude) : "",
+            distance: dep && arr ? haversineDistance(dep.lat, dep.lng, arr.lat, arr.lng) : "",
         }));
     }, [scheduleForm.departingPortCode, scheduleForm.arrivingPortCode]);
 
@@ -332,11 +339,14 @@ export default function Flights() {
             arrivalTime:       formatForDateTimeLocal(flight.arrivalTime),
             aircraftUsed:      flight.aircraftUsed ?? "",
             status:            flight.status ?? "",
-            departingPortCode: flight.departingPortCode ?? flight.departingPortCode ?? "",
-            arrivingPortCode:  flight.arrivingPortCode ?? flight.arrivingPortCode ?? "",
+            departingPortCode: flight.departingPortCode ?? flight.departingPort ?? "",
+            arrivingPortCode:  flight.arrivingPortCode ?? flight.arrivingPort ?? "",
             isDomestic:        !!flight.isDomestic,
             distance:          flight.distance ?? "",
             flightChange:      !!flight.flightChange,
+            economyPrice:      flight.pricing?.find(p => p.cabinClass === "Economy")?.price ?? "",
+            businessPrice:     flight.pricing?.find(p => p.cabinClass === "Business")?.price ?? "",
+            firstPrice:        flight.pricing?.find(p => p.cabinClass === "First")?.price ?? "",
         });
         setIsFlightModalOpen(true);
     };
@@ -387,11 +397,18 @@ export default function Flights() {
         try {
             if (editingFlightId !== null) {
                 await updateFlight(editingFlightId, payload);
-                setSuccessMessage("Flight updated successfully.");
             } else {
                 await createFlight(payload);
-                setSuccessMessage("Flight created successfully.");
             }
+            // Upsert pricing if any price was provided
+            if (formData.economyPrice || formData.businessPrice || formData.firstPrice) {
+                await upsertFlightPricing(payload.flightNum, {
+                    economyPrice:  Number(formData.economyPrice),
+                    businessPrice: Number(formData.businessPrice),
+                    firstPrice:    Number(formData.firstPrice),
+                });
+            }
+            setSuccessMessage(editingFlightId !== null ? "Flight updated successfully." : "Flight created successfully.");
             resetFlightForm();
             await loadFlights();
         } catch (err) {
@@ -410,6 +427,9 @@ export default function Flights() {
                 ? `${recurringData.departureTimeOfDay}:00` : "",
             arrivalTimeOfDay: recurringData.arrivalTimeOfDay
                 ? `${recurringData.arrivalTimeOfDay}:00` : "",
+            economyPrice:  recurringData.economyPrice  ? Number(recurringData.economyPrice)  : null,
+            businessPrice: recurringData.businessPrice ? Number(recurringData.businessPrice) : null,
+            firstPrice:    recurringData.firstPrice    ? Number(recurringData.firstPrice)    : null,
         };
         try {
             await createRecurringFlights(payload);
@@ -452,8 +472,8 @@ export default function Flights() {
         setError("");
         setEditingScheduleId(schedule.id);
         setScheduleForm({
-            departingPortCode:  schedule.departingPortCode ?? "",
-            arrivingPortCode:   schedule.arrivingPortCode ?? "",
+            departingPortCode:  schedule.departingPortCode ?? schedule.departingPort ?? "",
+            arrivingPortCode:   schedule.arrivingPortCode ?? schedule.arrivingPort ?? "",
             departureTimeOfDay: schedule.departureTimeOfDay?.slice(0, 5) ?? "",
             arrivalTimeOfDay:   schedule.arrivalTimeOfDay?.slice(0, 5) ?? "",
             aircraftUsed:       schedule.aircraftUsed ?? "",
@@ -464,6 +484,9 @@ export default function Flights() {
             startDate:          schedule.startDate?.slice(0, 10) ?? "",
             endDate:            schedule.endDate?.slice(0, 10) ?? "",
             daysOfWeek:         parseDays(schedule.daysOfWeek),
+            economyPrice:       schedule.economyPrice ?? "",
+            businessPrice:      schedule.businessPrice ?? "",
+            firstPrice:         schedule.firstPrice ?? "",
         });
         setIsScheduleModalOpen(true);
     };
@@ -514,6 +537,9 @@ export default function Flights() {
                 ? `${scheduleForm.departureTimeOfDay}:00` : "",
             arrivalTimeOfDay: scheduleForm.arrivalTimeOfDay
                 ? `${scheduleForm.arrivalTimeOfDay}:00` : "",
+            economyPrice:  scheduleForm.economyPrice  ? Number(scheduleForm.economyPrice)  : null,
+            businessPrice: scheduleForm.businessPrice ? Number(scheduleForm.businessPrice) : null,
+            firstPrice:    scheduleForm.firstPrice    ? Number(scheduleForm.firstPrice)    : null,
         };
         try {
             await updateRecurringSchedule(editingScheduleId, payload);
@@ -535,8 +561,8 @@ export default function Flights() {
                 String(f.flightNum).toLowerCase().includes(term) ||
                 (f.aircraftUsed || "").toLowerCase().includes(term) ||
                 (f.status || "").toLowerCase().includes(term) ||
-                (f.departingPortCode || f.departingPortCode || "").toLowerCase().includes(term) ||
-                (f.arrivingPortCode  || f.arrivingPortCode  || "").toLowerCase().includes(term)
+                (f.departingPortCode || f.departingPort || "").toLowerCase().includes(term) ||
+                (f.arrivingPortCode  || f.arrivingPort  || "").toLowerCase().includes(term)
             );
         }
         if (statusFilter) result = result.filter((f) => f.status === statusFilter);
@@ -728,6 +754,7 @@ export default function Flights() {
                                     <th className="px-3 py-2">Route</th>
                                     <th className="px-3 py-2">Status</th>
                                     <th className="px-3 py-2">Distance</th>
+                                    <th className="px-3 py-2">Price</th>
                                     <th className="px-3 py-2">Type</th>
                                     <th className="px-3 py-2">Actions</th>
                                 </tr>
@@ -740,11 +767,26 @@ export default function Flights() {
                                         <td className="px-3 py-3">{formatDisplayDateTime(flight.arrivalTime)}</td>
                                         <td className="px-3 py-3">{flight.aircraftUsed}</td>
                                         <td className="px-3 py-3">
-                                            {flight.departingPortCode ?? flight.departingPortCode} →{" "}
-                                            {flight.arrivingPortCode  ?? flight.arrivingPortCode}
+                                            {flight.departingPortCode ?? flight.departingPort} →{" "}
+                                            {flight.arrivingPortCode  ?? flight.arrivingPort}
                                         </td>
                                         <td className="px-3 py-3">{flight.status}</td>
                                         <td className="px-3 py-3">{flight.distance}</td>
+                                        <td className="px-3 py-3">
+                                            {flight.pricing && flight.pricing.length > 0 ? (
+                                                <div className="flex flex-col gap-0.2 text-xs text-slate-900">
+                                                    {["Economy", "Business", "First"].map((cls) => {
+                                                        const p = flight.pricing.find(x => x.cabinClass === cls);
+                                                        const abbr = cls[0];
+                                                        return p
+                                                            ? <span key={cls}><span className="font-medium">{abbr}:</span> ${Number(p.price).toFixed(2)}</span>
+                                                            : <span key={cls} className="text-gray-400">{abbr}: —</span>;
+                                                    })}
+                                                </div>
+                                            ) : (
+                                                <span className="text-xs text-gray-400">Not set</span>
+                                            )}
+                                        </td>
                                         <td className="px-3 py-3">{flight.isDomestic ? "Domestic" : "International"}</td>
                                         <td className="px-3 py-3">
                                             <div className="flex gap-2">
@@ -796,7 +838,7 @@ export default function Flights() {
                                 {schedules.map((s) => (
                                     <tr key={s.id} className="rounded-xl bg-gray-50 text-sm">
                                         <td className="px-3 py-3 font-medium text-gray-900">{s.id}</td>
-                                        <td className="px-3 py-3">{s.departingPortCode} → {s.arrivingPortCode}</td>
+                                        <td className="px-3 py-3">{s.departingPort} → {s.arrivingPort}</td>
                                         <td className="px-3 py-3">{formatTime(s.departureTimeOfDay)}</td>
                                         <td className="px-3 py-3">{formatTime(s.arrivalTimeOfDay)}</td>
                                         <td className="px-3 py-3">{s.aircraftUsed}</td>
@@ -874,6 +916,36 @@ export default function Flights() {
                         </div>
                         {renderDistanceField(formData.distance, handleFormChange)}
                         {renderCheckboxes(formData, handleFormChange)}
+                        <Separator />
+                        <div>
+                            <p className="text-sm font-medium text-gray-700 mb-2">Pricing</p>
+                            <div className="grid grid-cols-3 gap-4">
+                                <TextInput
+                                    label="Economy ($)"
+                                    name="economyPrice"
+                                    type="number"
+                                    placeholder="0.00"
+                                    value={formData.economyPrice}
+                                    onChange={handleFormChange}
+                                />
+                                <TextInput
+                                    label="Business ($)"
+                                    name="businessPrice"
+                                    type="number"
+                                    placeholder="0.00"
+                                    value={formData.businessPrice}
+                                    onChange={handleFormChange}
+                                />
+                                <TextInput
+                                    label="First Class ($)"
+                                    name="firstPrice"
+                                    type="number"
+                                    placeholder="0.00"
+                                    value={formData.firstPrice}
+                                    onChange={handleFormChange}
+                                />
+                            </div>
+                        </div>
                         <div className="flex gap-3 pt-2">
                             <Button type="submit">{editingFlightId !== null ? "Save Changes" : "Create Flight"}</Button>
                             <Button type="button" variant="outline" onClick={resetFlightForm}>Cancel</Button>
@@ -904,6 +976,36 @@ export default function Flights() {
                         {renderDistanceField(recurringData.distance, handleRecurringChange)}
                         {renderCheckboxes(recurringData, handleRecurringChange)}
                         {renderDaysOfWeek(recurringData.daysOfWeek, toggleDay)}
+                        <Separator />
+                        <div>
+                            <p className="text-sm font-medium text-gray-700 mb-2">Pricing</p>
+                            <div className="grid grid-cols-3 gap-4">
+                                <TextInput
+                                    label="Economy ($)"
+                                    name="economyPrice"
+                                    type="number"
+                                    placeholder="0.00"
+                                    value={recurringData.economyPrice}
+                                    onChange={handleRecurringChange}
+                                />
+                                <TextInput
+                                    label="Business ($)"
+                                    name="businessPrice"
+                                    type="number"
+                                    placeholder="0.00"
+                                    value={recurringData.businessPrice}
+                                    onChange={handleRecurringChange}
+                                />
+                                <TextInput
+                                    label="First Class ($)"
+                                    name="firstPrice"
+                                    type="number"
+                                    placeholder="0.00"
+                                    value={recurringData.firstPrice}
+                                    onChange={handleRecurringChange}
+                                />
+                            </div>
+                        </div>
                         <div className="flex gap-3 pt-2">
                             <Button type="submit">Create Recurring Flights</Button>
                             <Button type="button" variant="outline" onClick={resetFlightForm}>Cancel</Button>
@@ -948,6 +1050,37 @@ export default function Flights() {
                     {renderDistanceField(scheduleForm.distance, handleScheduleFormChange)}
                     {renderCheckboxes(scheduleForm, handleScheduleFormChange)}
                     {renderDaysOfWeek(scheduleForm.daysOfWeek, toggleScheduleDay)}
+                    <Separator />
+                    <div>
+                        <p className="text-sm font-medium text-gray-700 mb-2">Pricing</p>
+                        <p className="text-xs text-gray-500 mb-3">Applied to all regenerated future flights.</p>
+                        <div className="grid grid-cols-3 gap-4">
+                            <TextInput
+                                label="Economy ($)"
+                                name="economyPrice"
+                                type="number"
+                                placeholder="0.00"
+                                value={scheduleForm.economyPrice}
+                                onChange={handleScheduleFormChange}
+                            />
+                            <TextInput
+                                label="Business ($)"
+                                name="businessPrice"
+                                type="number"
+                                placeholder="0.00"
+                                value={scheduleForm.businessPrice}
+                                onChange={handleScheduleFormChange}
+                            />
+                            <TextInput
+                                label="First Class ($)"
+                                name="firstPrice"
+                                type="number"
+                                placeholder="0.00"
+                                value={scheduleForm.firstPrice}
+                                onChange={handleScheduleFormChange}
+                            />
+                        </div>
+                    </div>
                     <div className="flex gap-3 pt-2">
                         <Button type="submit">Save Changes</Button>
                         <Button type="button" variant="outline" onClick={resetScheduleForm}>Cancel</Button>
@@ -1000,8 +1133,8 @@ export default function Flights() {
                     )}
                 </div>
             </Dialog>
-            
-            
+
+
             {/* ════════════════════════════════════════════════════════════════
                 DELETE RECURRING SCHEDULE DIALOG
             ════════════════════════════════════════════════════════════════ */}

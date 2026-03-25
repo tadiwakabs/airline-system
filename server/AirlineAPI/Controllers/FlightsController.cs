@@ -18,24 +18,67 @@ namespace AirlineAPI.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Flight>>> GetFlights()
+        public async Task<ActionResult<IEnumerable<FlightResponseDto>>> GetFlights()
         {
             var flights = await _context.Flights
+                .Include(f => f.Pricing)
                 .OrderBy(f => f.departTime)
                 .ToListAsync();
 
-            return Ok(flights);
+            var response = flights.Select(f => new FlightResponseDto
+            {
+                FlightNum          = f.flightNum,
+                DepartTime         = f.departTime,
+                ArrivalTime        = f.arrivalTime,
+                AircraftUsed       = f.aircraftUsed,
+                Status             = f.status,
+                DepartingPortCode  = f.departingPort,
+                ArrivingPortCode   = f.arrivingPort,
+                IsDomestic         = f.isDomestic,
+                Distance           = f.distance,
+                FlightChange       = f.flightChange,
+                RecurringScheduleId = f.recurringScheduleId,
+                Pricing            = f.Pricing.Select(p => new FlightPricingDto
+                {
+                    CabinClass = p.CabinClass.ToString(),
+                    Price      = p.Price
+                }).ToList()
+            });
+
+            return Ok(response);
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<Flight>> GetFlightById(int id)
+        public async Task<ActionResult<FlightResponseDto>> GetFlightById(int id)
         {
-            var flight = await _context.Flights.FindAsync(id);
+            var flight = await _context.Flights
+                .Include(f => f.Pricing)
+                .FirstOrDefaultAsync(f => f.flightNum == id);
 
             if (flight == null)
                 return NotFound(new { message = "Flight not found" });
 
-            return Ok(flight);
+            var response = new FlightResponseDto
+            {
+                FlightNum          = flight.flightNum,
+                DepartTime         = flight.departTime,
+                ArrivalTime        = flight.arrivalTime,
+                AircraftUsed       = flight.aircraftUsed,
+                Status             = flight.status,
+                DepartingPortCode  = flight.departingPort,
+                ArrivingPortCode   = flight.arrivingPort,
+                IsDomestic         = flight.isDomestic,
+                Distance           = flight.distance,
+                FlightChange       = flight.flightChange,
+                RecurringScheduleId = flight.recurringScheduleId,
+                Pricing            = flight.Pricing.Select(p => new FlightPricingDto
+                {
+                    CabinClass = p.CabinClass.ToString(),
+                    Price      = p.Price
+                }).ToList()
+            };
+
+            return Ok(response);
         }
 
         [HttpPost]
@@ -90,6 +133,18 @@ namespace AirlineAPI.Controllers
 
             if (dto.DaysOfWeek == null || dto.DaysOfWeek.Count == 0)
                 return BadRequest(new { message = "At least one day of week must be selected." });
+
+            if (dto.EconomyPrice.HasValue || dto.BusinessPrice.HasValue || dto.FirstPrice.HasValue)
+            {
+                if (!dto.EconomyPrice.HasValue || !dto.BusinessPrice.HasValue || !dto.FirstPrice.HasValue)
+                    return BadRequest(new { message = "All three prices must be provided together." });
+
+                if (dto.EconomyPrice <= 0 || dto.BusinessPrice <= 0 || dto.FirstPrice <= 0)
+                    return BadRequest(new { message = "All prices must be greater than zero." });
+
+                if (dto.EconomyPrice >= dto.BusinessPrice || dto.BusinessPrice >= dto.FirstPrice)
+                    return BadRequest(new { message = "Prices must follow the order: Economy < Business < First." });
+            }
 
             var schedule = new RecurringSchedule
             {
@@ -174,6 +229,19 @@ namespace AirlineAPI.Controllers
             _context.Flights.AddRange(flightsToCreate);
             await _context.SaveChangesAsync();
 
+            if (dto.EconomyPrice.HasValue && dto.BusinessPrice.HasValue && dto.FirstPrice.HasValue)
+            {
+                var pricingRows = new List<FlightPricing>();
+                foreach (var flight in flightsToCreate)
+                {
+                    pricingRows.Add(new FlightPricing { FlightNum = flight.flightNum, CabinClass = CabinClass.Economy,  Price = dto.EconomyPrice.Value  });
+                    pricingRows.Add(new FlightPricing { FlightNum = flight.flightNum, CabinClass = CabinClass.Business, Price = dto.BusinessPrice.Value });
+                    pricingRows.Add(new FlightPricing { FlightNum = flight.flightNum, CabinClass = CabinClass.First,    Price = dto.FirstPrice.Value    });
+                }
+                _context.FlightPricing.AddRange(pricingRows);
+                await _context.SaveChangesAsync();
+            }
+
             return Ok(new
             {
                 message = "Recurring schedule created successfully.",
@@ -240,6 +308,206 @@ namespace AirlineAPI.Controllers
                 .ToListAsync();
 
             return Ok(results);
+        }
+        
+        [HttpGet("search-results")]
+        public async Task<IActionResult> SearchResults(
+            [FromQuery] string from,
+            [FromQuery] string to,
+            [FromQuery] DateTime date,
+            [FromQuery] int adults = 1,
+            [FromQuery] int children = 0,
+            [FromQuery] int infants = 0)
+        {
+            if (adults < 1)
+                return BadRequest(new { message = "At least one adult is required." });
+
+            if (children < 0 || infants < 0)
+                return BadRequest(new { message = "Passenger counts cannot be negative." });
+            
+            from = (from ?? "").Trim().ToUpper();
+            to = (to ?? "").Trim().ToUpper();
+
+            var dayStart = date.Date;
+            var dayEnd = dayStart.AddDays(1);
+
+            var allFlights = await _context.Flights
+                .Include(f => f.Pricing)
+                .OrderBy(f => f.departTime)
+                .ToListAsync();
+
+            var directResults = allFlights
+                .Where(f =>
+                    (f.departingPort ?? "").Trim().ToUpper() == from &&
+                    (f.arrivingPort ?? "").Trim().ToUpper() == to &&
+                    f.departTime >= dayStart &&
+                    f.departTime < dayEnd)
+                .Select(f =>
+                {
+                    var economyBase = f.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Economy)?.Price;
+                    var businessBase = f.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Business)?.Price;
+                    var firstBase = f.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.First)?.Price;
+
+                    return new FlightSearchResultDto
+                    {
+                        Type = "direct",
+                        Flights = new List<FlightLegDto>
+                        {
+                            new FlightLegDto
+                            {
+                                FlightNum = f.flightNum,
+                                DepartingPortCode = f.departingPort,
+                                ArrivingPortCode = f.arrivingPort,
+                                DepartTime = f.departTime,
+                                ArrivalTime = f.arrivalTime,
+                                Status = f.status,
+                                AircraftUsed = f.aircraftUsed,
+                                Distance = f.distance
+                            }
+                        },
+                        Pricing = new FlightSearchPricingDto
+                        {
+                            Economy = economyBase,
+                            Business = businessBase,
+                            First = firstBase
+                        },
+                        Quote = BuildQuote(economyBase, businessBase, firstBase, adults, children, infants)
+                    };
+                })
+                .ToList();
+
+            var candidateFirstLegs = allFlights
+                .Where(f =>
+                    (f.departingPort ?? "").Trim().ToUpper() == from &&
+                    (f.arrivingPort ?? "").Trim().ToUpper() != to &&
+                    f.departTime >= dayStart &&
+                    f.departTime < dayEnd)
+                .ToList();
+
+            var candidateSecondLegs = allFlights
+                .Where(f =>
+                    (f.departingPort ?? "").Trim().ToUpper() != from &&
+                    (f.arrivingPort ?? "").Trim().ToUpper() == to &&
+                    f.departTime >= dayStart &&
+                    f.departTime < dayEnd.AddDays(1))
+                .ToList();
+
+            var connectingResults =
+                (from leg1 in candidateFirstLegs
+                 from leg2 in candidateSecondLegs
+                 where (leg1.arrivingPort ?? "").Trim().ToUpper() == (leg2.departingPort ?? "").Trim().ToUpper()
+                       && leg2.departTime >= leg1.arrivalTime.AddMinutes(30)
+                       && leg2.departTime <= leg1.arrivalTime.AddHours(4)
+                 select new
+                 {
+                     leg1,
+                     leg2,
+                     economyBase = SumPrices(
+                         leg1.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Economy)?.Price,
+                         leg2.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Economy)?.Price
+                     ),
+                     businessBase = SumPrices(
+                         leg1.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Business)?.Price,
+                         leg2.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Business)?.Price
+                     ),
+                     firstBase = SumPrices(
+                         leg1.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.First)?.Price,
+                         leg2.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.First)?.Price
+                     )
+                 })
+                .Select(x => new FlightSearchResultDto
+                {
+                    Type = "connection",
+                    Flights = new List<FlightLegDto>
+                    {
+                        new FlightLegDto
+                        {
+                            FlightNum = x.leg1.flightNum,
+                            DepartingPortCode = x.leg1.departingPort,
+                            ArrivingPortCode = x.leg1.arrivingPort,
+                            DepartTime = x.leg1.departTime,
+                            ArrivalTime = x.leg1.arrivalTime,
+                            Status = x.leg1.status,
+                            AircraftUsed = x.leg1.aircraftUsed,
+                            Distance = x.leg1.distance
+                        },
+                        new FlightLegDto
+                        {
+                            FlightNum = x.leg2.flightNum,
+                            DepartingPortCode = x.leg2.departingPort,
+                            ArrivingPortCode = x.leg2.arrivingPort,
+                            DepartTime = x.leg2.departTime,
+                            ArrivalTime = x.leg2.arrivalTime,
+                            Status = x.leg2.status,
+                            AircraftUsed = x.leg2.aircraftUsed,
+                            Distance = x.leg2.distance
+                        }
+                    },
+                    Pricing = new FlightSearchPricingDto
+                    {
+                        Economy = x.economyBase,
+                        Business = x.businessBase,
+                        First = x.firstBase
+                    },
+                    Quote = BuildQuote(x.economyBase, x.businessBase, x.firstBase, adults, children, infants)
+                })
+                .ToList();
+
+            return Ok(directResults.Concat(connectingResults));
+        }
+        
+        private const decimal ChildMultiplier = 0.8m;
+        private const decimal InfantMultiplier = 0.1m;
+
+        private static decimal? SumPrices(decimal? first, decimal? second)
+        {
+            if (!first.HasValue || !second.HasValue)
+                return null;
+
+            return first.Value + second.Value;
+        }
+
+        private static FlightFareBreakdownDto BuildFareBreakdown(
+            decimal? baseFare,
+            int adults,
+            int children,
+            int infants)
+        {
+            if (!baseFare.HasValue)
+                return new FlightFareBreakdownDto();
+
+            var perAdult = baseFare.Value;
+            var perChild = Math.Round(baseFare.Value * ChildMultiplier, 2);
+            var perInfant = Math.Round(baseFare.Value * InfantMultiplier, 2);
+
+            var total =
+                (adults * perAdult) +
+                (children * perChild) +
+                (infants * perInfant);
+
+            return new FlightFareBreakdownDto
+            {
+                PerAdult = perAdult,
+                PerChild = perChild,
+                PerInfant = perInfant,
+                Total = Math.Round(total, 2)
+            };
+        }
+
+        private static FlightSearchQuoteDto BuildQuote(
+            decimal? economyBase,
+            decimal? businessBase,
+            decimal? firstBase,
+            int adults,
+            int children,
+            int infants)
+        {
+            return new FlightSearchQuoteDto
+            {
+                Economy = BuildFareBreakdown(economyBase, adults, children, infants),
+                Business = BuildFareBreakdown(businessBase, adults, children, infants),
+                First = BuildFareBreakdown(firstBase, adults, children, infants)
+            };
         }
 
         private async Task<string?> ValidateFlightAsync(
