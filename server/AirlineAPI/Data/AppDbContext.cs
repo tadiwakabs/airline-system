@@ -16,6 +16,7 @@ namespace AirlineAPI.Data
         public DbSet<Booking> Booking{get;set;}
         public DbSet<Payment> Payments{get;set;}
         public DbSet<RecurringSchedule> RecurringSchedules { get; set; }
+        public DbSet<Airport> Airports {get;set;}
 
 
         public DbSet<Ticket> Ticket { get; set; }
