@@ -93,6 +93,7 @@ export default function FlightSearch() {
                         status: f.status,
                         aircraftUsed: f.aircraftUsed,
                         distance: f.distance,
+                        isDomestic: f.isDomestic,
                     })),
                     pricing: {
                         economy: item.pricing?.economy ?? 0,
@@ -120,6 +121,15 @@ export default function FlightSearch() {
     const handleSearch = (params) => {
         setSearchParams(params);
         navigate("/flight-search", { state: params, replace: true });
+    };
+
+    const handleSelectFlight = (selectedItinerary) => {
+        navigate("/booking/passengers", {
+            state: {
+                selectedItinerary,
+                searchParams,
+            },
+        });
     };
 
     const searchSummary = useMemo(() => {
@@ -237,6 +247,7 @@ export default function FlightSearch() {
                                 {...result}
                                 cabinClass={searchParams.cabinClass}
                                 passengers={searchParams.passengers}
+                                onSelect={handleSelectFlight}
                             />
                         ))}
                     </div>

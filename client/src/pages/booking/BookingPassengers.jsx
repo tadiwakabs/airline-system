@@ -1,0 +1,586 @@
+import { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import Card from "../../components/common/Card.jsx";
+import Button from "../../components/common/Button.jsx";
+import Dropdown from "../../components/common/Dropdown.jsx";
+import {getCountries, getPassengerByUserId, getStates, updatePassenger, createPassenger} from "../../services/passengerService";
+
+function capitalize(value) {
+    if (!value) return "";
+    if (value === "first") return "First Class";
+    return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function buildPassengerLabel(type, index) {
+    return `${type} ${index + 1}`;
+}
+
+function createEmptyPassenger(type) {
+    return {
+        passengerType: type,
+        title: "",
+        firstName: "",
+        lastName: "",
+        dateOfBirth: "",
+        gender: "",
+        email: "",
+        phoneNumber: "",
+        passportNumber: "",
+        passportCountryCode: "",
+        passportExpirationDate: "",
+        placeOfBirth: "",
+        nationality: "",
+        dlNumber: "",
+        dlState: "",
+        isAccountPassenger: false,
+    };
+}
+
+function buildInitialPassengers(counts) {
+    const forms = [];
+
+    for (let i = 0; i < (counts?.adults || 0); i++) {
+        forms.push(createEmptyPassenger("Adult"));
+    }
+
+    for (let i = 0; i < (counts?.children || 0); i++) {
+        forms.push(createEmptyPassenger("Child"));
+    }
+
+    for (let i = 0; i < (counts?.infants || 0); i++) {
+        forms.push(createEmptyPassenger("Infant"));
+    }
+
+    return forms;
+}
+
+function getStoredAuth() {
+    const possibleKeys = ["auth", "user", "currentUser"];
+
+    for (const key of possibleKeys) {
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+
+        try {
+            const parsed = JSON.parse(raw);
+            if (parsed) return parsed;
+        } catch {
+            // ignore invalid JSON
+        }
+    }
+
+    return null;
+}
+
+function getUserIdFromStorage() {
+    const auth = getStoredAuth();
+    if (!auth) return null;
+
+    return (
+        auth.userId ||
+        auth.user?.userId ||
+        auth.data?.userId ||
+        null
+    );
+}
+
+function normalizeGender(value) {
+    if (!value) return null;
+
+    const lower = String(value).toLowerCase();
+    if (lower === "male") return "Male";
+    if (lower === "female") return "Female";
+
+    return value;
+}
+
+function normalizePassengerType(value) {
+    if (!value) return "Adult";
+
+    const lower = String(value).toLowerCase();
+    if (lower === "adult") return "Adult";
+    if (lower === "child") return "Child";
+    if (lower === "infant") return "Infant";
+
+    return value;
+}
+
+function toPassengerPayload(passenger, { userId = null, linkToUser = false } = {}) {
+    return {
+        userId: linkToUser ? userId : null,
+        title: passenger.title || null,
+        firstName: passenger.firstName?.trim() || "",
+        lastName: passenger.lastName?.trim() || "",
+        dateOfBirth: passenger.dateOfBirth || null,
+        gender: normalizeGender(passenger.gender),
+        phoneNumber: passenger.phoneNumber?.trim() || null,
+        email: passenger.email?.trim() || null,
+
+        dlNumber: passenger.dlNumber ? Number(passenger.dlNumber) : null,
+        dlState: passenger.dlState || null,
+
+        passportNumber: passenger.passportNumber?.trim() || null,
+        passportCountryCode: passenger.passportCountryCode || null,
+        passportExpirationDate: passenger.passportExpirationDate || null,
+        placeOfBirth: passenger.placeOfBirth?.trim() || null,
+        nationality: passenger.nationality || null,
+
+        passengerType: normalizePassengerType(passenger.passengerType),
+    };
+}
+
+function validatePassenger(passenger, isDomesticItinerary) {
+    if (!passenger.firstName?.trim()) {
+        return `${passenger.passengerType} passenger first name is required.`;
+    }
+
+    if (!passenger.lastName?.trim()) {
+        return `${passenger.passengerType} passenger last name is required.`;
+    }
+
+    if (!passenger.dateOfBirth) {
+        return `${passenger.firstName || passenger.passengerType} is missing a date of birth.`;
+    }
+
+    if (passenger.passengerType === "Adult" && isDomesticItinerary) {
+        if (!passenger.dlNumber) {
+            return `${passenger.firstName || "Adult"} is missing a DL / ID number.`;
+        }
+
+        if (!passenger.dlState) {
+            return `${passenger.firstName || "Adult"} is missing a DL / ID state.`;
+        }
+    }
+
+    if (!isDomesticItinerary) {
+        if (!passenger.passportNumber) {
+            return `${passenger.firstName || passenger.passengerType} is missing a passport number.`;
+        }
+
+        if (!passenger.passportCountryCode) {
+            return `${passenger.firstName || passenger.passengerType} is missing a passport country.`;
+        }
+    }
+
+    return "";
+}
+
+export default function BookingPassengers() {
+    const { state } = useLocation();
+    const navigate = useNavigate();
+
+    const selectedItinerary = state?.selectedItinerary;
+    const searchParams = state?.searchParams;
+
+    const initialPassengerForms = useMemo(
+        () => buildInitialPassengers(searchParams?.passengers),
+        [searchParams?.passengers]
+    );
+
+    const [profile, setProfile] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+    const [passengerForms, setPassengerForms] = useState(initialPassengerForms);
+    const [countries, setCountries] = useState([]);
+    const [states, setStates] = useState([]);
+
+    const countryOptions = countries.map(c => ({
+        label: c.name,
+        value: c.code
+    }));
+
+    const stateOptions = states.map(s => ({
+        label: `${s.name} (${s.code})`,
+        value: s.code
+    }));
+
+    useEffect(() => {
+        if (!selectedItinerary || !searchParams) {
+            navigate("/flight-search");
+        }
+    }, [selectedItinerary, searchParams, navigate]);
+
+    useEffect(() => {
+        setPassengerForms(buildInitialPassengers(searchParams?.passengers));
+    }, [searchParams?.passengers]);
+
+    useEffect(() => {
+        const fetchLookups = async () => {
+            try {
+                const [countriesRes, statesRes] = await Promise.all([
+                    getCountries(),
+                    getStates(),
+                ]);
+
+                setCountries(countriesRes.data);
+                setStates(statesRes.data);
+            } catch (err) {
+                console.error("Error loading lookup data", err);
+            }
+        };
+
+        fetchLookups();
+    }, []);
+
+    useEffect(() => {
+        if (!selectedItinerary || !searchParams) return;
+
+        const fetchPassengerProfile = async () => {
+            try {
+                setLoading(true);
+                setError("");
+
+                const userId = getUserIdFromStorage();
+
+                if (!userId) {
+                    setLoading(false);
+                    return;
+                }
+
+                const res = await getPassengerByUserId(userId);
+                const savedProfile = res.data;
+                setProfile(savedProfile);
+
+                setPassengerForms((prev) => {
+                    if (!prev.length) return prev;
+
+                    const updated = [...prev];
+
+                    // Prefill the first adult only
+                    const firstAdultIndex = updated.findIndex(
+                        (p) => p.passengerType === "Adult"
+                    );
+
+                    if (firstAdultIndex !== -1) {
+                        updated[firstAdultIndex] = {
+                            ...updated[firstAdultIndex],
+                            title: savedProfile?.title || "",
+                            firstName: savedProfile?.firstName || "",
+                            lastName: savedProfile?.lastName || "",
+                            dateOfBirth: savedProfile?.dateOfBirth
+                                ? String(savedProfile.dateOfBirth).slice(0, 10)
+                                : "",
+                            gender: savedProfile?.gender || "",
+                            email: savedProfile?.email || "",
+                            phoneNumber: savedProfile?.phoneNumber || "",
+                            passportNumber: savedProfile?.passportNumber || "",
+                            passportCountryCode: savedProfile?.passportCountryCode || "",
+                            passportExpirationDate: savedProfile?.passportExpirationDate
+                                ? String(savedProfile.passportExpirationDate).slice(0, 10)
+                                : "",
+                            placeOfBirth: savedProfile?.placeOfBirth || "",
+                            nationality: savedProfile?.nationality || "",
+                            dlNumber: savedProfile?.dlNumber || savedProfile?.DLNumber || "",
+                            dlState: savedProfile?.dlState || savedProfile?.DLState || "",
+                            isAccountPassenger: true,
+                        };
+                    }
+
+                    return updated;
+                });
+            } catch (err) {
+                console.error("Error loading passenger profile:", err);
+                setError("Could not load saved passenger profile.");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchPassengerProfile();
+    }, [selectedItinerary, searchParams]);
+
+    const handlePassengerChange = (index, field, value) => {
+        setPassengerForms((prev) =>
+            prev.map((passenger, i) =>
+                i === index ? { ...passenger, [field]: value } : passenger
+            )
+        );
+    };
+
+    const handleContinue = async () => {
+        try {
+            setError("");
+
+            const userId = getUserIdFromStorage();
+
+            for (const passenger of passengerForms) {
+                const validationError = validatePassenger(passenger, isDomesticItinerary);
+                if (validationError) {
+                    setError(validationError);
+                    return;
+                }
+            }
+
+            const savedPassengers = [];
+
+            for (const passenger of passengerForms) {
+                const payload = toPassengerPayload(passenger, {
+                    userId,
+                    linkToUser: passenger.isAccountPassenger,
+                });
+
+                if (passenger.isAccountPassenger && profile?.passengerId) {
+                    await updatePassenger(profile.passengerId, payload);
+
+                    savedPassengers.push({
+                        ...passenger,
+                        passengerId: profile.passengerId,
+                        userId: userId || null,
+                    });
+                } else {
+                    const res = await createPassenger(payload);
+
+                    savedPassengers.push({
+                        ...passenger,
+                        passengerId: res.data?.passengerId,
+                        userId: passenger.isAccountPassenger ? userId || null : null,
+                    });
+                }
+            }
+
+            navigate("/booking/review", {
+                state: {
+                    selectedItinerary,
+                    searchParams,
+                    passengers: savedPassengers,
+                },
+            });
+        } catch (err) {
+            console.error("Error saving passenger:", err.response?.data || err.message);
+            setError(
+                err.response?.data?.message ||
+                (typeof err.response?.data === "string" ? err.response.data : "") ||
+                "Error saving passenger"
+            );
+        }
+    };
+
+    const isDomesticItinerary =
+        selectedItinerary?.flights?.every((f) => f.isDomestic) ?? true;
+
+    if (!selectedItinerary || !searchParams) return null;
+
+    return (
+        <div className="min-h-screen bg-gray-50">
+            <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+                <h1 className="text-2xl font-semibold">Passenger Details</h1>
+
+                <Card className="p-5">
+                    <p className="text-sm text-gray-500">Selected itinerary</p>
+                    <p className="font-medium">
+                        {selectedItinerary.flights[0].departingPort} →{" "}
+                        {selectedItinerary.flights[selectedItinerary.flights.length - 1].arrivingPort}
+                    </p>
+                    <p className="text-sm text-gray-500 mt-1">
+                        Cabin: {capitalize(searchParams.cabinClass)}
+                    </p>
+                    <p className="text-sm text-gray-500 mt-1">
+                        Passengers: {searchParams.passengers.adults} Adult,{" "}
+                        {searchParams.passengers.children} Child,{" "}
+                        {searchParams.passengers.infants} Infant
+                    </p>
+                </Card>
+
+                {loading && (
+                    <Card className="p-5">
+                        <p>Loading passenger profile...</p>
+                    </Card>
+                )}
+
+                {error && (
+                    <Card className="p-5 border-red-200">
+                        <p className="text-red-600">{error}</p>
+                    </Card>
+                )}
+
+                {!loading &&
+                    passengerForms.map((passenger, index) => {
+                        const sameTypeIndex =
+                            passengerForms
+                                .slice(0, index + 1)
+                                .filter((p) => p.passengerType === passenger.passengerType).length - 1;
+
+                        return (
+                            <Card key={index} className="p-5 space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-lg font-semibold">
+                                        {buildPassengerLabel(passenger.passengerType, sameTypeIndex)}
+                                    </h2>
+
+                                    {passenger.isAccountPassenger && (
+                                        <p className="text-xs text-blue-600">
+                                            Filled from your account details
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm text-gray-600 mb-1">First Name</label>
+                                        <input
+                                            className="w-full border rounded-lg px-3 py-2"
+                                            value={passenger.firstName}
+                                            onChange={(e) =>
+                                                handlePassengerChange(index, "firstName", e.target.value)
+                                            }
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm text-gray-600 mb-1">Last Name</label>
+                                        <input
+                                            className="w-full border rounded-lg px-3 py-2"
+                                            value={passenger.lastName}
+                                            onChange={(e) =>
+                                                handlePassengerChange(index, "lastName", e.target.value)
+                                            }
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm text-gray-600 mb-1">Email</label>
+                                        <input
+                                            className="w-full border rounded-lg px-3 py-2"
+                                            value={passenger.email}
+                                            onChange={(e) =>
+                                                handlePassengerChange(index, "email", e.target.value)
+                                            }
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm text-gray-600 mb-1">Phone Number</label>
+                                        <input
+                                            className="w-full border rounded-lg px-3 py-2"
+                                            value={passenger.phoneNumber}
+                                            onChange={(e) =>
+                                                handlePassengerChange(index, "phoneNumber", e.target.value)
+                                            }
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm text-gray-600 mb-1">Date of Birth</label>
+                                        <input
+                                            type="date"
+                                            className="w-full border rounded-lg px-3 py-2"
+                                            value={passenger.dateOfBirth}
+                                            onChange={(e) =>
+                                                handlePassengerChange(index, "dateOfBirth", e.target.value)
+                                            }
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm text-gray-600 mb-1">Gender</label>
+                                        <input
+                                            className="w-full border rounded-lg px-3 py-2"
+                                            value={passenger.gender}
+                                            onChange={(e) =>
+                                                handlePassengerChange(index, "gender", e.target.value)
+                                            }
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    {passenger.passengerType === "Adult" && isDomesticItinerary && (
+                                        <>
+                                            <div>
+                                                <label className="block text-sm text-gray-600 mb-1">DL / ID Number</label>
+                                                <input
+                                                    className="w-full border rounded-lg px-3 py-2"
+                                                    value={passenger.dlNumber}
+                                                    onChange={(e) =>
+                                                        handlePassengerChange(index, "dlNumber", e.target.value)
+                                                    }
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <Dropdown
+                                                    label="DL / ID State"
+                                                    value={passenger.dlState}
+                                                    onChange={(val) =>
+                                                        handlePassengerChange(index, "dlState", val)
+                                                    }
+                                                    options={stateOptions}
+                                                />
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {!isDomesticItinerary && (
+                                        <>
+                                            <div>
+                                                <label className="block text-sm text-gray-600 mb-1">Passport Number</label>
+                                                <input
+                                                    className="w-full border rounded-lg px-3 py-2"
+                                                    value={passenger.passportNumber}
+                                                    onChange={(e) =>
+                                                        handlePassengerChange(index, "passportNumber", e.target.value)
+                                                    }
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <Dropdown
+                                                    label="Passport Country"
+                                                    value={passenger.passportCountryCode}
+                                                    onChange={(val) =>
+                                                        handlePassengerChange(index, "passportCountryCode", val)
+                                                    }
+                                                    options={countryOptions}
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm text-gray-600 mb-1">Passport Expiration Date</label>
+                                                <input
+                                                    type="date"
+                                                    className="w-full border rounded-lg px-3 py-2"
+                                                    value={passenger.passportExpirationDate}
+                                                    onChange={(e) =>
+                                                        handlePassengerChange(index, "passportExpirationDate", e.target.value)
+                                                    }
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm text-gray-600 mb-1">Place of Birth</label>
+                                                <input
+                                                    className="w-full border rounded-lg px-3 py-2"
+                                                    value={passenger.placeOfBirth}
+                                                    onChange={(e) =>
+                                                        handlePassengerChange(index, "placeOfBirth", e.target.value)
+                                                    }
+                                                />
+                                            </div>
+                                            
+                                            <div>
+                                                <Dropdown
+                                                    label="Nationality"
+                                                    value={passenger.nationality}
+                                                    onChange={(val) =>
+                                                        handlePassengerChange(index, "nationality", val)
+                                                    }
+                                                    options={countryOptions}
+                                                />
+                                            </div>
+                                        </>
+                                    )}
+                                    
+                                </div>
+                            </Card>
+                        );
+                    })}
+
+                {!loading && (
+                    <div className="flex justify-end">
+                        <Button onClick={handleContinue}>Continue</Button>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}

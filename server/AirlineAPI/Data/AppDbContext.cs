@@ -1,5 +1,6 @@
 using AirlineAPI.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace AirlineAPI.Data
 {
@@ -12,9 +13,12 @@ namespace AirlineAPI.Data
         public DbSet<User> Users => Set<User>();
         public DbSet<Flight> Flights{get; set;}
         public DbSet<Aircraft> Aircraft { get; set;}
-        public DbSet<Passenger> Passenger{get;set;}
+        public DbSet<Passenger> Passenger { get; set; }
         public DbSet<RecurringSchedule> RecurringSchedules { get; set; }
         public DbSet<FlightPricing> FlightPricing { get; set; }
+        public DbSet<Countries> Countries { get; set; }
+        public DbSet<States> States { get; set; }
+        public DbSet<Seating> Seating { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -167,6 +171,29 @@ namespace AirlineAPI.Data
                     .HasForeignKey(e => e.FlightNum)
                     .OnDelete(DeleteBehavior.Cascade);
             });
+            
+            modelBuilder.Entity<Passenger>(entity =>
+            {
+                entity.Property(p => p.Title)
+                    .HasConversion<string>();
+
+                entity.Property(p => p.Gender)
+                    .HasConversion<string>();
+
+                entity.Property(p => p.PassengerType)
+                    .HasConversion<string>();
+            });
+            
+            modelBuilder.Entity<Seating>()
+                .HasKey(s => new { s.flightNum, s.seatNumber });
+            
+            modelBuilder.Entity<Seating>()
+                .Property(s => s.seatStatus)
+                .HasConversion<string>();
+
+            modelBuilder.Entity<Seating>()
+                .Property(s => s.seatclass)
+                .HasConversion<string>();
         }
 
         private static string? ConvertTitleToDb(UserTitle? title)

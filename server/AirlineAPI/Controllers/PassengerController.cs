@@ -36,5 +36,76 @@ namespace AirlineAPI.Controllers
 
             return Ok(pass);
         }
+        
+        [HttpGet("by-user/{userId}")]
+        public async Task<IActionResult> GetByUserId(string userId)
+        {
+            var passenger = await _context.Passenger
+                .FirstOrDefaultAsync(p => p.UserId == userId);
+
+            if (passenger == null)
+                return NotFound(new { message = "Passenger profile not found." });
+
+            return Ok(passenger);
+        }
+        
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdatePassenger(string id, [FromBody] Passenger updated)
+        {
+            var passenger = await _context.Passenger.FindAsync(id);
+
+            if (passenger == null)
+                return NotFound("Passenger not found");
+
+            passenger.PhoneNumber = updated.PhoneNumber;
+            passenger.Email = updated.Email;
+
+            passenger.DLNumber = updated.DLNumber;
+            passenger.DLState = updated.DLState;
+
+            passenger.PassportNumber = updated.PassportNumber;
+            passenger.PassportCountryCode = updated.PassportCountryCode;
+            passenger.PassportExpirationDate = updated.PassportExpirationDate;
+            passenger.PlaceOfBirth = updated.PlaceOfBirth;
+            passenger.Nationality = updated.Nationality;
+
+            passenger.Gender = updated.Gender;
+            passenger.DateOfBirth = updated.DateOfBirth;
+
+            passenger.FirstName = updated.FirstName;
+            passenger.LastName = updated.LastName;
+            passenger.Title = updated.Title;
+            passenger.PassengerType = updated.PassengerType;
+
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+        
+        [HttpPost]
+        public async Task<IActionResult> CreatePassenger([FromBody] Passenger newPassenger)
+        {
+            if (newPassenger == null)
+                return BadRequest("Passenger data is required.");
+
+            if (string.IsNullOrWhiteSpace(newPassenger.FirstName))
+                return BadRequest("First name is required.");
+
+            if (string.IsNullOrWhiteSpace(newPassenger.LastName))
+                return BadRequest("Last name is required.");
+
+            if (newPassenger.DateOfBirth == default)
+                return BadRequest("Date of birth is required.");
+
+            if (string.IsNullOrWhiteSpace(newPassenger.PassengerId))
+            {
+                newPassenger.PassengerId = Guid.NewGuid().ToString("N");
+            }
+
+            _context.Passenger.Add(newPassenger);
+            await _context.SaveChangesAsync();
+
+            return CreatedAtAction(nameof(GetbyPassId), new { id = newPassenger.PassengerId }, newPassenger);
+        }
     }
 }

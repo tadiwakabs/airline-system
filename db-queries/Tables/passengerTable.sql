@@ -6,7 +6,7 @@ CREATE TABLE `Passenger` (
      `lastName` varchar(30) NOT NULL,
      `dateOfBirth` date NOT NULL,
      `gender` enum('Male','Female','Non-Binary','Other') DEFAULT NULL,
-     `phoneNumber` int NOT NULL,
+     `phoneNumber` varchar(20) DEFAULT NULL,
      `email` varchar(100) DEFAULT NULL,
      `DLNumber` int DEFAULT NULL,
      `passportNumber` varchar(20) DEFAULT NULL,
@@ -18,6 +18,5 @@ CREATE TABLE `Passenger` (
      PRIMARY KEY (`passengerId`),
      KEY `FK_Passenger_User` (`userId`),
      CONSTRAINT `fk_passenger_user` FOREIGN KEY (`userId`) REFERENCES `Users` (`userId`) ON DELETE RESTRICT ON UPDATE CASCADE,
-     CONSTRAINT `Passenger_chk_1` CHECK ((`email` like _utf8mb4'%@%.%')),
-     CONSTRAINT `Passenger_chk_2` CHECK (((`DLNumber` is not null) or (`passportNumber` is not null)))
+     CONSTRAINT `Passenger_chk_1` CHECK ((`email` like _utf8mb4'%@%.%'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

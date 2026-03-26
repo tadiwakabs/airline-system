@@ -6,8 +6,15 @@ namespace AirlineAPI.Models
     public enum SeatClass
     {
         Economy,
-        Buisness,
+        Business,
         First
+    }
+
+    public enum SeatStatus
+    {
+        Available,
+        Reserved,
+        Occupied
     }
 
     [Table("Seating")]
@@ -22,11 +29,24 @@ namespace AirlineAPI.Models
 
         [Key]
         [Required]
-        [StringLength(3)]
+        [StringLength(5)]
         public string seatNumber { get; set; } = string.Empty;
 
-        public bool is_Occupied { get; set; }
-
         public SeatClass? seatclass { get; set; }
+
+        [Required]
+        public SeatStatus seatStatus { get; set; } = SeatStatus.Available;
+
+        [StringLength(50)]
+        public string? passengerId { get; set; }
+
+        [ForeignKey("passengerId")]
+        public Passenger? Passenger { get; set; }
+        
+        // Remove for now
+        // [StringLength(50)]
+        // public string? ticketCode { get; set; }
+
+        public DateTime? holdExpiresAt { get; set; }
     }
 }
