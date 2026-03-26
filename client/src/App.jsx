@@ -16,6 +16,8 @@ import FlightSearch from "./pages/FlightSearch";
 import BookingPassengers from "./pages/booking/BookingPassengers.jsx";
 import BookingReview from "./pages/booking/BookingReview.jsx";
 import BookingSeats from "./pages/booking/BookingSeats.jsx";
+import Payment from './pages/Payment'
+import Confirmation from './pages/Confirmation'
 
 //dashboard
 import Admin from './pages/admin/AdminDashboard.jsx';
@@ -42,6 +44,8 @@ function App() {
                     <Route path="/booking/passengers" element={<BookingPassengers />} />
                     <Route path="/booking/review" element={<BookingReview />} />
                     <Route path="/booking/seat-selection" element={<BookingSeats />} />
+                    <Route path="/booking/payment" element={<Payment />} />
+                    <Route path="/booking/confirmation" element={<Confirmation />} />
 
                     {/* Employee-Authenticated Routes */}
                     <Route path="/flights" element={<Flights />} />
