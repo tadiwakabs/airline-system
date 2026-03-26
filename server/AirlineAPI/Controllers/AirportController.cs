@@ -23,24 +23,6 @@ namespace AirlineAPI.Controllers
             return Ok(ports);
         }
 
-        /*[HttpPost()]
-        public async Task<IActionResult>CreateAirport([FromBody] Airport airport)
-        {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            var problem = await ValidateAirport(airport);
-            if (problem != null ) 
-                return BadRequest(new{ message= problem});
-
-            airport.States=null;
-            airport.Countries= null;
-
-            _context.Airports.Add(airport);
-            await _context.SaveChangesAsync();
-            return Ok(airport);
-        }
-*/
 
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateAirport(string id, [FromBody] Airport airport)
@@ -102,6 +84,27 @@ namespace AirlineAPI.Controllers
                 return BadRequest(new { message = ex.InnerException?.Message ?? ex.Message });
             }
         }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult>DeleteAirport(string id)
+        {
+            var port = await _context.Airports.FindAsync(id);
+            if (port == null)
+                return NotFound(new { message = "Airport Not Found" });
+            
+            bool hasFlights = await _context.Flights.AnyAsync(f => 
+            f.departingPort == id || f.arrivingPort == id);
+            if (hasFlights)
+            {
+                return BadRequest(new { 
+                    message = $"Cannot delete {id}. There are existing flights scheduled for this airport." 
+                });
+            }
+            _context.Airports.Remove(port);
+            await _context.SaveChangesAsync();
+            return Ok(new{message= "Airport deleted"});
+        }
+
 
         private async Task<string?> ValidateAirport(Airport airport, string? currentId= null)
         {

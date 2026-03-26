@@ -2,7 +2,7 @@ import api from "./api";
 import axios from "axios";
 
 const API_URL = "http://localhost:5127/api"; 
-export const getStates = () => axios.get(`${API_URL}/States`);
+export const getStates = () => api.get(`/Lookup/States`);
 // Get all airports
 export const getAllAirports = () => api.get("/airport");
 

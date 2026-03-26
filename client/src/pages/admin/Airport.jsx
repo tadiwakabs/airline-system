@@ -235,8 +235,10 @@ export default function Airports() {
                                 name="state"
                                 value={form.state || ""}
                                 onChange={handleChange}
-                                className="border px-3 py-2 rounded bg-white focus:ring-2 focus:ring-blue-400 outline-none"
+                                className="border px-3 py-2 rounded bg-white w-full 
+                                          focus:ring-2 focus:ring-blue-400 outline-none"
                             >
+            
                                 <option value="">-- Select State --</option>
                                 {states.length > 0 ? (
                                     states.map((s) => (
@@ -247,17 +249,18 @@ export default function Airports() {
                                 ) : (
                                     <option disabled>Loading states...</option>
                                 )}
+                                <option value="OT">OT - Other/International</option>
                             </select>
                         </div>
                         <input
-                            placeholder="Country (2 chars)"
+                            placeholder="Country (2 char)"
                             value={form.country}
                             maxLength={2}
                             onChange={(e) => setForm({ ...form, country: e.target.value.toUpperCase() })}
                             className="border px-3 py-2 rounded"
                         />
                         <input
-                            placeholder="Timezone"
+                            placeholder="Timezone(Continent/Country)"
                             value={form.timezone}
                             onChange={(e) => setForm({ ...form, timezone: e.target.value })}
                             className="border px-3 py-2 rounded"
