@@ -19,8 +19,10 @@ namespace AirlineAPI.Data
         public DbSet<Countries> Countries { get; set; }
         public DbSet<States> States { get; set; }
         public DbSet<Seating> Seating { get; set; }
+        public DbSet<Payment> Payments { get; set; }
+        public DbSet<Booking> Bookings { get; set; }
 
-
+ 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
