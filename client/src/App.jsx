@@ -12,6 +12,8 @@ import Login from "./pages/Login.jsx";
 import {AuthProvider} from "./contexts/AuthContext.jsx";
 import Profile from "./pages/passenger/Profile.jsx";
 import Flights from "./pages/employee/Flights";
+import Airport from "./pages/admin/Airport.jsx";
+import Help from "./pages/HelpPage.jsx";
 
 function App() {
     return (
@@ -22,6 +24,8 @@ function App() {
                     <Route path="/" element={<Home />} />
                     <Route path="/register" element={<Register />} />
                     <Route path="/login" element={<Login />} />
+                    <Route path="/help" element = {<Help />} />
+                
 
                     {/* User-Authenticated Routes */}
                     <Route 

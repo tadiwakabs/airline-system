@@ -18,6 +18,12 @@ namespace AirlineAPI.Data
         public DbSet<Payment> Payments{get;set;}
         public DbSet<RecurringSchedule> RecurringSchedules { get; set; }
         public DbSet<Airport> Airports {get;set;}
+         
+        public DbSet<FlightPricing> FlightPricing { get; set; }
+        public DbSet<Countries> Countries { get; set; }
+        public DbSet<States> States { get; set; }
+        public DbSet<Seating> Seating { get; set; }
+
 
 
         public DbSet<Ticket> Ticket { get; set; }
@@ -101,6 +107,11 @@ namespace AirlineAPI.Data
                         .HasOne(t => t.Seating)
                         .WithMany()
                         .HasForeignKey(t => new { t.flightNum, t.seatNumber });
+            modelBuilder.Entity<FlightPricing>()
+                        .HasKey(f=>new{f.FlightNum,f.CabinClass});
+            modelBuilder.Entity<Airport>()
+                        .HasKey(a => a.airportCode);
+            
         }
 
         private static string? ConvertTitleToDb(UserTitle? title)

@@ -5,6 +5,8 @@ CREATE TABLE `Airport` (
        `state` char(2) DEFAULT NULL,
        `country` char(2) NOT NULL,
        `timezone` varchar(50) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL,
+       `latitude` decimal(10,8) NOT NULL,
+       `longitude` decimal(11,8) NOT NULL,
        PRIMARY KEY (`airportCode`),
        KEY `fk_airport_state` (`state`),
        KEY `fk_airport_country` (`country`),

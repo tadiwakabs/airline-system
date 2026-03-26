@@ -4,6 +4,7 @@ import {
     createAirport,
     updateAirport,
     deleteAirport,
+    getStates,
 } from "../../services/airportService";
 
 const emptyForm = {
@@ -13,6 +14,8 @@ const emptyForm = {
     state: "",
     country: "",
     timezone: "",
+    latitude: 0,  
+    longitude: 0
 };
 
 export default function Airports() {
@@ -25,10 +28,14 @@ export default function Airports() {
     const [filterText, setFilterText] = useState("");
     const [sortField, setSortField] = useState("airportCode");
     const [sortDir, setSortDir] = useState("asc");
-
+    const [states, setStates] = useState([]); // New state for the dropdown
+  
     useEffect(() => {
         fetchAirports();
+        fetchStates(); 
     }, []);
+
+
 
     useEffect(() => {
         let data = [...airportList];
@@ -64,6 +71,16 @@ export default function Airports() {
         }
     };
 
+    const fetchStates = async () => {
+        try {
+            const res = await getStates();
+            console.log("States received from API:", res.data); 
+            setStates(res.data);
+        } catch (err) {
+            console.error("Could not fetch states:", err.response || err);
+        }
+    };
+
     const handleSort = (field) => {
         if (sortField === field) {
             setSortDir(sortDir === "asc" ? "desc" : "asc");
@@ -72,6 +89,23 @@ export default function Airports() {
             setSortDir("asc");
         }
     };
+    const handleChange = (e) => {
+    const { name, value } = e.target;
+    
+    let val = value;
+
+    if (name === 'latitude' || name === 'longitude') {
+        val = value === "" ? 0 : parseFloat(value);
+    } 
+    else if (name === 'state' && value.trim() === "") {
+        val = null;
+    }
+
+    setForm({
+        ...form, 
+        [name]: val
+    });
+};;
 
     const handleEdit = (airport) => {
         setForm({
@@ -81,6 +115,8 @@ export default function Airports() {
             state: airport.state || "",
             country: airport.country,
             timezone: airport.timezone || "",
+            latitude: airport.latitude || 0, 
+            longitude: airport.longitude || 0
         });
         setEditingCode(airport.airportCode);
         setShowForm(true);
@@ -193,13 +229,26 @@ export default function Airports() {
                             onChange={(e) => setForm({ ...form, city: e.target.value })}
                             className="border px-3 py-2 rounded"
                         />
-                        <input
-                            placeholder="State (2 chars)"
-                            value={form.state}
-                            maxLength={2}
-                            onChange={(e) => setForm({ ...form, state: e.target.value.toUpperCase() })}
-                            className="border px-3 py-2 rounded"
-                        />
+                        <div className="flex flex-col">
+                            <label className="text-xs font-semibold text-gray-500">State</label>
+                            <select
+                                name="state"
+                                value={form.state || ""}
+                                onChange={handleChange}
+                                className="border px-3 py-2 rounded bg-white focus:ring-2 focus:ring-blue-400 outline-none"
+                            >
+                                <option value="">-- Select State --</option>
+                                {states.length > 0 ? (
+                                    states.map((s) => (
+                                        <option key={s.code} value={s.code}>
+                                            {s.code} - {s.name}
+                                        </option>
+                                    ))
+                                ) : (
+                                    <option disabled>Loading states...</option>
+                                )}
+                            </select>
+                        </div>
                         <input
                             placeholder="Country (2 chars)"
                             value={form.country}
@@ -211,6 +260,24 @@ export default function Airports() {
                             placeholder="Timezone"
                             value={form.timezone}
                             onChange={(e) => setForm({ ...form, timezone: e.target.value })}
+                            className="border px-3 py-2 rounded"
+                        />
+                        <input 
+                            type="number" 
+                            step="any" 
+                            name="latitude" 
+                            placeholder="Latitude" 
+                            value={form.latitude} 
+                            onChange={handleChange} 
+                            className="border px-3 py-2 rounded" 
+                        />
+                        <input 
+                            type="number" 
+                            step="any" 
+                            name="longitude" 
+                            placeholder="Longitude" 
+                            value={form.longitude} 
+                            onChange={handleChange} 
                             className="border px-3 py-2 rounded"
                         />
                     </div>

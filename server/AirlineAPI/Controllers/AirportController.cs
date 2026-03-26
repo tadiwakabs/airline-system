@@ -23,7 +23,7 @@ namespace AirlineAPI.Controllers
             return Ok(ports);
         }
 
-        [HttpPost()]
+        /*[HttpPost()]
         public async Task<IActionResult>CreateAirport([FromBody] Airport airport)
         {
             if (!ModelState.IsValid)
@@ -40,7 +40,7 @@ namespace AirlineAPI.Controllers
             await _context.SaveChangesAsync();
             return Ok(airport);
         }
-
+*/
 
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateAirport(string id, [FromBody] Airport airport)
@@ -73,6 +73,34 @@ namespace AirlineAPI.Controllers
                 }
             }
             return Ok(new { message = "Airport successfully updated!" });
+        }
+        
+        [HttpPost]
+        public async Task<ActionResult<Airport>> PostAirport(Airport airport)
+        {
+            try 
+            {
+                //custom validation (check length and duplicates)
+                var validationError = await ValidateAirport(airport);
+                if (validationError != null)
+                {
+                    return BadRequest(new { message = validationError });
+                }
+
+                // 2. Clear navigation properties (Prevents from trying to recreate Countries/States)
+                airport.States = null;
+                airport.Countries = null;
+
+                _context.Airports.Add(airport);
+                await _context.SaveChangesAsync();
+                
+                return CreatedAtAction("GetAirport", new { id = airport.airportCode }, airport);
+            }
+            catch (Exception ex) 
+            {
+                Console.WriteLine("DATABASE ERROR: " + ex.InnerException?.Message);
+                return BadRequest(new { message = ex.InnerException?.Message ?? ex.Message });
+            }
         }
 
         private async Task<string?> ValidateAirport(Airport airport, string? currentId= null)
