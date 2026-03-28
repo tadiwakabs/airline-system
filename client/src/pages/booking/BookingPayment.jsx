@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "../contexts/AuthContext";
-import { createPayment } from "../services/paymentService";
-import { createBooking } from "../services/bookingService";
+import { useAuth } from "../../contexts/AuthContext";
+import { createPayment } from "../../services/paymentService";
+import { createBooking } from "../../services/bookingService";
 
 function detectCardType(number) {
     const clean = number.replace(/\s/g, "");
@@ -154,9 +154,17 @@ export default function Payment() {
         setSubmitting(true);
 
         try {
+            const resolvedUserId = user?.UserId || user?.userId || null;
+
+            if (!resolvedUserId) {
+                setErrors({ submit: "You must be logged in before making a payment." });
+                setSubmitting(false);
+                return;
+            }
+            
             // 1. Create booking
             const bookingData = {
-                UserId: user?.UserId || user?.userId || "test",
+                userId: resolvedUserId,
                 totalPrice: Number(totalPrice)
             };
 
@@ -170,7 +178,6 @@ export default function Payment() {
                 bookingPrice: totalPrice,
                 totalPrice: totalPrice,
                 paymentMethod: cardType,
-                paymentStatus: 1
             };
 
             const paymentRes = await createPayment(paymentData);
@@ -190,11 +197,16 @@ export default function Payment() {
             });
 
         } catch (err) {
-            console.error("FULL ERROR:", err);
-            console.error("RESPONSE:", err?.response);
-            console.error("DATA:", err?.response?.data);
+            const data = err?.response?.data;
+            const message =
+                typeof data === "string"
+                    ? data
+                    : data?.message ||
+                    data?.title ||
+                    (data?.errors ? JSON.stringify(data.errors) : null) ||
+                    "Payment failed. Please try again.";
 
-            setErrors({ submit: "Payment failed. Please try again." });
+            setErrors({ submit: message });
         } finally {
             setSubmitting(false);
         }

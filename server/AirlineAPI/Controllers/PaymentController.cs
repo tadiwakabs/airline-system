@@ -41,13 +41,15 @@ namespace AirlineAPI.Controllers
         {
             if (newPayment == null)
                 return BadRequest("Payment data is missing");
+            
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
-            // Validate booking exists
             var bookingExists = await _context.Bookings
                 .AnyAsync(b => b.bookingId == newPayment.bookingId);
 
             if (!bookingExists)
-                return BadRequest("Invalid bookingId");
+                return BadRequest(new { message = "Invalid bookingId" });
 
             newPayment.paymentStatus = PaymentStatus.Sucess;
 

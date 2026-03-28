@@ -1,5 +1,6 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import Button from "../../components/common/Button.jsx";
 
 export default function Confirmation() {
     const { state } = useLocation();
@@ -55,12 +56,12 @@ export default function Confirmation() {
                 </div>
             </div>
 
-            <button
+            <Button
                 onClick={() => navigate("/")}
-                className="w-full bg-blue-600 text-white py-3 rounded font-semibold hover:bg-blue-700"
+                className="cursor-pointer w-full"
             >
                 Back to Home
-            </button>
+            </Button>
         </div>
     );
 }

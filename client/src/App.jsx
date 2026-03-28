@@ -18,8 +18,8 @@ import FlightSearch from "./pages/FlightSearch";
 import BookingPassengers from "./pages/booking/BookingPassengers.jsx";
 import BookingReview from "./pages/booking/BookingReview.jsx";
 import BookingSeats from "./pages/booking/BookingSeats.jsx";
-import Payment from './pages/Payment'
-import Confirmation from './pages/Confirmation'
+import Payment from './pages/booking/BookingPayment'
+import Confirmation from './pages/booking/BookingConfirmation'
 
 //dashboard
 import Admin from './pages/admin/AdminDashboard.jsx';
