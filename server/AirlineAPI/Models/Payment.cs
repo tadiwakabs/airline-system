@@ -16,6 +16,7 @@ namespace AirlineAPI.Models
     public class Payment
     {
         [Key]
+        [Required]
         public int transactionId { get; set; }
 
         [Required]
