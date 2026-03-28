@@ -15,26 +15,22 @@ namespace AirlineAPI.Models
     public class Booking
     {
         [Key]
-        [Required]
         [StringLength(50)]
         public string bookingId { get; set; } = string.Empty;
 
-        [Required]
-        public DateTime bookingDate { get; set; }
+        public DateTime? bookingDate { get; set; }
 
-        [Required]
-        public BookingStatus bookingStatus { get; set; }
+        public BookingStatus? bookingStatus { get; set; }
 
         [Required]
         [Range(0, 99999999.99)]
         public decimal totalPrice { get; set; }
 
-
         [Required]
         [StringLength(50)]
-        public string usersId { get; set; } = string.Empty;
+        public string? UserId { get; set; } = string.Empty;
 
-        [ForeignKey("userId")]
+        [ForeignKey("UserId")]
         public User? Users { get; set; }
     }
 }
