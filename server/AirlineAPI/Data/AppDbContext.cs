@@ -15,6 +15,7 @@ namespace AirlineAPI.Data
         public DbSet<Aircraft> Aircraft { get; set;}
         public DbSet<Passenger> Passenger { get; set; }
         public DbSet<RecurringSchedule> RecurringSchedules { get; set; }
+        public DbSet<Airport> Airports {get;set;}
         public DbSet<FlightPricing> FlightPricing { get; set; }
         public DbSet<Countries> Countries { get; set; }
         public DbSet<States> States { get; set; }
@@ -22,7 +23,10 @@ namespace AirlineAPI.Data
         public DbSet<Payment> Payments { get; set; }
         public DbSet<Booking> Bookings { get; set; }
 
- 
+
+
+        public DbSet<Ticket> Ticket { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -192,10 +196,22 @@ namespace AirlineAPI.Data
             modelBuilder.Entity<Seating>()
                 .Property(s => s.seatStatus)
                 .HasConversion<string>();
-
+            
             modelBuilder.Entity<Seating>()
                 .Property(s => s.seatclass)
                 .HasConversion<string>();
+
+            modelBuilder.Entity<Ticket>()
+                        .HasOne(t => t.Seating)
+                        .WithMany()
+                        .HasForeignKey(t => new { t.flightNum, t.seatNumber });
+            
+            modelBuilder.Entity<FlightPricing>()
+                        .HasKey(f=>new{f.FlightNum,f.CabinClass});
+            
+            modelBuilder.Entity<Airport>()
+                        .HasKey(a => a.airportCode);
+            
         }
 
         private static string? ConvertTitleToDb(UserTitle? title)
@@ -258,6 +274,32 @@ namespace AirlineAPI.Data
                 case "Female": return Gender.Female;
                 case "Non-Binary": return Gender.NonBinary;
                 case "Other": return Gender.Other;
+                default: return null;
+            }
+        }
+
+        private static TicketStatus? ConvertTicketStatusFromDb(string? ticketStatus)
+        {
+            if (string.IsNullOrEmpty(ticketStatus)) return null;
+
+            switch (ticketStatus)
+            {
+                case "Booked": return TicketStatus.Booked;
+                case "Cancelled": return TicketStatus.Cancelled;
+                case "Pending": return TicketStatus.Pending;
+                default: return null;
+            }
+        }
+
+        private static TicketClass? ConvertTicketClassFromDb(string? ticketClass)
+        {
+            if (string.IsNullOrEmpty(ticketClass)) return null;
+
+            switch (ticketClass)
+            {
+                case "Economy": return TicketClass.Economy;
+                case "Buisness": return TicketClass.Buisness;
+                case "First": return TicketClass.First;
                 default: return null;
             }
         }

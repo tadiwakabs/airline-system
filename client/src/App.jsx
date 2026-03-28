@@ -12,6 +12,8 @@ import Login from "./pages/Login.jsx";
 import {AuthProvider} from "./contexts/AuthContext.jsx";
 import Profile from "./pages/passenger/Profile.jsx";
 import Flights from "./pages/employee/Flights";
+import Airport from "./pages/admin/Airport.jsx";
+import Help from "./pages/HelpPage.jsx";
 import FlightSearch from "./pages/FlightSearch";
 import BookingPassengers from "./pages/booking/BookingPassengers.jsx";
 import BookingReview from "./pages/booking/BookingReview.jsx";
@@ -24,6 +26,7 @@ import Admin from './pages/admin/AdminDashboard.jsx';
 import Employee from './pages/employee/EmployeeDashboard.jsx';
 
 
+
 function App() {
     return (
         <AuthProvider>
@@ -33,6 +36,7 @@ function App() {
                     <Route path="/" element={<Home />} />
                     <Route path="/register" element={<Register />} />
                     <Route path="/login" element={<Login />} />
+                    <Route path="/help" element = {<Help />} />
                     <Route path="/flight-search" element={<FlightSearch />} />
 
                     {/* User-Authenticated Routes */}
@@ -52,6 +56,7 @@ function App() {
                     
                     {/* Administrator-Authenticated Routes */}
                     <Route path="/aircraft" element={<Aircraft />} />
+                    <Route path= "/airport" element={<Airport />}/>
                     <Route path="/admin" element={<Admin />} />
                     <Route path='/employee' element={<Employee />} />
 

@@ -24,6 +24,9 @@ namespace AirlineAPI.Models
         [StringLength(50)]
         public string? timezone{get;set;}
 
+        public decimal latitude {get;set;}
+        public decimal longitude {get;set;}
+
         //------links-----
         [ForeignKey("state")]
         public States? States{get;set;}
