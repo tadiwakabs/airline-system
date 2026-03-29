@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
-import { createPayment } from "../../services/paymentService";
 import { createBooking } from "../../services/bookingService";
 
 function detectCardType(number) {
@@ -155,42 +154,64 @@ export default function Payment() {
 
         try {
             const resolvedUserId = user?.UserId || user?.userId || null;
-
             if (!resolvedUserId) {
                 setErrors({ submit: "You must be logged in before making a payment." });
                 setSubmitting(false);
                 return;
             }
-            
-            // 1. Create booking
-            const bookingData = {
-                userId: resolvedUserId,
-                totalPrice: Number(totalPrice)
-            };
 
-            const bookingRes = await createBooking(bookingData);
-            const realBookingId = bookingRes.data.bookingId;
+            // Build one ticket entry per passenger per flight leg
+            const tickets = [];
+            for (const flight of selectedItinerary?.flights ?? []) {
+                const origin      = flight.departingPort || flight.departingPortCode;
+                const destination = flight.arrivingPort  || flight.arrivingPortCode;
+                const boardingTime = new Date(flight.departTime).toLocaleTimeString([], {
+                    hour: "2-digit", minute: "2-digit"
+                });
 
-            // 2. Create payment using real bookingId
-            const paymentData = {
-                userId: user?.userId || "guest",
-                bookingId: realBookingId,
-                bookingPrice: totalPrice,
-                totalPrice: totalPrice,
+                for (const passenger of passengers) {
+                    const seatNumber = seatSelections?.[flight.flightNum]?.[passenger.passengerId];
+                    if (!seatNumber) continue;
+
+                    // Per-passenger price for this leg from the quote
+                    const cabinClass = searchParams?.cabinClass ?? "economy";
+                    const fareBreakdown = selectedItinerary?.quote?.[cabinClass] ?? {};
+                    const legPrice =
+                        passenger.passengerType === "Child"  ? (fareBreakdown.perChild  ?? 0) :
+                            passenger.passengerType === "Infant" ? (fareBreakdown.perInfant ?? 0) :
+                                (fareBreakdown.perAdult  ?? 0);
+
+                    tickets.push({
+                        flightNum:   flight.flightNum,
+                        passengerId: passenger.passengerId,
+                        seatNumber,
+                        price:       legPrice,
+                        origin,
+                        destination,
+                        boardingTime,
+                    });
+                }
+            }
+
+            const bookingPayload = {
+                userId:        resolvedUserId,
+                totalPrice:    Number(totalPrice),
+                cabinClass:    searchParams?.cabinClass ?? "economy",
                 paymentMethod: cardType,
+                tickets,
             };
 
-            const paymentRes = await createPayment(paymentData);
+            const res = await createBooking(bookingPayload);
+            const confirmation = res.data;
 
-            // 3. Navigate
             navigate("/booking/confirmation", {
                 state: {
-                    transactionId: paymentRes.data.transactionId,
-                    bookingId: realBookingId,
-                    passengerName: passengerName,
-                    flightDetails: flightDetails,
-                    seatNumber: seatNumber,
-                    totalPrice: totalPrice,
+                    transactionId: confirmation.transactionId,
+                    bookingId:     confirmation.bookingId,
+                    tickets:       confirmation.tickets,   // full array now
+                    passengerName,
+                    flightDetails,
+                    totalPrice,
                     cardType,
                     lastFour: form.cardNumber.replace(/\s/g, "").slice(-4),
                 },
@@ -199,13 +220,10 @@ export default function Payment() {
         } catch (err) {
             const data = err?.response?.data;
             const message =
-                typeof data === "string"
-                    ? data
-                    : data?.message ||
-                    data?.title ||
+                typeof data === "string" ? data :
+                    data?.message || data?.title ||
                     (data?.errors ? JSON.stringify(data.errors) : null) ||
                     "Payment failed. Please try again.";
-
             setErrors({ submit: message });
         } finally {
             setSubmitting(false);

@@ -1,5 +1,4 @@
-import axios from 'axios';
+import api from "./api.js";
 
-export const createBooking = (data) => {
-  return axios.post('http://localhost:5127/api/booking', data);
-};
+export const createBooking = (data) => 
+    api.post("/booking", data);

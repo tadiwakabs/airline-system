@@ -16,6 +16,8 @@ export default function Confirmation() {
             </div>
         );
     }
+    
+    const tickets = state.tickets ?? [];
 
     return (
         <div className="max-w-lg mx-auto p-6">
@@ -35,18 +37,6 @@ export default function Confirmation() {
                     <span className="font-mono font-semibold">{state.bookingId}</span>
                 </div>
                 <div className="flex justify-between">
-                    <span className="text-gray-500">Passenger</span>
-                    <span>{state.passengerName}</span>
-                </div>
-                <div className="flex justify-between">
-                    <span className="text-gray-500">Flight</span>
-                    <span>{state.flightDetails}</span>
-                </div>
-                <div className="flex justify-between">
-                    <span className="text-gray-500">Seat</span>
-                    <span>{state.seatNumber}</span>
-                </div>
-                <div className="flex justify-between">
                     <span className="text-gray-500">Amount Paid</span>
                     <span className="font-semibold">${state.totalPrice}</span>
                 </div>
@@ -56,10 +46,33 @@ export default function Confirmation() {
                 </div>
             </div>
 
-            <Button
-                onClick={() => navigate("/")}
-                className="cursor-pointer w-full"
-            >
+            {/* One card per ticket */}
+            {tickets.map((ticket) => (
+                <div key={ticket.ticketCode}
+                     className="border rounded p-4 mb-3 text-sm space-y-2">
+                    <p className="font-semibold text-gray-700">
+                        {ticket.origin} → {ticket.destination}
+                    </p>
+                    <div className="flex justify-between">
+                        <span className="text-gray-500">Ticket</span>
+                        <span className="font-mono">{ticket.ticketCode}</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-gray-500">Flight</span>
+                        <span>#{ticket.flightNum}</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-gray-500">Seat</span>
+                        <span>{ticket.seatNumber}</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-gray-500">Boarding</span>
+                        <span>{ticket.boardingTime}</span>
+                    </div>
+                </div>
+            ))}
+
+            <Button onClick={() => navigate("/")} className="w-full">
                 Back to Home
             </Button>
         </div>
