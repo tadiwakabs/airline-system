@@ -169,6 +169,7 @@ export default function Flights() {
     const [statusFilter, setStatusFilter] = useState("");
     const [sortBy, setSortBy] = useState("flightNum");
     const [sortDirection, setSortDirection] = useState("asc");
+    const [flightPage, setFlightPage] = useState(0);
     const [isFlightModalOpen, setIsFlightModalOpen] = useState(false);
     const [editingFlightId, setEditingFlightId] = useState(null);
     const [flightFormMode, setFlightFormMode] = useState("single");
@@ -614,8 +615,13 @@ export default function Flights() {
             if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
             return 0;
         });
+        setFlightPage(0); // reset to page 1 whenever filters/sort change
         return result;
     }, [flights, searchTerm, statusFilter, sortBy, sortDirection]);
+
+    const PAGE_SIZE = 50;
+    const totalPages = Math.ceil(filteredFlights.length / PAGE_SIZE);
+    const pagedFlights = filteredFlights.slice(flightPage * PAGE_SIZE, (flightPage + 1) * PAGE_SIZE);
 
     // ── Shared helpers ────────────────────────────────────────────────────────
     const searchAircraft = (q) =>
@@ -805,7 +811,7 @@ export default function Flights() {
                                 </tr>
                                 </thead>
                                 <tbody>
-                                {filteredFlights.map((flight) => (
+                                {pagedFlights.map((flight) => (
                                     <tr key={flight.flightNum} className="rounded-xl bg-gray-50 text-sm">
                                         <td className="px-3 py-3 font-medium text-gray-900">{flight.flightNum}</td>
                                         <td className="px-3 py-3">{formatDisplayDateTime(flight.departTime)}</td>
@@ -849,6 +855,32 @@ export default function Flights() {
                                 ))}
                                 </tbody>
                             </table>
+
+                            {/* Pagination */}
+                            <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
+        <span>
+            Showing {flightPage * PAGE_SIZE + 1}–{Math.min((flightPage + 1) * PAGE_SIZE, filteredFlights.length)} of {filteredFlights.length} flights
+        </span>
+                                <div className="flex gap-2">
+                                    <Button
+                                        size="sm" variant="outline"
+                                        onClick={() => setFlightPage((p) => Math.max(0, p - 1))}
+                                        disabled={flightPage === 0}
+                                    >
+                                        ← Prev
+                                    </Button>
+                                    <span className="px-2 py-1 text-gray-500">
+                Page {flightPage + 1} of {totalPages}
+            </span>
+                                    <Button
+                                        size="sm" variant="outline"
+                                        onClick={() => setFlightPage((p) => Math.min(totalPages - 1, p + 1))}
+                                        disabled={flightPage >= totalPages - 1}
+                                    >
+                                        Next →
+                                    </Button>
+                                </div>
+                            </div>
                         </div>
                     )}
                 </Card>

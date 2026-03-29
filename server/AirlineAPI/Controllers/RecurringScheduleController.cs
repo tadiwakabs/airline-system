@@ -122,6 +122,8 @@ namespace AirlineAPI.Controllers
                 _context.Flights.AddRange(flightsCreated);
                 await _context.SaveChangesAsync();
 
+                await CreateSeatsForFlightsAsync(flightsCreated, dto.AircraftUsed);
+
                 // Pricing
                 if (dto.EconomyPrice.HasValue && dto.BusinessPrice.HasValue && dto.FirstPrice.HasValue)
                 {
@@ -227,6 +229,8 @@ namespace AirlineAPI.Controllers
             _context.Flights.AddRange(flightsToCreate);
             await _context.SaveChangesAsync();
 
+            await CreateSeatsForFlightsAsync(flightsToCreate, dto.AircraftUsed);
+
             if (dto.EconomyPrice.HasValue && dto.BusinessPrice.HasValue && dto.FirstPrice.HasValue)
             {
                 var pricingRows = new List<FlightPricing>();
@@ -255,24 +259,29 @@ namespace AirlineAPI.Controllers
             var schedule = await _context.RecurringSchedules.FindAsync(id);
             if (schedule == null)
                 return NotFound(new { message = "Recurring schedule not found." });
-            
-            // If deleteFlights == true -> delete future flights tied to this schedule
+
             var now = DateTime.Now;
 
-            var futureFlights = await _context.Flights
-                .Where(f => f.recurringScheduleId == id && f.departTime >= now)
-                .ToListAsync();
-
-            _context.Flights.RemoveRange(futureFlights);
-            
-            // Else, unlink them by setting recurringScheduleId = null
-            var linkedFlights = await _context.Flights
-                .Where(f => f.recurringScheduleId == id)
-                .ToListAsync();
-
-            foreach (var flight in linkedFlights)
+            if (deleteFlights)
             {
-                flight.recurringScheduleId = null;
+                // Delete only future flights tied to this schedule
+                var futureFlights = await _context.Flights
+                    .Where(f => f.recurringScheduleId == id && f.departTime >= now)
+                    .ToListAsync();
+
+                _context.Flights.RemoveRange(futureFlights);
+            }
+            else
+            {
+                // Keep flights, just unlink them from this schedule
+                var linkedFlights = await _context.Flights
+                    .Where(f => f.recurringScheduleId == id)
+                    .ToListAsync();
+
+                foreach (var flight in linkedFlights)
+                {
+                    flight.recurringScheduleId = null;
+                }
             }
 
             _context.RecurringSchedules.Remove(schedule);
@@ -282,7 +291,7 @@ namespace AirlineAPI.Controllers
             {
                 message = deleteFlights
                     ? "Recurring schedule and future flights deleted."
-                    : "Recurring schedule deleted. Future flights should be unlinked."
+                    : "Recurring schedule deleted. Flights were unlinked."
             });
         }
 
@@ -304,6 +313,100 @@ namespace AirlineAPI.Controllers
                 EndDate = schedule.EndDate.ToString("yyyy-MM-dd"),
                 DaysOfWeek = schedule.DaysOfWeek
             };
+        }
+        
+        private async Task CreateSeatsForFlightsAsync(List<Flight> flights, string aircraftUsed)
+        {
+            if (flights == null || flights.Count == 0)
+                return;
+
+            var aircraft = await _context.Aircraft
+                .FirstOrDefaultAsync(a => a.tailnumber == aircraftUsed);
+
+            if (aircraft == null)
+                throw new Exception("Assigned aircraft not found.");
+
+            var allSeats = new List<Seating>();
+
+            foreach (var flight in flights)
+            {
+                allSeats.AddRange(GenerateSeatsForFlight(flight.flightNum, aircraft.numSeats));
+            }
+
+            _context.Seating.AddRange(allSeats);
+            await _context.SaveChangesAsync();
+        }
+
+        private static List<Seating> GenerateSeatsForFlight(int flightNum, int numSeats)
+        {
+            var seats = new List<Seating>();
+
+            var firstLetters = new[] { "A", "B", "C", "D" };
+            var standardLetters = new[] { "A", "B", "C", "D", "E", "F" };
+
+            int created = 0;
+
+            // First class (rows 1–4)
+            for (int row = 1; row <= 4 && created < numSeats; row++)
+            {
+                foreach (var letter in firstLetters)
+                {
+                    if (created >= numSeats) break;
+
+                    seats.Add(new Seating
+                    {
+                        flightNum = flightNum,
+                        seatNumber = $"{row}{letter}",
+                        seatclass = SeatClass.First,
+                        seatStatus = SeatStatus.Available
+                    });
+
+                    created++;
+                }
+            }
+
+            // Business (rows 5–10)
+            for (int row = 5; row <= 10 && created < numSeats; row++)
+            {
+                foreach (var letter in standardLetters)
+                {
+                    if (created >= numSeats) break;
+
+                    seats.Add(new Seating
+                    {
+                        flightNum = flightNum,
+                        seatNumber = $"{row}{letter}",
+                        seatclass = SeatClass.Business,
+                        seatStatus = SeatStatus.Available
+                    });
+
+                    created++;
+                }
+            }
+
+            // Economy (remaining)
+            int economyRow = 11;
+            while (created < numSeats)
+            {
+                foreach (var letter in standardLetters)
+                {
+                    if (created >= numSeats) break;
+
+                    seats.Add(new Seating
+                    {
+                        flightNum = flightNum,
+                        seatNumber = $"{economyRow}{letter}",
+                        seatclass = SeatClass.Economy,
+                        seatStatus = SeatStatus.Available
+                    });
+
+                    created++;
+                }
+
+                economyRow++;
+            }
+
+            return seats;
         }
     }
 }
