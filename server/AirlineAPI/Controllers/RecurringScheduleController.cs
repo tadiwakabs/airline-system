@@ -38,6 +38,109 @@ namespace AirlineAPI.Controllers
 
             return Ok(MapToResponseDto(schedule));
         }
+        
+        [HttpPost("bulk-import")]
+        public async Task<ActionResult> BulkImport([FromBody] List<RecurringScheduleUpsertDto> schedules)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            if (schedules == null || schedules.Count == 0)
+                return BadRequest(new { message = "No schedules provided." });
+
+            var results = new List<object>();
+            var errors  = new List<object>();
+
+            int nextFlightNum = await _context.Flights.AnyAsync()
+                ? await _context.Flights.MaxAsync(f => f.flightNum) + 1
+                : 1;
+
+            foreach (var (dto, index) in schedules.Select((s, i) => (s, i)))
+            {
+                // Basic validation
+                if (dto.StartDate.Date > dto.EndDate.Date)
+                { errors.Add(new { index, message = "Start date cannot be after end date." }); continue; }
+
+                if (dto.DepartingPortCode == dto.ArrivingPortCode)
+                { errors.Add(new { index, message = "Departing and arriving airports cannot be the same." }); continue; }
+
+                if (dto.DaysOfWeek == null || dto.DaysOfWeek.Count == 0)
+                { errors.Add(new { index, message = "At least one day of week must be selected." }); continue; }
+
+                // Create the schedule record
+                var schedule = new RecurringSchedule
+                {
+                    DepartingPort       = dto.DepartingPortCode,
+                    ArrivingPort        = dto.ArrivingPortCode,
+                    DepartureTimeOfDay  = dto.DepartureTimeOfDay,
+                    ArrivalTimeOfDay    = dto.ArrivalTimeOfDay,
+                    AircraftUsed        = dto.AircraftUsed,
+                    Status              = dto.Status,
+                    IsDomestic          = dto.IsDomestic,
+                    Distance            = dto.Distance,
+                    FlightChange        = dto.FlightChange,
+                    StartDate           = dto.StartDate.Date,
+                    EndDate             = dto.EndDate.Date,
+                    DaysOfWeek          = string.Join(",", dto.DaysOfWeek.OrderBy(d => d).Distinct()),
+                    CreatedAt           = DateTime.UtcNow,
+                    UpdatedAt           = DateTime.UtcNow,
+                };
+
+                _context.RecurringSchedules.Add(schedule);
+                await _context.SaveChangesAsync(); // need the generated Id
+
+                // Generate flights
+                var selectedDays   = dto.DaysOfWeek.Distinct().ToHashSet();
+                var flightsCreated = new List<Flight>();
+                var now            = DateTime.Now;
+
+                for (var date = dto.StartDate.Date; date <= dto.EndDate.Date; date = date.AddDays(1))
+                {
+                    if (!selectedDays.Contains((int)date.DayOfWeek)) continue;
+
+                    var depart  = date.Add(dto.DepartureTimeOfDay);
+                    var arrival = date.Add(dto.ArrivalTimeOfDay);
+                    if (arrival <= depart) arrival = arrival.AddDays(1);
+                    if (depart  < now)    continue;
+
+                    flightsCreated.Add(new Flight
+                    {
+                        flightNum           = nextFlightNum++,
+                        departTime          = depart,
+                        arrivalTime         = arrival,
+                        aircraftUsed        = dto.AircraftUsed,
+                        status              = dto.Status,
+                        departingPort       = dto.DepartingPortCode,
+                        arrivingPort        = dto.ArrivingPortCode,
+                        isDomestic          = dto.IsDomestic,
+                        distance            = dto.Distance,
+                        flightChange        = dto.FlightChange,
+                        recurringScheduleId = schedule.Id,
+                    });
+                }
+
+                _context.Flights.AddRange(flightsCreated);
+                await _context.SaveChangesAsync();
+
+                // Pricing
+                if (dto.EconomyPrice.HasValue && dto.BusinessPrice.HasValue && dto.FirstPrice.HasValue)
+                {
+                    var pricingRows = flightsCreated.SelectMany(f => new[]
+                    {
+                        new FlightPricing { FlightNum = f.flightNum, CabinClass = CabinClass.Economy,  Price = dto.EconomyPrice.Value  },
+                        new FlightPricing { FlightNum = f.flightNum, CabinClass = CabinClass.Business, Price = dto.BusinessPrice.Value },
+                        new FlightPricing { FlightNum = f.flightNum, CabinClass = CabinClass.First,    Price = dto.FirstPrice.Value    },
+                    }).ToList();
+
+                    _context.FlightPricing.AddRange(pricingRows);
+                    await _context.SaveChangesAsync();
+                }
+
+                results.Add(new { scheduleId = schedule.Id, flightsCreated = flightsCreated.Count });
+            }
+
+            return Ok(new { imported = results.Count, errors });
+        }
 
         [HttpPut("{id:int}")]
         public async Task<ActionResult> Update(int id, [FromBody] RecurringScheduleUpsertDto dto)

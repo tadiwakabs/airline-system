@@ -18,3 +18,6 @@ export const updateRecurringSchedule = (id, data) => api.put(`/recurring-schedul
 // deleteFlights=false → unlink flights (set recurringScheduleId = NULL)
 export const deleteRecurringSchedule = (id, deleteFlights) =>
     api.delete(`/recurring-schedules/${id}?deleteFlights=${deleteFlights}`);
+
+export const bulkImportRecurringSchedules = (data) =>
+    api.post("/recurring-schedules/bulk-import", data);
