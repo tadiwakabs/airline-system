@@ -29,7 +29,7 @@ export default function Confirmation() {
             </div>
 
             <Card className="p-5">
-                <h1>Transaction Details</h1>
+                <h1 className="font-semibold">Transaction Details</h1>
                 <div className="border rounded p-4 mb-4 bg-gray-50 text-sm space-y-2">
                     <div className="flex justify-between">
                         <span className="text-gray-500">Transaction ID</span>
@@ -48,8 +48,8 @@ export default function Confirmation() {
                         <span>{state.cardType} •••• {state.lastFour}</span>
                     </div>
                 </div>
-                
-                <h1>Booking Details</h1>
+
+                <h1 className="font-semibold">Booking Details</h1>
 
                 {/* One card per ticket */}
                 {tickets.map((ticket) => (
@@ -77,9 +77,16 @@ export default function Confirmation() {
                     </div>
                 ))}
 
-                <Button onClick={() => navigate("/")} className="w-full mt-2 cursor-pointer">
-                    Back to Home
-                </Button>
+                <div className="flex gap-4 mx-2 mt-2">
+                    <Button onClick={() => navigate("/bookings")} className="w-full cursor-pointer">
+                        Manage your Bookings
+                    </Button>
+
+                    <Button onClick={() => navigate("/")} className="w-full cursor-pointer">
+                        Back to Home
+                    </Button>
+                </div>
+                
             </Card>
             
 
