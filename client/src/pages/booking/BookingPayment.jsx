@@ -64,6 +64,7 @@ export default function Payment() {
     // Read state passed from BookingSeats
     const booking = location.state || {};
     const selectedItinerary = booking.selectedItinerary;
+    const returnItinerary = booking.returnItinerary ?? null;
     const searchParams = booking.searchParams;
     const passengers = booking.passengers ?? [];
     const pricingSummary = booking.pricingSummary;
@@ -73,12 +74,19 @@ export default function Payment() {
     const firstFlight = selectedItinerary?.flights?.[0];
     const lastFlight = selectedItinerary?.flights?.[selectedItinerary?.flights?.length - 1];
     const flightDetails = firstFlight
-        ? `${firstFlight.departingPort} → ${lastFlight.arrivingPort}`
+        ? returnItinerary
+            ? `${firstFlight.departingPort} → ${lastFlight.arrivingPort} (return)`
+            : `${firstFlight.departingPort} → ${lastFlight.arrivingPort}`
         : "Unknown Flight";
     const totalPrice = pricingSummary?.total ?? 0;
     const passengerName = passengers[0]
         ? `${passengers[0].firstName} ${passengers[0].lastName}`
         : "Guest";
+
+    const allFlights = [
+        ...(selectedItinerary?.flights ?? []),
+        ...(returnItinerary?.flights   ?? []),
+    ];
 
     const firstPassengerId = passengers[0]?.passengerId;
     const firstFlightNum = firstFlight?.flightNum;
@@ -162,7 +170,7 @@ export default function Payment() {
 
             // Build one ticket entry per passenger per flight leg
             const tickets = [];
-            for (const flight of selectedItinerary?.flights ?? []) {
+            for (const flight of allFlights) {
                 const origin      = flight.departingPort || flight.departingPortCode;
                 const destination = flight.arrivingPort  || flight.arrivingPortCode;
                 const boardingTime = new Date(flight.departTime).toLocaleTimeString([], {

@@ -302,6 +302,7 @@ export default function BookingPassengers() {
             setError("");
 
             const userId = getUserIdFromStorage();
+            const returnItinerary = state?.returnItinerary ?? null;
 
             for (const passenger of passengerForms) {
                 const validationError = validatePassenger(passenger, isDomesticItinerary);
@@ -341,6 +342,7 @@ export default function BookingPassengers() {
             navigate("/booking/review", {
                 state: {
                     selectedItinerary,
+                    returnItinerary,
                     searchParams,
                     passengers: savedPassengers,
                 },

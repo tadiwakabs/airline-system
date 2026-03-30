@@ -9,18 +9,16 @@ import { searchFlightResults } from "../services/flightService";
 function formatDate(dateStr) {
     if (!dateStr) return "";
     return new Date(`${dateStr}T00:00:00`).toLocaleDateString([], {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
+        month: "short", day: "numeric", year: "numeric",
     });
 }
 
 function buildPassengerSummary(passengers) {
     if (!passengers) return "";
     const parts = [];
-    if (passengers.adults) parts.push(`${passengers.adults} Adult${passengers.adults > 1 ? "s" : ""}`);
+    if (passengers.adults)   parts.push(`${passengers.adults} Adult${passengers.adults > 1 ? "s" : ""}`);
     if (passengers.children) parts.push(`${passengers.children} Child${passengers.children > 1 ? "ren" : ""}`);
-    if (passengers.infants) parts.push(`${passengers.infants} Infant${passengers.infants > 1 ? "s" : ""}`);
+    if (passengers.infants)  parts.push(`${passengers.infants} Infant${passengers.infants > 1 ? "s" : ""}`);
     return parts.join(", ");
 }
 
@@ -30,124 +28,152 @@ function formatCabinClass(cabinClass) {
     return cabinClass.charAt(0).toUpperCase() + cabinClass.slice(1);
 }
 
+function useFlightSearch(from, to, date, passengers, enabled) {
+    const [results, setResults]   = useState([]);
+    const [loading, setLoading]   = useState(false);
+    const [error, setError]       = useState("");
+
+    useEffect(() => {
+        if (!enabled || !from || !to || !date) {
+            setResults([]);
+            return;
+        }
+        let cancelled = false;
+        const run = async () => {
+            try {
+                setLoading(true);
+                setError("");
+                const res = await searchFlightResults({
+                    from, to, date,
+                    adults:   passengers?.adults   ?? 1,
+                    children: passengers?.children ?? 0,
+                    infants:  passengers?.infants  ?? 0,
+                });
+                if (cancelled) return;
+                setResults(res.data.map((item) => ({
+                    type: item.type,
+                    flights: item.flights.map((f) => ({
+                        flightNum:      f.flightNum,
+                        departingPort:  f.departingPortCode,
+                        arrivingPort:   f.arrivingPortCode,
+                        departTime:     f.departTime,
+                        arrivalTime:    f.arrivalTime,
+                        status:         f.status,
+                        aircraftUsed:   f.aircraftUsed,
+                        distance:       f.distance,
+                        isDomestic:     f.isDomestic,
+                    })),
+                    pricing: {
+                        economy:  item.pricing?.economy  ?? 0,
+                        business: item.pricing?.business ?? 0,
+                        first:    item.pricing?.first    ?? 0,
+                    },
+                    quote: item.quote,
+                })));
+                setLoading(false);
+            } catch {
+                if (!cancelled) {
+                    setError("Could not load flight results.");
+                    setLoading(false);
+                }
+            }
+        };
+        run();
+        return () => { cancelled = true; };
+    }, [from, to, date, passengers, enabled]);
+
+    return { results, loading, error };
+}
+
 export default function FlightSearch() {
     const { state } = useLocation();
-    const navigate = useNavigate();
+    const navigate  = useNavigate();
 
-    const fallbackParams = {
+    const fallback = {
         flightType: "one-way",
-        departure: "",
-        arrival: "",
-        dateDepart: "",
-        dateReturn: "",
+        departure: "", arrival: "",
+        dateDepart: "", dateReturn: "",
         passengers: { adults: 1, children: 0, infants: 0 },
         cabinClass: "economy",
     };
 
-    const [searchParams, setSearchParams] = useState(state || fallbackParams);
-    const [results, setResults] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
-    const [showSearchForm, setShowSearchForm] = useState(true);
+    const [searchParams, setSearchParams]         = useState(state || fallback);
+    const [showSearchForm, setShowSearchForm]      = useState(true);
+    // "outbound" | "return"
+    const [selectionStage, setSelectionStage]      = useState("outbound");
+    const [selectedOutbound, setSelectedOutbound]  = useState(null);
 
-    useEffect(() => {
-        if (state) {
-            setSearchParams(state);
-        }
-    }, [state]);
+    const isReturn = searchParams.flightType === "return";
 
-    useEffect(() => {
-        const hasRequiredFields =
-            searchParams?.departure &&
-            searchParams?.arrival &&
-            searchParams?.dateDepart;
+    // Outbound search — always runs when form is submitted
+    const outbound = useFlightSearch(
+        searchParams.departure,
+        searchParams.arrival,
+        searchParams.dateDepart,
+        searchParams.passengers,
+        !showSearchForm
+    );
 
-        if (!hasRequiredFields) {
-            setResults([]);
-            setShowSearchForm(true);
-            return;
-        }
-
-        const fetchResults = async () => {
-            try {
-                setLoading(true);
-                setError("");
-
-                const res = await searchFlightResults({
-                    from: searchParams.departure,
-                    to: searchParams.arrival,
-                    date: searchParams.dateDepart,
-                    adults: searchParams.passengers?.adults ?? 1,
-                    children: searchParams.passengers?.children ?? 0,
-                    infants: searchParams.passengers?.infants ?? 0,
-                });
-
-                const normalized = res.data.map((item) => ({
-                    type: item.type,
-                    flights: item.flights.map((f) => ({
-                        flightNum: f.flightNum,
-                        departingPort: f.departingPortCode,
-                        arrivingPort: f.arrivingPortCode,
-                        departTime: f.departTime,
-                        arrivalTime: f.arrivalTime,
-                        status: f.status,
-                        aircraftUsed: f.aircraftUsed,
-                        distance: f.distance,
-                        isDomestic: f.isDomestic,
-                    })),
-                    pricing: {
-                        economy: item.pricing?.economy ?? 0,
-                        business: item.pricing?.business ?? 0,
-                        first: item.pricing?.first ?? 0,
-                    },
-                    quote: item.quote,
-                }));
-
-                setResults(normalized);
-                setShowSearchForm(false);
-            } catch (err) {
-                console.error("Error fetching flights:", err);
-                setError("Could not load flight results.");
-                setResults([]);
-                setShowSearchForm(true);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchResults();
-    }, [searchParams]);
+    // Return search — only runs after user picks an outbound flight
+    const returnSearch = useFlightSearch(
+        searchParams.arrival,    // reversed
+        searchParams.departure,
+        searchParams.dateReturn,
+        searchParams.passengers,
+        isReturn && selectionStage === "return"
+    );
 
     const handleSearch = (params) => {
         setSearchParams(params);
+        setSelectedOutbound(null);
+        setSelectionStage("outbound");
+        setShowSearchForm(false);
         navigate("/flight-search", { state: params, replace: true });
     };
 
-    const handleSelectFlight = (selectedItinerary) => {
+    const handleSelectOutbound = (itinerary) => {
+        if (isReturn) {
+            // Store outbound, switch to return selection
+            setSelectedOutbound(itinerary);
+            setSelectionStage("return");
+        } else {
+            // One-way: go straight to passengers
+            navigate("/booking/passengers", {
+                state: { selectedItinerary: itinerary, searchParams },
+            });
+        }
+    };
+
+    const handleSelectReturn = (returnItinerary) => {
         navigate("/booking/passengers", {
             state: {
-                selectedItinerary,
+                selectedItinerary: selectedOutbound,
+                returnItinerary,
                 searchParams,
             },
         });
     };
 
-    const searchSummary = useMemo(() => {
-        return {
-            route:
-                searchParams.departure && searchParams.arrival
-                    ? `${searchParams.departure} → ${searchParams.arrival}`
-                    : "Select route",
-            date:
-                searchParams.flightType === "return" && searchParams.dateReturn
-                    ? `${formatDate(searchParams.dateDepart)} - ${formatDate(searchParams.dateReturn)}`
-                    : formatDate(searchParams.dateDepart),
-            passengers: buildPassengerSummary(searchParams.passengers),
-            cabinClass: formatCabinClass(searchParams.cabinClass),
-            flightType:
-                searchParams.flightType === "return" ? "Return" : "One-way",
-        };
-    }, [searchParams]);
+    const handleBackToOutbound = () => {
+        setSelectionStage("outbound");
+        setSelectedOutbound(null);
+    };
+
+    const searchSummary = useMemo(() => ({
+        route:       searchParams.departure && searchParams.arrival
+            ? `${searchParams.departure} → ${searchParams.arrival}` : "Select route",
+        date:        isReturn && searchParams.dateReturn
+            ? `${formatDate(searchParams.dateDepart)} - ${formatDate(searchParams.dateReturn)}`
+            : formatDate(searchParams.dateDepart),
+        passengers:  buildPassengerSummary(searchParams.passengers),
+        cabinClass:  formatCabinClass(searchParams.cabinClass),
+        flightType:  isReturn ? "Return" : "One-way",
+    }), [searchParams, isReturn]);
+
+    const activeResults = selectionStage === "return" ? returnSearch : outbound;
+    const stageLabel    = selectionStage === "return"
+        ? `Select return flight — ${searchParams.arrival} → ${searchParams.departure} on ${formatDate(searchParams.dateReturn)}`
+        : `Select outbound flight — ${searchParams.departure} → ${searchParams.arrival} on ${formatDate(searchParams.dateDepart)}`;
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -155,65 +181,26 @@ export default function FlightSearch() {
                 <h1 className="text-2xl font-semibold">Flight Results</h1>
 
                 {showSearchForm ? (
-                    <FlightSearchPanel
-                        onSearch={handleSearch}
-                        initialValues={searchParams}
-                    />
+                    <FlightSearchPanel onSearch={handleSearch} initialValues={searchParams} />
                 ) : (
                     <Card className="p-4 sm:p-5">
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 flex-1">
-                                <div>
-                                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                                        Route
-                                    </p>
-                                    <p className="text-sm font-semibold text-gray-900">
-                                        {searchSummary.route}
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                                        Trip
-                                    </p>
-                                    <p className="text-sm font-semibold text-gray-900">
-                                        {searchSummary.flightType}
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                                        Dates
-                                    </p>
-                                    <p className="text-sm font-semibold text-gray-900">
-                                        {searchSummary.date || "—"}
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                                        Passengers
-                                    </p>
-                                    <p className="text-sm font-semibold text-gray-900">
-                                        {searchSummary.passengers || "—"}
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                                        Cabin
-                                    </p>
-                                    <p className="text-sm font-semibold text-gray-900">
-                                        {searchSummary.cabinClass || "—"}
-                                    </p>
-                                </div>
+                                {[
+                                    ["Route",      searchSummary.route],
+                                    ["Trip",       searchSummary.flightType],
+                                    ["Dates",      searchSummary.date || "—"],
+                                    ["Passengers", searchSummary.passengers || "—"],
+                                    ["Cabin",      searchSummary.cabinClass || "—"],
+                                ].map(([label, value]) => (
+                                    <div key={label}>
+                                        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{label}</p>
+                                        <p className="text-sm font-semibold text-gray-900">{value}</p>
+                                    </div>
+                                ))}
                             </div>
-
                             <div className="flex justify-start lg:justify-end">
-                                <Button
-                                    variant="outline"
-                                    onClick={() => setShowSearchForm(true)}
-                                >
+                                <Button variant="outline" onClick={() => setShowSearchForm(true)}>
                                     Modify Search
                                 </Button>
                             </div>
@@ -221,33 +208,69 @@ export default function FlightSearch() {
                     </Card>
                 )}
 
-                {loading && (
-                    <Card className="p-6">
-                        <p>Loading flights...</p>
+                {/* Stage indicator for return trips */}
+                {!showSearchForm && isReturn && (
+                    <div className="flex items-center gap-3">
+                        {selectionStage === "return" && (
+                            <Button variant="outline" size="sm" onClick={handleBackToOutbound}>
+                                ← Change outbound
+                            </Button>
+                        )}
+                        <div className="flex gap-2 text-sm">
+                            <span className={`px-3 py-1 rounded-full font-medium ${
+                                selectionStage === "outbound"
+                                    ? "bg-blue-600 text-white"
+                                    : "bg-green-100 text-green-700"
+                            }`}>
+                                {selectionStage === "outbound" ? "1. Choose outbound" : "✓ Outbound selected"}
+                            </span>
+                            <span className={`px-3 py-1 rounded-full font-medium ${
+                                selectionStage === "return"
+                                    ? "bg-blue-600 text-white"
+                                    : "bg-gray-100 text-gray-500"
+                            }`}>
+                                2. Choose return
+                            </span>
+                        </div>
+                    </div>
+                )}
+
+                {/* Selected outbound summary when picking return */}
+                {selectionStage === "return" && selectedOutbound && (
+                    <Card className="p-4 border-green-200 bg-green-50">
+                        <p className="text-xs font-medium uppercase tracking-wide text-green-600 mb-1">
+                            Outbound selected
+                        </p>
+                        <p className="text-sm font-semibold text-gray-900">
+                            {selectedOutbound.flights[0].departingPort} →{" "}
+                            {selectedOutbound.flights[selectedOutbound.flights.length - 1].arrivingPort}
+                            {" · "}
+                            {new Date(selectedOutbound.flights[0].departTime).toLocaleTimeString([], {
+                                hour: "2-digit", minute: "2-digit"
+                            })}
+                        </p>
                     </Card>
                 )}
 
-                {error && (
-                    <Card className="p-6 border-red-200">
-                        <p className="text-red-600">{error}</p>
-                    </Card>
+                {!showSearchForm && (
+                    <p className="text-sm font-medium text-gray-600">{stageLabel}</p>
                 )}
 
-                {!loading && !error && results.length === 0 && (
-                    <Card className="p-6">
-                        <p>No flights found.</p>
-                    </Card>
+                {activeResults.loading && <Card className="p-6"><p>Loading flights...</p></Card>}
+                {activeResults.error   && <Card className="p-6 border-red-200"><p className="text-red-600">{activeResults.error}</p></Card>}
+                {!activeResults.loading && !activeResults.error && activeResults.results.length === 0 && !showSearchForm && (
+                    <Card className="p-6"><p>No flights found.</p></Card>
                 )}
 
-                {!loading && !error && results.length > 0 && (
+                {!activeResults.loading && !activeResults.error && activeResults.results.length > 0 && (
                     <div className="space-y-4">
-                        {results.map((result, index) => (
+                        {activeResults.results.map((result, index) => (
                             <FlightCard
                                 key={index}
                                 {...result}
                                 cabinClass={searchParams.cabinClass}
                                 passengers={searchParams.passengers}
-                                onSelect={handleSelectFlight}
+                                onSelect={selectionStage === "return" ? handleSelectReturn : handleSelectOutbound}
                             />
                         ))}
                     </div>
