@@ -63,7 +63,7 @@ export default function Navbar() {
 
                 <nav className="hidden items-center gap-6 md:flex">
                     <NavLink
-                        to="/book"
+                        to="/"
                         className={({ isActive }) =>
                             `${navLinkBase} ${isActive ? navLinkActive : ""}`
                         }
