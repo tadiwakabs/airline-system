@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import './globals.css'
 import AppLayout from "./components/layout/AppLayout.jsx";
 import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
+import PublicOnlyRoute from "./components/auth/PublicOnlyRoute.jsx";
 
 // Route Imports
 import Home from './pages/Home'
@@ -34,8 +35,16 @@ function App() {
                 <Routes>
                     {/* Open Routes */}
                     <Route path="/" element={<Home />} />
-                    <Route path="/register" element={<Register />} />
-                    <Route path="/login" element={<Login />} />
+                    <Route 
+                        path="/register" 
+                        element={<PublicOnlyRoute>
+                                    <Register />
+                                </PublicOnlyRoute>} />
+                    <Route
+                        path="/login"
+                        element={<PublicOnlyRoute>
+                            <Login />
+                        </PublicOnlyRoute>} />
                     <Route path="/help" element = {<Help />} />
                     <Route path="/flight-search" element={<FlightSearch />} />
 
