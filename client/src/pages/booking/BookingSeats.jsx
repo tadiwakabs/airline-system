@@ -198,11 +198,17 @@ export default function BookingSeats() {
     const navigate = useNavigate();
 
     const selectedItinerary = state?.selectedItinerary;
+    const returnItinerary = state?.returnItinerary ?? null;
     const searchParams = state?.searchParams;
     const passengers = state?.passengers ?? [];
     const pricingSummary = state?.pricingSummary ?? null;
 
-    const flights = selectedItinerary?.flights ?? [];
+    const flights = useMemo(() => {
+        return [
+            ...(selectedItinerary?.flights ?? []),
+            ...(returnItinerary?.flights ?? []),
+        ];
+    }, [selectedItinerary, returnItinerary]);
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -335,6 +341,7 @@ export default function BookingSeats() {
         navigate("/booking/review", {
             state: {
                 selectedItinerary,
+                returnItinerary,
                 searchParams,
                 passengers,
                 pricingSummary,
@@ -351,6 +358,7 @@ export default function BookingSeats() {
         navigate("/booking/payment", {
             state: {
                 selectedItinerary,
+                returnItinerary,
                 searchParams,
                 passengers,
                 pricingSummary,

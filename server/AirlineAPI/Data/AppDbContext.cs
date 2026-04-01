@@ -22,9 +22,7 @@ namespace AirlineAPI.Data
         public DbSet<Seating> Seating { get; set; }
         public DbSet<Payment> Payments { get; set; }
         public DbSet<Booking> Bookings { get; set; }
-
-
-
+        
         public DbSet<Ticket> Ticket { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -204,7 +202,15 @@ namespace AirlineAPI.Data
             modelBuilder.Entity<Ticket>()
                         .HasOne(t => t.Seating)
                         .WithMany()
-                        .HasForeignKey(t => new { t.flightNum, t.seatNumber });
+                        .HasForeignKey(t => new { t.flightCode, t.seatNumber });
+            
+            modelBuilder.Entity<Ticket>()
+                .Property(t => t.status)
+                .HasConversion<string>();
+
+            modelBuilder.Entity<Ticket>()
+                .Property(t => t.ticketClass)
+                .HasConversion<string>();
             
             modelBuilder.Entity<FlightPricing>()
                         .HasKey(f=>new{f.FlightNum,f.CabinClass});
@@ -298,7 +304,7 @@ namespace AirlineAPI.Data
             switch (ticketClass)
             {
                 case "Economy": return TicketClass.Economy;
-                case "Buisness": return TicketClass.Buisness;
+                case "Buisness": return TicketClass.Business;
                 case "First": return TicketClass.First;
                 default: return null;
             }

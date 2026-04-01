@@ -3,30 +3,16 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace AirlineAPI.Models
 {
-    public enum TicketStatus
-    {
-        Booked,
-        Cancelled,
-        Pending
-    }
-
-    public enum TicketClass
-    {
-        Economy,
-        Buisness,
-        First
-    }
+    public enum TicketStatus { Booked, Cancelled, Pending }
+    public enum TicketClass  { Economy, Business, First }
 
     [Table("Ticket")]
     public class Ticket
     {
-        [Key]
-        [Required]
-        [StringLength(30)]
+        [Key, Required, StringLength(30)]
         public string ticketCode { get; set; } = string.Empty;
 
-        [Required]
-        [StringLength(50)]
+        [Required, StringLength(50)]
         public string bookingId { get; set; } = string.Empty;
 
         [ForeignKey("bookingId")]
@@ -38,48 +24,37 @@ namespace AirlineAPI.Models
         [Required]
         public DateTime issueDate { get; set; }
 
-        [Required]
-        [StringLength(100)]
+        [Required, StringLength(100)]
         public string origin { get; set; } = string.Empty;
 
-        [Required]
-        [StringLength(100)]
+        [Required, StringLength(100)]
         public string destination { get; set; } = string.Empty;
 
-        [Required]
         [StringLength(30)]
-        public string boardingTIme { get; set; } = string.Empty;
+        public string? boardingTime { get; set; }      // fixed typo
 
-        [Required]
-        [StringLength(3)]
+        [Required, StringLength(3)]
         public string seatNumber { get; set; } = string.Empty;
 
-        [ForeignKey("seatNumber")]
-        public Seating? Seating { get; set; }
-
         [Required]
-        public int flightCode { get; set; }
+        public int flightCode { get; set; }             // matches FK in SQL
 
         [ForeignKey("flightCode")]
         public Flight? Flight { get; set; }
 
+        [ForeignKey("flightCode,seatNumber")]
+        public Seating? Seating { get; set; }
+
         public TicketStatus? status { get; set; }
+        public TicketClass?  ticketClass { get; set; }
 
-        public TicketClass? ticketClass { get; set; }
-
-        [Required]
-        [StringLength(50)]
+        [Required, StringLength(50)]
         public string passengerId { get; set; } = string.Empty;
 
-        public DateTime? reservationTIme { get; set; }
+        [ForeignKey("passengerId")]
+        public Passenger? Passenger { get; set; }
 
-        public DateOnly? datetime { get; set; }
-
-        public int flightNum {get;set;}
-
-        [ForeignKey("flightNum,seatNumber")]
-        public Seating? seating{get;set;}
-    
-
+        public DateTime? reservationTime { get; set; }  // fixed typo
+        public DateTime? expiresAt { get; set; }
     }
 }

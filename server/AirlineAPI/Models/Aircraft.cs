@@ -16,7 +16,7 @@ namespace AirlineAPI.Models
         public string? planeType{get;set;}
 
         [Required]
-        [Range(200,300)]
+        [Range(90,140)]
         public int numSeats{get;set;}
 
         [StringLength(50)]

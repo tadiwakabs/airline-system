@@ -67,14 +67,13 @@ namespace AirlineAPI.Controllers
             existingTicket.issueDate = updatedTicket.issueDate;
             existingTicket.origin = updatedTicket.origin;
             existingTicket.destination = updatedTicket.destination;
-            existingTicket.boardingTIme = updatedTicket.boardingTIme;
+            existingTicket.boardingTime = updatedTicket.boardingTime;
             existingTicket.seatNumber = updatedTicket.seatNumber;
             existingTicket.flightCode = updatedTicket.flightCode;
             existingTicket.status = updatedTicket.status;
             existingTicket.ticketClass = updatedTicket.ticketClass;
             existingTicket.passengerId = updatedTicket.passengerId;
-            existingTicket.reservationTIme = updatedTicket.reservationTIme;
-            existingTicket.datetime = updatedTicket.datetime;
+            existingTicket.reservationTime = updatedTicket.reservationTime;
 
             await _context.SaveChangesAsync();
             

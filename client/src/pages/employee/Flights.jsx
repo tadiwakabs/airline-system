@@ -20,6 +20,7 @@ import {
     getAllRecurringSchedules,
     updateRecurringSchedule,
     deleteRecurringSchedule,
+    bulkImportRecurringSchedules,
 } from "../../services/recurringScheduleService";
 import airportOptions from "../../dropdownData/airports.json";
 
@@ -168,6 +169,7 @@ export default function Flights() {
     const [statusFilter, setStatusFilter] = useState("");
     const [sortBy, setSortBy] = useState("flightNum");
     const [sortDirection, setSortDirection] = useState("asc");
+    const [flightPage, setFlightPage] = useState(0);
     const [isFlightModalOpen, setIsFlightModalOpen] = useState(false);
     const [editingFlightId, setEditingFlightId] = useState(null);
     const [flightFormMode, setFlightFormMode] = useState("single");
@@ -193,6 +195,13 @@ export default function Flights() {
     // airport filter states — schedule modal
     const [apDepS, setApDepS] = useState(airportOptions);
     const [apArrS, setApArrS] = useState(airportOptions);
+    
+    // CSV importing states
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [importJson, setImportJson]               = useState("");
+    const [importError, setImportError]             = useState("");
+    const [importResult, setImportResult]           = useState(null);
+    const [importing, setImporting]                 = useState(false);
 
     // ── Initial load ──────────────────────────────────────────────────────────
     useEffect(() => {
@@ -491,6 +500,32 @@ export default function Flights() {
         setIsScheduleModalOpen(true);
     };
 
+    const handleImport = async () => {
+        setImportError("");
+        setImportResult(null);
+
+        let parsed;
+        try {
+            parsed = JSON.parse(importJson);
+            if (!Array.isArray(parsed)) throw new Error("Must be a JSON array.");
+        } catch (e) {
+            setImportError("Invalid JSON: " + e.message);
+            return;
+        }
+
+        setImporting(true);
+        try {
+            const res = await bulkImportRecurringSchedules(parsed);
+            setImportResult(res.data);
+            await loadSchedules();
+            await loadFlights();
+        } catch (err) {
+            setImportError(err?.response?.data?.message || "Import failed.");
+        } finally {
+            setImporting(false);
+        }
+    };
+
     const handleDeleteSchedule = (schedule) => {
         setSuccessMessage("");
         setError("");
@@ -580,8 +615,13 @@ export default function Flights() {
             if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
             return 0;
         });
+        setFlightPage(0); // reset to page 1 whenever filters/sort change
         return result;
     }, [flights, searchTerm, statusFilter, sortBy, sortDirection]);
+
+    const PAGE_SIZE = 50;
+    const totalPages = Math.ceil(filteredFlights.length / PAGE_SIZE);
+    const pagedFlights = filteredFlights.slice(flightPage * PAGE_SIZE, (flightPage + 1) * PAGE_SIZE);
 
     // ── Shared helpers ────────────────────────────────────────────────────────
     const searchAircraft = (q) =>
@@ -682,23 +722,34 @@ export default function Flights() {
                     <h1 className="text-2xl font-semibold text-gray-900">Flights</h1>
                     <p className="mt-1 text-sm text-gray-500">Manage individual and recurring flights.</p>
                 </div>
-                <Button
-                    onClick={() => {
-                        if (activeTab === "flights") {
-                            handleAddNew();
-                        } else {
-                            setSuccessMessage("");
-                            setError("");
-                            setEditingFlightId(null);
-                            setFlightFormMode("recurring");
-                            setFormData(emptyForm);
-                            setRecurringData(emptyRecurringForm);
-                            setIsFlightModalOpen(true);
-                        }
-                    }}
-                >
-                    {activeTab === "flights" ? "Add Flight" : "Add Recurring Schedule"}
-                </Button>
+                <div className="flex gap-4">
+                    <Button
+                        onClick={() => {
+                            if (activeTab === "flights") {
+                                handleAddNew();
+                            } else {
+                                setSuccessMessage("");
+                                setError("");
+                                setEditingFlightId(null);
+                                setFlightFormMode("recurring");
+                                setFormData(emptyForm);
+                                setRecurringData(emptyRecurringForm);
+                                setIsFlightModalOpen(true);
+                            }
+                        }}
+                    >
+                        {activeTab === "flights" ? "Add Flight" : "Add Recurring Schedule"}
+                    </Button>
+                    <Button variant="outline" onClick={() => {
+                        setImportJson("");
+                        setImportError("");
+                        setImportResult(null);
+                        setIsImportModalOpen(true);
+                    }}>
+                        Import JSON
+                    </Button>
+                </div>
+                
             </div>
 
             {/* Feedback */}
@@ -760,7 +811,7 @@ export default function Flights() {
                                 </tr>
                                 </thead>
                                 <tbody>
-                                {filteredFlights.map((flight) => (
+                                {pagedFlights.map((flight) => (
                                     <tr key={flight.flightNum} className="rounded-xl bg-gray-50 text-sm">
                                         <td className="px-3 py-3 font-medium text-gray-900">{flight.flightNum}</td>
                                         <td className="px-3 py-3">{formatDisplayDateTime(flight.departTime)}</td>
@@ -804,6 +855,32 @@ export default function Flights() {
                                 ))}
                                 </tbody>
                             </table>
+
+                            {/* Pagination */}
+                            <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
+        <span>
+            Showing {flightPage * PAGE_SIZE + 1}–{Math.min((flightPage + 1) * PAGE_SIZE, filteredFlights.length)} of {filteredFlights.length} flights
+        </span>
+                                <div className="flex gap-2">
+                                    <Button
+                                        size="sm" variant="outline"
+                                        onClick={() => setFlightPage((p) => Math.max(0, p - 1))}
+                                        disabled={flightPage === 0}
+                                    >
+                                        ← Prev
+                                    </Button>
+                                    <span className="px-2 py-1 text-gray-500">
+                Page {flightPage + 1} of {totalPages}
+            </span>
+                                    <Button
+                                        size="sm" variant="outline"
+                                        onClick={() => setFlightPage((p) => Math.min(totalPages - 1, p + 1))}
+                                        disabled={flightPage >= totalPages - 1}
+                                    >
+                                        Next →
+                                    </Button>
+                                </div>
+                            </div>
                         </div>
                     )}
                 </Card>
@@ -1216,6 +1293,79 @@ export default function Flights() {
                     )}
                 </div>
             </Dialog>
+
+            {/* ════════════════════════════════════════════════════════════════
+                IMPORT RECURRING SCHEDULES MODAL
+            ════════════════════════════════════════════════════════════════ */}
+            <Modal
+                isOpen={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
+                title="Bulk Import Recurring Schedules"
+            >
+                <div className="space-y-4">
+                    <p className="text-sm text-gray-600">
+                        Paste a JSON array of recurring schedule objects. Each entry uses the same
+                        shape as a single recurring schedule.{" "}
+                        <button
+                            className="text-blue-600 underline text-sm"
+                            onClick={() => {
+                                const template = JSON.stringify([{
+                                    departingPortCode:  "HOU",
+                                    arrivingPortCode:   "DAL",
+                                    departureTimeOfDay: "08:00:00",
+                                    arrivalTimeOfDay:   "09:15:00",
+                                    aircraftUsed:       "B737",
+                                    status:             "On Time",
+                                    isDomestic:         true,
+                                    distance:           239,
+                                    flightChange:       false,
+                                    startDate:          "2026-04-01",
+                                    endDate:            "2026-06-30",
+                                    daysOfWeek:         [1, 2, 3, 4, 5],
+                                    economyPrice:       199,
+                                    businessPrice:      399,
+                                    firstPrice:         699,
+                                }], null, 2);
+                                setImportJson(template);
+                            }}
+                        >
+                            Load template
+                        </button>
+                    </p>
+
+                    <textarea
+                        className="w-full h-72 border border-gray-300 rounded p-2 font-mono text-xs"
+                        placeholder='[{ "departingPortCode": "HOU", ... }]'
+                        value={importJson}
+                        onChange={(e) => setImportJson(e.target.value)}
+                    />
+
+                    {importError && (
+                        <p className="text-sm text-red-600">{importError}</p>
+                    )}
+
+                    {importResult && (
+                        <div className="text-sm text-green-700 bg-green-50 border border-green-200 rounded p-3">
+                            <p className="font-medium">Import complete</p>
+                            <p>{importResult.imported} schedule(s) imported.</p>
+                            {importResult.errors?.length > 0 && (
+                                <p className="text-yellow-700 mt-1">
+                                    {importResult.errors.length} row(s) had errors — check the console.
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="flex gap-3">
+                        <Button onClick={handleImport} disabled={importing || !importJson.trim()}>
+                            {importing ? "Importing..." : "Import"}
+                        </Button>
+                        <Button variant="outline" onClick={() => setIsImportModalOpen(false)}>
+                            Cancel
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
 
         </div>
     );

@@ -9,7 +9,7 @@ namespace AirlineAPI.Models
     {
         [Key]
         [Required]
-        [Range(0,9999)]
+        [Range(0,99999)]
         public int flightNum { get; set; }
 
         [Required]

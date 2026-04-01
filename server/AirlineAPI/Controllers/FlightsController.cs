@@ -337,7 +337,7 @@ namespace AirlineAPI.Controllers
 
             return Ok(results);
         }
-        
+
         [HttpGet("search-results")]
         public async Task<IActionResult> SearchResults(
             [FromQuery] string from,
@@ -352,7 +352,7 @@ namespace AirlineAPI.Controllers
 
             if (children < 0 || infants < 0)
                 return BadRequest(new { message = "Passenger counts cannot be negative." });
-            
+
             from = (from ?? "").Trim().ToUpper();
             to = (to ?? "").Trim().ToUpper();
 
@@ -421,72 +421,91 @@ namespace AirlineAPI.Controllers
                     f.departTime < dayEnd.AddDays(1))
                 .ToList();
 
-            var connectingResults =
-                (from leg1 in candidateFirstLegs
-                 from leg2 in candidateSecondLegs
-                 where (leg1.arrivingPort ?? "").Trim().ToUpper() == (leg2.departingPort ?? "").Trim().ToUpper()
-                       && leg2.departTime >= leg1.arrivalTime.AddMinutes(30)
-                       && leg2.departTime <= leg1.arrivalTime.AddHours(4)
-                 select new
-                 {
-                     leg1,
-                     leg2,
-                     economyBase = SumPrices(
-                         leg1.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Economy)?.Price,
-                         leg2.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Economy)?.Price
-                     ),
-                     businessBase = SumPrices(
-                         leg1.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Business)?.Price,
-                         leg2.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Business)?.Price
-                     ),
-                     firstBase = SumPrices(
-                         leg1.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.First)?.Price,
-                         leg2.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.First)?.Price
-                     )
-                 })
-                .Select(x => new FlightSearchResultDto
-                {
-                    Type = "connection",
-                    Flights = new List<FlightLegDto>
-                    {
-                        new FlightLegDto
-                        {
-                            FlightNum = x.leg1.flightNum,
-                            DepartingPortCode = x.leg1.departingPort,
-                            ArrivingPortCode = x.leg1.arrivingPort,
-                            DepartTime = x.leg1.departTime,
-                            ArrivalTime = x.leg1.arrivalTime,
-                            Status = x.leg1.status,
-                            AircraftUsed = x.leg1.aircraftUsed,
-                            Distance = x.leg1.distance,
-                            IsDomestic = x.leg1.isDomestic
-                        },
-                        new FlightLegDto
-                        {
-                            FlightNum = x.leg2.flightNum,
-                            DepartingPortCode = x.leg2.departingPort,
-                            ArrivingPortCode = x.leg2.arrivingPort,
-                            DepartTime = x.leg2.departTime,
-                            ArrivalTime = x.leg2.arrivalTime,
-                            Status = x.leg2.status,
-                            AircraftUsed = x.leg2.aircraftUsed,
-                            Distance = x.leg2.distance,
-                            IsDomestic = x.leg2.isDomestic
-                        }
-                    },
-                    Pricing = new FlightSearchPricingDto
-                    {
-                        Economy = x.economyBase,
-                        Business = x.businessBase,
-                        First = x.firstBase
-                    },
-                    Quote = BuildQuote(x.economyBase, x.businessBase, x.firstBase, adults, children, infants)
-                })
+            // Load airports for geographic filtering
+            var relevantCodes = candidateFirstLegs
+                .Select(f => f.arrivingPort)
+                .Distinct()
                 .ToList();
+
+            var layoverAirports = await _context.Airports
+                .Where(a => relevantCodes.Contains(a.airportCode))
+                .ToDictionaryAsync(a => a.airportCode);
+
+            var originAirport = await _context.Airports.FindAsync(from);
+            var destAirport = await _context.Airports.FindAsync(to);
+
+            var connectingResults = new List<FlightSearchResultDto>();
+
+            if (originAirport != null && destAirport != null)
+            {
+                double originLat = (double)originAirport.latitude;
+                double originLon = (double)originAirport.longitude;
+                double destLat = (double)destAirport.latitude;
+                double destLon = (double)destAirport.longitude;
+
+                double directDist = HaversineKm(originLat, originLon, destLat, destLon);
+
+                connectingResults =
+                    (from leg1 in candidateFirstLegs
+                        from leg2 in candidateSecondLegs
+                        where (leg1.arrivingPort ?? "").Trim().ToUpper() == (leg2.departingPort ?? "").Trim().ToUpper()
+                              && leg2.departTime >= leg1.arrivalTime.AddMinutes(40)
+                              && leg2.departTime <= leg1.arrivalTime.AddHours(4)
+                              && layoverAirports.ContainsKey(leg1.arrivingPort)
+                        let layover = layoverAirports[leg1.arrivingPort]
+                        let layoverLat = (double)layover.latitude
+                        let layoverLon = (double)layover.longitude
+                        // Layover must be closer to destination than origin is
+                        let distLayoverToDest = HaversineKm(layoverLat, layoverLon, destLat, destLon)
+                        // Total route distance must not exceed 1.4x the direct distance
+                        let distOriginToLayover = HaversineKm(originLat, originLon, layoverLat, layoverLon)
+                        where distLayoverToDest < directDist // no backtracking
+                              && (distOriginToLayover + distLayoverToDest) <= directDist * 1.4 // no absurd detours
+                        select new
+                        {
+                            leg1, leg2,
+                            economyBase = SumPrices(
+                                leg1.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Economy)?.Price,
+                                leg2.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Economy)?.Price),
+                            businessBase = SumPrices(
+                                leg1.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Business)?.Price,
+                                leg2.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Business)?.Price),
+                            firstBase = SumPrices(
+                                leg1.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.First)?.Price,
+                                leg2.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.First)?.Price)
+                        })
+                    .Select(x => new FlightSearchResultDto
+                    {
+                        Type = "connection",
+                        Flights = new List<FlightLegDto>
+                        {
+                            new FlightLegDto
+                            {
+                                FlightNum = x.leg1.flightNum, DepartingPortCode = x.leg1.departingPort,
+                                ArrivingPortCode = x.leg1.arrivingPort, DepartTime = x.leg1.departTime,
+                                ArrivalTime = x.leg1.arrivalTime, Status = x.leg1.status,
+                                AircraftUsed = x.leg1.aircraftUsed, Distance = x.leg1.distance,
+                                IsDomestic = x.leg1.isDomestic
+                            },
+                            new FlightLegDto
+                            {
+                                FlightNum = x.leg2.flightNum, DepartingPortCode = x.leg2.departingPort,
+                                ArrivingPortCode = x.leg2.arrivingPort, DepartTime = x.leg2.departTime,
+                                ArrivalTime = x.leg2.arrivalTime, Status = x.leg2.status,
+                                AircraftUsed = x.leg2.aircraftUsed, Distance = x.leg2.distance,
+                                IsDomestic = x.leg2.isDomestic
+                            }
+                        },
+                        Pricing = new FlightSearchPricingDto
+                            { Economy = x.economyBase, Business = x.businessBase, First = x.firstBase },
+                        Quote = BuildQuote(x.economyBase, x.businessBase, x.firstBase, adults, children, infants)
+                    })
+                    .ToList();
+            }
 
             return Ok(directResults.Concat(connectingResults));
         }
-        
+
         private const decimal ChildMultiplier = 0.8m;
         private const decimal InfantMultiplier = 0.1m;
 
@@ -539,6 +558,17 @@ namespace AirlineAPI.Controllers
                 Business = BuildFareBreakdown(businessBase, adults, children, infants),
                 First = BuildFareBreakdown(firstBase, adults, children, infants)
             };
+        }
+        
+        private static double HaversineKm(double lat1, double lon1, double lat2, double lon2)
+        {
+            const double R = 6371.0;
+            var dLat = (lat2 - lat1) * Math.PI / 180.0;
+            var dLon = (lon2 - lon1) * Math.PI / 180.0;
+            var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2)
+                    + Math.Cos(lat1 * Math.PI / 180.0) * Math.Cos(lat2 * Math.PI / 180.0)
+                                                       * Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+            return R * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
         }
         
         private static List<Seating> GenerateSeatsForFlight(int flightNum, int numSeats)

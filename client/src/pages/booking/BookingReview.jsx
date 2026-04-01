@@ -276,7 +276,11 @@ export default function BookingReview() {
         }
     }, [selectedItinerary, searchParams, passengers, navigate]);
 
+    const returnItinerary = state?.returnItinerary ?? null;
+
     const pricing = usePriceBreakdown(selectedItinerary, searchParams);
+    const returnPricing = usePriceBreakdown(returnItinerary, searchParams);
+    const combinedTotal = pricing.total + (returnItinerary ? returnPricing.total : 0);
 
     // Group passengers by type for labelling
     const passengersWithIndex = useMemo(() => {
@@ -303,9 +307,10 @@ export default function BookingReview() {
         navigate("/booking/seat-selection", {
             state: {
                 selectedItinerary,
+                returnItinerary,
                 searchParams,
                 passengers,
-                pricingSummary: pricing,
+                pricingSummary: { ...pricing, total: combinedTotal },
             },
         });
     };
@@ -323,8 +328,10 @@ export default function BookingReview() {
                 <Card className="p-5">
                     <SectionTitle>
                         {selectedItinerary.type === "connecting"
-                            ? "Connecting Flight"
-                            : "Direct Flight"}
+                                ? "Connecting"
+                                : "Direct"}
+                        
+                        
                     </SectionTitle>
 
                     <div className="space-y-0">
@@ -333,7 +340,7 @@ export default function BookingReview() {
                                 <FlightSegment flight={flight} index={i} />
                                 {/* connector line between segments */}
                                 {i < flights.length - 1 && (
-                                    <div className="absolute left-[4px] top-[22px] w-px bg-gray-200"
+                                    <div className="absolute left-1 top-5.5 w-px bg-gray-200"
                                          style={{ height: "calc(100% - 10px)" }}
                                     />
                                 )}
@@ -343,18 +350,39 @@ export default function BookingReview() {
 
                     <Divider />
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                         <LabelValue label="Cabin" value={capitalize(searchParams.cabinClass)} />
                         <LabelValue label="Trip Type" value={capitalize(searchParams.flightType)} />
                         <LabelValue label="Date" value={formatDate(searchParams.dateDepart)} />
-                        {searchParams.flightType === "return" && searchParams.dateReturn && (
-                            <LabelValue
-                                label="Return Date"
-                                value={formatDate(searchParams.dateReturn)}
-                            />
-                        )}
                     </div>
                 </Card>
+
+                {returnItinerary && (
+                    <Card className="p-5">
+                        <SectionTitle>Return Flight</SectionTitle>
+                        <div className="space-y-0">
+                            {returnItinerary.flights.map((flight, i) => (
+                                <div key={i} className="relative">
+                                    <FlightSegment flight={flight} index={i} />
+                                    {i < returnItinerary.flights.length - 1 && (
+                                        <div className="absolute left-1 top-5.5 w-px bg-gray-200"
+                                             style={{ height: "calc(100% - 10px)" }} />
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                            <LabelValue label="Cabin" value={capitalize(searchParams.cabinClass)} />
+                            <LabelValue label="Trip Type" value={capitalize(searchParams.flightType)} />
+                            {searchParams.flightType === "return" && searchParams.dateReturn && (
+                                <LabelValue
+                                    label="Date"
+                                    value={formatDate(searchParams.dateReturn)}
+                                />
+                            )}
+                        </div>
+                    </Card>
+                )}
 
                 {/* ── Passengers ── */}
                 <Card className="p-5">
@@ -374,37 +402,24 @@ export default function BookingReview() {
                 {/* ── Price breakdown ── */}
                 <Card className="p-5">
                     <SectionTitle>Price Breakdown</SectionTitle>
-
                     <div className="space-y-2.5">
-                        {pricing.adults > 0 && (
-                            <PriceRow
-                                label={`Adults × ${pricing.adults}`}
-                                sub={`${formatCurrency(pricing.perAdult)} each`}
-                                value={formatCurrency(pricing.adultFare)}
-                            />
-                        )}
-                        {pricing.children > 0 && (
-                            <PriceRow
-                                label={`Children × ${pricing.children}`}
-                                sub={`${formatCurrency(pricing.perChild)} each (80%)`}
-                                value={formatCurrency(pricing.childFare)}
-                            />
-                        )}
-                        {pricing.infants > 0 && (
-                            <PriceRow
-                                label={`Infants × ${pricing.infants}`}
-                                sub={`${formatCurrency(pricing.perInfant)} each (10%)`}
-                                value={formatCurrency(pricing.infantFare)}
-                            />
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Outbound</p>
+                        {pricing.adults   > 0 && <PriceRow label={`Adults × ${pricing.adults}`}     sub={`${formatCurrency(pricing.perAdult)} each`}          value={formatCurrency(pricing.adultFare)} />}
+                        {pricing.children > 0 && <PriceRow label={`Children × ${pricing.children}`} sub={`${formatCurrency(pricing.perChild)} each (80%)`}    value={formatCurrency(pricing.childFare)} />}
+                        {pricing.infants  > 0 && <PriceRow label={`Infants × ${pricing.infants}`}   sub={`${formatCurrency(pricing.perInfant)} each (10%)`}   value={formatCurrency(pricing.infantFare)} />}
+
+                        {returnItinerary && (
+                            <>
+                                <Divider />
+                                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Return</p>
+                                {returnPricing.adults   > 0 && <PriceRow label={`Adults × ${returnPricing.adults}`}     sub={`${formatCurrency(returnPricing.perAdult)} each`}        value={formatCurrency(returnPricing.adultFare)} />}
+                                {returnPricing.children > 0 && <PriceRow label={`Children × ${returnPricing.children}`} sub={`${formatCurrency(returnPricing.perChild)} each (80%)`}  value={formatCurrency(returnPricing.childFare)} />}
+                                {returnPricing.infants  > 0 && <PriceRow label={`Infants × ${returnPricing.infants}`}   sub={`${formatCurrency(returnPricing.perInfant)} each (10%)`} value={formatCurrency(returnPricing.infantFare)} />}
+                            </>
                         )}
 
                         <Divider />
-
-                        <PriceRow
-                            label="Total"
-                            value={formatCurrency(pricing.total)}
-                            bold
-                        />
+                        <PriceRow label="Total" value={formatCurrency(combinedTotal)} bold />
                     </div>
                 </Card>
 
