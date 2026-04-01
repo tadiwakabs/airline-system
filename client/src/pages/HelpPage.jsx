@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import './HelpPage.css';
 
 const HelpPage = () => {
-  const [activeCategory, setActiveCategory] = useState('Flights');
+  const [activeCategory, setActiveCategory] = useState('Flight Info');
 
   const faqData = {
     "Flight Info": [

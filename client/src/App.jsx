@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import './globals.css'
 import AppLayout from "./components/layout/AppLayout.jsx";
 import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
