@@ -38,6 +38,7 @@ function App() {
                     <Route path="/login" element={<Login />} />
                     <Route path="/help" element = {<Help />} />
                     <Route path="/flight-search" element={<FlightSearch />} />
+                    <Route path="/book" element= {<Home />} />
 
                     {/* User-Authenticated Routes */}
                     <Route 
