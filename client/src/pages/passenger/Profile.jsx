@@ -9,6 +9,12 @@ import {
     updateMyProfile,
     changeMyPassword,
 } from "../../services/authService";
+import {
+    getPassengerByUserId,
+    updatePassenger,
+    getCountries,
+    getStates,
+} from "../../services/passengerService";
 
 const titleOptions = [
     { label: "Select title", value: "" },
@@ -33,12 +39,31 @@ const genderOptions = [
 export default function Profile() {
     const [activeTab, setActiveTab] = useState("profile");
     const [profile, setProfile] = useState(null);
+    const [passenger, setPassenger] = useState(null);
     const [loading, setLoading] = useState(true);
+
+    const [countries, setCountries] = useState([]);
+    const [states, setStates] = useState([]);
 
     const [editableData, setEditableData] = useState({
         email: "",
         title: "",
         gender: "",
+        firstName: "",
+        lastName: "",
+        dateOfBirth: "",
+    });
+
+    const [passengerData, setPassengerData] = useState({
+        passengerId: "",
+        phoneNumber: "",
+        passportNumber: "",
+        passportCountryCode: "",
+        passportExpirationDate: "",
+        placeOfBirth: "",
+        nationality: "",
+        dlNumber: "",
+        dlState: "",
     });
 
     const [passwordData, setPasswordData] = useState({
@@ -48,23 +73,86 @@ export default function Profile() {
     });
 
     const [profileMessage, setProfileMessage] = useState("");
+    const [passengerMessage, setPassengerMessage] = useState("");
     const [passwordMessage, setPasswordMessage] = useState("");
     const [error, setError] = useState("");
 
+    const countryOptions = countries.map((c) => ({
+        label: c.name,
+        value: c.code,
+    }));
+
+    const stateOptions = states.map((s) => ({
+        label: `${s.name} (${s.code})`,
+        value: s.code,
+    }));
+
     useEffect(() => {
-        loadProfile();
+        loadProfileAndPassenger();
+        loadLookups();
     }, []);
 
-    const loadProfile = async () => {
+    const loadLookups = async () => {
+        try {
+            const [countriesRes, statesRes] = await Promise.all([
+                getCountries(),
+                getStates(),
+            ]);
+            setCountries(countriesRes.data || []);
+            setStates(statesRes.data || []);
+        } catch (err) {
+            console.error("Failed to load lookup data:", err);
+        }
+    };
+
+    const loadProfileAndPassenger = async () => {
         try {
             setLoading(true);
-            const data = await getMyProfile();
-            setProfile(data);
+            setError("");
+
+            const profileData = await getMyProfile();
+            setProfile(profileData);
+
             setEditableData({
-                email: data.email || "",
-                title: data.title || "",
-                gender: data.gender || "",
+                email: profileData.email || "",
+                title: profileData.title || "",
+                gender: profileData.gender || "",
+                firstName: profileData.firstName || "",
+                lastName: profileData.lastName || "",
+                dateOfBirth: profileData.dateOfBirth?.split("T")[0] || "",
             });
+
+            try {
+                const passengerResponse = await getPassengerByUserId(profileData.userId);
+                const passengerDataFromApi = passengerResponse.data;
+
+                setPassenger(passengerDataFromApi);
+                setPassengerData({
+                    passengerId: passengerDataFromApi.passengerId || "",
+                    phoneNumber: passengerDataFromApi.phoneNumber || "",
+                    passportNumber: passengerDataFromApi.passportNumber || "",
+                    passportCountryCode: passengerDataFromApi.passportCountryCode || "",
+                    passportExpirationDate:
+                        passengerDataFromApi.passportExpirationDate?.split("T")[0] || "",
+                    placeOfBirth: passengerDataFromApi.placeOfBirth || "",
+                    nationality: passengerDataFromApi.nationality || "",
+                    dlNumber: passengerDataFromApi.dlNumber ?? "",
+                    dlState: passengerDataFromApi.dlState || "",
+                });
+            } catch {
+                setPassenger(null);
+                setPassengerData({
+                    passengerId: "",
+                    phoneNumber: "",
+                    passportNumber: "",
+                    passportCountryCode: "",
+                    passportExpirationDate: "",
+                    placeOfBirth: "",
+                    nationality: "",
+                    dlNumber: "",
+                    dlState: "",
+                });
+            }
         } catch (err) {
             setError(err?.response?.data?.message || "Failed to load profile.");
         } finally {
@@ -79,6 +167,25 @@ export default function Profile() {
             [name]: value,
         }));
         setProfileMessage("");
+        setError("");
+    };
+
+    const handlePassengerChange = (e) => {
+        const { name, value } = e.target;
+        setPassengerData((prev) => ({
+            ...prev,
+            [name]: value,
+        }));
+        setPassengerMessage("");
+        setError("");
+    };
+
+    const handlePassengerDropdownChange = (name, value) => {
+        setPassengerData((prev) => ({
+            ...prev,
+            [name]: value,
+        }));
+        setPassengerMessage("");
         setError("");
     };
 
@@ -100,9 +207,39 @@ export default function Profile() {
         try {
             const response = await updateMyProfile(editableData);
             setProfileMessage(response.message || "Profile updated.");
-            await loadProfile();
+            await loadProfileAndPassenger();
         } catch (err) {
             setError(err?.response?.data?.message || "Failed to update profile.");
+        }
+    };
+
+    const handlePassengerSubmit = async (e) => {
+        e.preventDefault();
+        setError("");
+        setPassengerMessage("");
+
+        if (!passenger?.passengerId) {
+            setError("Passenger profile not found.");
+            return;
+        }
+
+        try {
+            const payload = {
+                phoneNumber: passengerData.phoneNumber || null,
+                passportNumber: passengerData.passportNumber || null,
+                passportCountryCode: passengerData.passportCountryCode || null,
+                passportExpirationDate: passengerData.passportExpirationDate || null,
+                placeOfBirth: passengerData.placeOfBirth || null,
+                nationality: passengerData.nationality || null,
+                dlNumber: passengerData.dlNumber === "" ? null : Number(passengerData.dlNumber),
+                dlState: passengerData.dlState || null,
+            };
+
+            const response = await updatePassenger(passenger.passengerId, payload);
+            setPassengerMessage(response?.data?.message || "Passenger info updated.");
+            await loadProfileAndPassenger();
+        } catch (err) {
+            setError(err?.response?.data?.message || "Failed to update passenger info.");
         }
     };
 
@@ -152,7 +289,6 @@ export default function Profile() {
     return (
         <div className="mx-auto max-w-6xl px-4 py-10">
             <div className="grid gap-6 md:grid-cols-[240px_minmax(0,1fr)]">
-                {/* Left sidebar */}
                 <Card className="h-fit p-3">
                     <div className="space-y-2">
                         <button
@@ -169,6 +305,18 @@ export default function Profile() {
 
                         <button
                             type="button"
+                            onClick={() => setActiveTab("passenger")}
+                            className={`w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
+                                activeTab === "passenger"
+                                    ? "bg-blue-600 text-white"
+                                    : "text-gray-700 hover:bg-gray-100 cursor-pointer"
+                            }`}
+                        >
+                            Passenger Info
+                        </button>
+
+                        <button
+                            type="button"
                             onClick={() => setActiveTab("password")}
                             className={`w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
                                 activeTab === "password"
@@ -181,7 +329,6 @@ export default function Profile() {
                     </div>
                 </Card>
 
-                {/* Right content */}
                 <Card className="p-6">
                     {activeTab === "profile" && (
                         <>
@@ -189,11 +336,12 @@ export default function Profile() {
                                 My Profile
                             </h1>
                             <p className="mt-1 text-sm text-gray-500">
-                                View your account details and update allowed fields.
+                                Update your account details.
                             </p>
 
-                            <Separator className="my-6" />
+                            <Separator className="mt-6 mb-2" />
 
+                            <h1 className="text-lg font-semibold">Account Details</h1>
                             <div className="grid gap-4 md:grid-cols-2">
                                 <TextInput
                                     label="User ID"
@@ -208,24 +356,6 @@ export default function Profile() {
                                     className="bg-gray-50"
                                 />
                                 <TextInput
-                                    label="First Name"
-                                    value={profile.firstName}
-                                    disabled
-                                    className="bg-gray-50"
-                                />
-                                <TextInput
-                                    label="Last Name"
-                                    value={profile.lastName}
-                                    disabled
-                                    className="bg-gray-50"
-                                />
-                                <TextInput
-                                    label="Date of Birth"
-                                    value={profile.dateOfBirth?.split("T")[0] || ""}
-                                    disabled
-                                    className="bg-gray-50"
-                                />
-                                <TextInput
                                     label="Role"
                                     value={profile.userRole}
                                     disabled
@@ -233,31 +363,45 @@ export default function Profile() {
                                 />
                                 <TextInput
                                     label="Account Creation Date"
-                                    value={
-                                        profile.createdAt
-                                            ? new Date(profile.createdAt).toLocaleString()
-                                            : ""
-                                    }
+                                    value={profile.createdAt ? new Date(profile.createdAt).toLocaleString() : ""}
                                     disabled
                                     className="bg-gray-50"
                                 />
                                 <TextInput
                                     label="Last Updated"
-                                    value={
-                                        profile.updatedAt
-                                            ? new Date(profile.updatedAt).toLocaleString()
-                                            : ""
-                                    }
+                                    value={profile.updatedAt ? new Date(profile.updatedAt).toLocaleString() : ""}
                                     disabled
                                     className="bg-gray-50"
                                 />
                             </div>
 
-                            <Separator className="my-6" />
+                            <Separator className="mt-6 mb-4" />
 
+                            <h1 className="text-lg font-semibold">Editable Details</h1>
                             <form onSubmit={handleProfileSubmit} className="space-y-4">
-
                                 <div className="grid gap-4 md:grid-cols-2">
+                                    <TextInput
+                                        label="First Name"
+                                        name="firstName"
+                                        value={editableData.firstName}
+                                        onChange={handleEditableChange}
+                                    />
+
+                                    <TextInput
+                                        label="Last Name"
+                                        name="lastName"
+                                        value={editableData.lastName}
+                                        onChange={handleEditableChange}
+                                    />
+
+                                    <TextInput
+                                        label="Date of Birth"
+                                        name="dateOfBirth"
+                                        type="date"
+                                        value={editableData.dateOfBirth}
+                                        onChange={handleEditableChange}
+                                    />
+
                                     <TextInput
                                         label="Email"
                                         name="email"
@@ -268,17 +412,19 @@ export default function Profile() {
 
                                     <Dropdown
                                         label="Title"
-                                        name="title"
                                         value={editableData.title}
-                                        onChange={handleEditableChange}
+                                        onChange={(val) =>
+                                            setEditableData((prev) => ({ ...prev, title: val }))
+                                        }
                                         options={titleOptions}
                                     />
 
                                     <Dropdown
                                         label="Gender"
-                                        name="gender"
                                         value={editableData.gender}
-                                        onChange={handleEditableChange}
+                                        onChange={(val) =>
+                                            setEditableData((prev) => ({ ...prev, gender: val }))
+                                        }
                                         options={genderOptions}
                                     />
                                 </div>
@@ -287,11 +433,143 @@ export default function Profile() {
                                     <p className="text-sm text-green-600">{profileMessage}</p>
                                 )}
 
-                                {error && (
+                                {error && activeTab === "profile" && (
                                     <p className="text-sm text-red-600">{error}</p>
                                 )}
 
                                 <Button type="submit">Save Changes</Button>
+                            </form>
+                        </>
+                    )}
+
+                    {activeTab === "passenger" && (
+                        <>
+                            <h1 className="text-2xl font-semibold text-gray-900">
+                                Passenger Info
+                            </h1>
+                            <p className="mt-1 text-sm text-gray-500">
+                                Update passenger-specific details.
+                            </p>
+
+                            <Separator className="my-6" />
+
+                            <form onSubmit={handlePassengerSubmit} className="space-y-4">
+                                <div className="grid gap-4 md:grid-cols-2">
+                                    <TextInput
+                                        label="Passenger ID"
+                                        value={passenger?.passengerId || ""}
+                                        disabled
+                                        className="bg-gray-50"
+                                    />
+                                    <TextInput
+                                        label="First Name"
+                                        value={profile.firstName || ""}
+                                        disabled
+                                        className="bg-gray-50"
+                                    />
+                                    <TextInput
+                                        label="Last Name"
+                                        value={profile.lastName || ""}
+                                        disabled
+                                        className="bg-gray-50"
+                                    />
+                                    <TextInput
+                                        label="Email"
+                                        value={profile.email || ""}
+                                        disabled
+                                        className="bg-gray-50"
+                                    />
+                                    <TextInput
+                                        label="Date of Birth"
+                                        value={profile.dateOfBirth?.split("T")[0] || ""}
+                                        disabled
+                                        className="bg-gray-50"
+                                    />
+                                    <TextInput
+                                        label="Gender"
+                                        value={profile.gender || ""}
+                                        disabled
+                                        className="bg-gray-50"
+                                    />
+                                    <TextInput
+                                        label="Phone Number"
+                                        name="phoneNumber"
+                                        value={passengerData.phoneNumber}
+                                        onChange={handlePassengerChange}
+                                    />
+                                </div>
+                                
+                                <Separator className="my-6" />
+                                
+                                <h1 className="text-lg font-semibold">Domestic Details</h1>
+                                <div className="grid gap-4 md:grid-cols-2">
+                                    <TextInput
+                                        label="DL Number"
+                                        name="dlNumber"
+                                        value={passengerData.dlNumber}
+                                        onChange={handlePassengerChange}
+                                    />
+                                    <Dropdown
+                                        label="DL State"
+                                        value={passengerData.dlState}
+                                        onChange={(val) =>
+                                            handlePassengerDropdownChange("dlState", val)
+                                        }
+                                        options={stateOptions}
+                                    />
+                                </div>
+                                
+                                <Separator className="my-6" />
+                                
+                                <h1 className="text-lg font-semibold">International Details</h1>
+                                <div className="grid gap-4 md:grid-cols-2">
+                                    <TextInput
+                                        label="Passport Number"
+                                        name="passportNumber"
+                                        value={passengerData.passportNumber}
+                                        onChange={handlePassengerChange}
+                                    />
+                                    <Dropdown
+                                        label="Passport Country"
+                                        value={passengerData.passportCountryCode}
+                                        onChange={(val) =>
+                                            handlePassengerDropdownChange("passportCountryCode", val)
+                                        }
+                                        options={countryOptions}
+                                    />
+                                    <TextInput
+                                        label="Passport Expiration"
+                                        name="passportExpirationDate"
+                                        type="date"
+                                        value={passengerData.passportExpirationDate}
+                                        onChange={handlePassengerChange}
+                                    />
+                                    <TextInput
+                                        label="Place of Birth"
+                                        name="placeOfBirth"
+                                        value={passengerData.placeOfBirth}
+                                        onChange={handlePassengerChange}
+                                    />
+                                    <Dropdown
+                                        label="Nationality"
+                                        value={passengerData.nationality}
+                                        onChange={(val) =>
+                                            handlePassengerDropdownChange("nationality", val)
+                                        }
+                                        options={countryOptions}
+                                    />
+                                </div>
+                                
+
+                                {passengerMessage && (
+                                    <p className="text-sm text-green-600">{passengerMessage}</p>
+                                )}
+
+                                {error && activeTab === "passenger" && (
+                                    <p className="text-sm text-red-600">{error}</p>
+                                )}
+
+                                <Button type="submit">Save Passenger Info</Button>
                             </form>
                         </>
                     )}
@@ -336,7 +614,7 @@ export default function Profile() {
                                     <p className="text-sm text-green-600">{passwordMessage}</p>
                                 )}
 
-                                {error && (
+                                {error && activeTab === "password" && (
                                     <p className="text-sm text-red-600">{error}</p>
                                 )}
 

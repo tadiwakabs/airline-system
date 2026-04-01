@@ -26,8 +26,37 @@ namespace AirlineAPI.DTOs.User
         public string Email { get; set; } = null!;
 
         public string? Title { get; set; }
-
         public string? Gender { get; set; }
+
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
+        public DateTime? DateOfBirth { get; set; }
+    }
+    
+    // DTO for updating passenger-specific information
+    public class UpdatePassengerProfileDto
+    {
+        [StringLength(20)]
+        public string? PhoneNumber { get; set; }
+
+        public int? DLNumber { get; set; }
+
+        [StringLength(2)]
+        public string? DLState { get; set; }
+
+        [StringLength(20)]
+        public string? PassportNumber { get; set; }
+
+        [StringLength(2)]
+        public string? PassportCountryCode { get; set; }
+
+        public DateTime? PassportExpirationDate { get; set; }
+
+        [StringLength(30)]
+        public string? PlaceOfBirth { get; set; }
+
+        [StringLength(2)]
+        public string? Nationality { get; set; }
     }
     
     // DTO for changing password

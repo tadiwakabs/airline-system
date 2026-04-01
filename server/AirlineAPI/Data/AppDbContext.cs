@@ -178,14 +178,86 @@ namespace AirlineAPI.Data
             
             modelBuilder.Entity<Passenger>(entity =>
             {
+                entity.ToTable("Passenger");
+
+                entity.HasKey(p => p.PassengerId);
+
+                entity.Property(p => p.PassengerId)
+                    .HasColumnName("passengerId")
+                    .HasMaxLength(50);
+
+                entity.Property(p => p.UserId)
+                    .HasColumnName("userId")
+                    .HasMaxLength(50);
+
                 entity.Property(p => p.Title)
-                    .HasConversion<string>();
+                    .HasColumnName("title")
+                    .HasConversion(
+                        v => ConvertTitleToDb(v),
+                        v => ConvertTitleFromDb(v)
+                    );
+
+                entity.Property(p => p.FirstName)
+                    .HasColumnName("firstName")
+                    .HasMaxLength(30)
+                    .IsRequired();
+
+                entity.Property(p => p.LastName)
+                    .HasColumnName("lastName")
+                    .HasMaxLength(30)
+                    .IsRequired();
+
+                entity.Property(p => p.DateOfBirth)
+                    .HasColumnName("dateOfBirth")
+                    .HasColumnType("date")
+                    .IsRequired();
 
                 entity.Property(p => p.Gender)
-                    .HasConversion<string>();
+                    .HasColumnName("gender")
+                    .HasConversion(
+                        v => ConvertGenderToDb(v),
+                        v => ConvertGenderFromDb(v)
+                    );
+
+                entity.Property(p => p.PhoneNumber)
+                    .HasColumnName("phoneNumber")
+                    .HasMaxLength(20);
+
+                entity.Property(p => p.Email)
+                    .HasColumnName("email")
+                    .HasMaxLength(100);
+
+                entity.Property(p => p.DLNumber)
+                    .HasColumnName("DLNumber");
+
+                entity.Property(p => p.DLState)
+                    .HasColumnName("DLState")
+                    .HasMaxLength(2);
+
+                entity.Property(p => p.PassportNumber)
+                    .HasColumnName("passportNumber")
+                    .HasMaxLength(20);
+
+                entity.Property(p => p.PassportCountryCode)
+                    .HasColumnName("passportCountryCode")
+                    .HasMaxLength(3);
+
+                entity.Property(p => p.PassportExpirationDate)
+                    .HasColumnName("passportExpirationDate")
+                    .HasColumnType("date");
+
+                entity.Property(p => p.PlaceOfBirth)
+                    .HasColumnName("placeOfBirth")
+                    .HasMaxLength(30);
+
+                entity.Property(p => p.Nationality)
+                    .HasColumnName("nationality")
+                    .HasMaxLength(3);
 
                 entity.Property(p => p.PassengerType)
-                    .HasConversion<string>();
+                    .HasColumnName("passengerType")
+                    .HasConversion<string>()
+                    .IsRequired();
             });
             
             modelBuilder.Entity<Seating>()

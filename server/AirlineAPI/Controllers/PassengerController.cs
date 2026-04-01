@@ -1,6 +1,6 @@
 using AirlineAPI.Data;
+using AirlineAPI.DTOs.User;
 using AirlineAPI.Models;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,35 +8,35 @@ namespace AirlineAPI.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-
     public class PassengerController : ControllerBase
     {
         private readonly AppDbContext _context;
+
         public PassengerController(AppDbContext context)
         {
             _context = context;
         }
 
-        [HttpGet] //get : api/passenger
-        public async Task<ActionResult<IEnumerable<Passenger>>>GetAllPassenger()
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<Passenger>>> GetAllPassenger()
         {
-            var result= await _context.Passenger.ToListAsync();
+            var result = await _context.Passenger.ToListAsync();
             return Ok(result);
         }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<Passenger>> GetbyPassId(string id)
         {
-            var pass= await _context.Passenger.FindAsync(id);
+            var pass = await _context.Passenger.FindAsync(id);
 
-            if (pass== null)
+            if (pass == null)
             {
                 return NotFound("Passenger not found or wrong ID");
             }
 
             return Ok(pass);
         }
-        
+
         [HttpGet("by-user/{userId}")]
         public async Task<IActionResult> GetByUserId(string userId)
         {
@@ -48,40 +48,32 @@ namespace AirlineAPI.Controllers
 
             return Ok(passenger);
         }
-        
+
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdatePassenger(string id, [FromBody] Passenger updated)
+        public async Task<IActionResult> UpdatePassenger(string id, [FromBody] UpdatePassengerProfileDto updated)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
             var passenger = await _context.Passenger.FindAsync(id);
 
             if (passenger == null)
                 return NotFound("Passenger not found");
 
             passenger.PhoneNumber = updated.PhoneNumber;
-            passenger.Email = updated.Email;
-
             passenger.DLNumber = updated.DLNumber;
             passenger.DLState = updated.DLState;
-
             passenger.PassportNumber = updated.PassportNumber;
             passenger.PassportCountryCode = updated.PassportCountryCode;
             passenger.PassportExpirationDate = updated.PassportExpirationDate;
             passenger.PlaceOfBirth = updated.PlaceOfBirth;
             passenger.Nationality = updated.Nationality;
 
-            passenger.Gender = updated.Gender;
-            passenger.DateOfBirth = updated.DateOfBirth;
-
-            passenger.FirstName = updated.FirstName;
-            passenger.LastName = updated.LastName;
-            passenger.Title = updated.Title;
-            passenger.PassengerType = updated.PassengerType;
-
             await _context.SaveChangesAsync();
 
-            return NoContent();
+            return Ok(new { message = "Passenger info updated successfully." });
         }
-        
+
         [HttpPost]
         public async Task<IActionResult> CreatePassenger([FromBody] Passenger newPassenger)
         {
