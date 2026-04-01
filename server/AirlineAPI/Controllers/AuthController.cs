@@ -66,7 +66,7 @@ namespace AirlineAPI.Controllers
                 {
                     PassengerId = Guid.NewGuid().ToString(),
                     UserId = user.UserId,
-                    Title = user.Title,
+                    Title = null,
                     FirstName = user.FirstName,
                     LastName = user.LastName,
                     DateOfBirth = user.DateOfBirth,

@@ -141,7 +141,7 @@ export default function Navbar() {
                                             {user?.firstName} {user?.lastName}
                                         </p>
                                         <p className="truncate text-xs text-gray-500">
-                                            {user?.email}
+                                            {user?.userRole}
                                         </p>
                                     </div>
 
