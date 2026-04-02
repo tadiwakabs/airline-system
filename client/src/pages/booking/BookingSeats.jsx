@@ -21,7 +21,7 @@ function buildPassengerLabel(type, indexWithinType) {
 function normalizeCabinClass(cabinClass) {
     const lower = String(cabinClass || "").toLowerCase();
 
-    if (lower === "business") return "Buisness"; // matches backend enum typo for now
+    if (lower === "business") return "Business"; 
     if (lower === "first") return "First";
     return "Economy";
 }
