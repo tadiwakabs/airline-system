@@ -4,6 +4,7 @@ import TextInput from "../../components/common/TextInput";
 import Button from "../../components/common/Button";
 import Dropdown from "../../components/common/Dropdown";
 import Separator from "../../components/common/Separator";
+import { useNavigate } from "react-router-dom";
 import {
     getMyProfile,
     updateMyProfile,
@@ -34,6 +35,7 @@ export default function Profile() {
     const [activeTab, setActiveTab] = useState("profile");
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
 
     const [editableData, setEditableData] = useState({
         email: "",
@@ -50,10 +52,22 @@ export default function Profile() {
     const [profileMessage, setProfileMessage] = useState("");
     const [passwordMessage, setPasswordMessage] = useState("");
     const [error, setError] = useState("");
+    const role = profile?.userRole;
+    const isEmployeeOrAdmin = role === "Employee" || role === "Admin";
+    const isAdmin = role = "Admin";
 
     useEffect(() => {
         loadProfile();
     }, []);
+
+    useEffect(() => {
+        if (!isEmployeeOrAdmin && activeTab === "employee") {
+            setActiveTab("profile");
+        }
+        if (!isAdmin && activeTab === "admin") {
+            setActiveTab("profile");
+        }
+    }, [activeTab, isEmployeeOrAdmin, isAdmin]);
 
     const loadProfile = async () => {
         try {
@@ -178,9 +192,23 @@ export default function Profile() {
                         >
                             Change Password
                         </button>
-                    </div>
-                </Card>
 
+                        {isAdmin && (
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab("admin")}
+                                className={`w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
+                                activeTab === "admin"
+                                    ? "bg-blue-600 text-white"
+                                    : "text-gray-700 hover:bg-gray-100 cursor-pointer"
+                                }`}
+                            >
+                                Admin Panel
+                            </button>
+                            )}
+                    </div>
+                
+                </Card>
                 {/* Right content */}
                 <Card className="p-6">
                     {activeTab === "profile" && (
@@ -342,6 +370,39 @@ export default function Profile() {
 
                                 <Button type="submit">Change Password</Button>
                             </form>
+                        </>
+                    )}
+
+                    {activeTab == "employee" && isEmployeeOrAdmin && (
+                        <>
+                            <h1 className="text-2xl font-semibold text-gray-900">
+                                Employee Panel
+                            </h1>"
+                            <p className="mt-1 text-sm text-gray-500">
+                                Employee tools and operations.
+                            </p>
+
+                            <Button onClick={() => navigate("/employee/dashboard")}>
+                                Go to Employee Dashboard
+                            </Button>
+
+                            <Separator className="my-6" />
+                        </>
+                    )}
+
+                    {activeTab === "admin" && isAdmin && (
+                        <>
+                            <h1 className="text-2xl font semibold text-ray-900">
+                                Admin Panel
+                            </h1>
+                            <p className="mt-1 text-sm text-gray-500">
+                                Administrative tools
+                            </p>
+                            <Separator className="my-6" />
+
+                            <Button onClick={() => navigate("/employee/dashboard")}>
+                                Go to Admin Dashboard
+                            </Button>
                         </>
                     )}
                 </Card>

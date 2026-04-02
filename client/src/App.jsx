@@ -53,12 +53,14 @@ function App() {
 
                     {/* Employee-Authenticated Routes */}
                     <Route path="/flights" element={<Flights />} />
+                    <Route path="/employee/dashboard" element={<EmployeeDashboard />} />
                     
                     {/* Administrator-Authenticated Routes */}
                     <Route path="/aircraft" element={<Aircraft />} />
                     <Route path= "/airport" element={<Airport />}/>
                     <Route path="/admin" element={<Admin />} />
                     <Route path='/employee' element={<Employee />} />
+                    <Route path="/admin/dashboard" element={<AdminDashboard />} />
 
                 </Routes>
             </AppLayout>
