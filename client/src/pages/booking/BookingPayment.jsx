@@ -56,7 +56,7 @@ const Field = ({ label, field, placeholder, type = "text", value, onChange, erro
     </div>
 );
 
-export default function Payment() {
+export default function BookingPayment() {
     const navigate = useNavigate();
     const location = useLocation();
     const { user } = useAuth();
