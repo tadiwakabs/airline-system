@@ -52,9 +52,9 @@ export default function Profile() {
     const [profileMessage, setProfileMessage] = useState("");
     const [passwordMessage, setPasswordMessage] = useState("");
     const [error, setError] = useState("");
-    const role = profile?.userRole;
+    const role = profile?.userRole || "";
     const isEmployeeOrAdmin = role === "Employee" || role === "Admin";
-    const isAdmin = role = "Admin";
+    const isAdmin = role === "Admin";
 
     useEffect(() => {
         loadProfile();
@@ -392,7 +392,7 @@ export default function Profile() {
 
                     {activeTab === "admin" && isAdmin && (
                         <>
-                            <h1 className="text-2xl font semibold text-ray-900">
+                            <h1 className="text-2xl font-semibold text-gray-900">
                                 Admin Panel
                             </h1>
                             <p className="mt-1 text-sm text-gray-500">
