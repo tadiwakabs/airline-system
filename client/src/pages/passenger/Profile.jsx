@@ -61,13 +61,15 @@ export default function Profile() {
     }, []);
 
     useEffect(() => {
-        if (!isEmployeeOrAdmin && activeTab === "employee") {
-            setActiveTab("profile");
+        if (!loading && profile) {
+            if (!isEmployeeOrAdmin && activeTab === "employee") {
+                setActiveTab("profile");
+            }
         }
         if (!isAdmin && activeTab === "admin") {
             setActiveTab("profile");
         }
-    }, [activeTab, isEmployeeOrAdmin, isAdmin]);
+    }, [activeTab, isEmployeeOrAdmin, isAdmin, loading, profile]);
 
     const loadProfile = async () => {
         try {
@@ -192,6 +194,20 @@ export default function Profile() {
                         >
                             Change Password
                         </button>
+
+                        {isEmployeeOrAdmin && (
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab("employee")}
+                                className={`w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
+                                    activeTab === "employee"
+                                    ? "bg-blue-600 text-white"
+                                    : "text-gray-700 hover:bg-gray-100 cursor-pointer"
+                                }`}
+                            >
+                                Employee Panel
+                            </button>
+                        )}
 
                         {isAdmin && (
                             <button
