@@ -79,5 +79,18 @@ namespace AirlineAPI.Controllers
             
             return Ok(existingTicket);
         }
+        [HttpGet("by-booking/{bookingId}")]
+        public async Task<ActionResult<Ticket>> GetTicketByBooking(string bookingId)
+        {
+            var ticket = await _context.Ticket
+                .FirstOrDefaultAsync(t => t.bookingId == bookingId);
+
+            if (ticket == null)
+            {
+                return NotFound("No ticket found for this booking.");
+            }
+
+            return Ok(ticket);
+}
     }
 }

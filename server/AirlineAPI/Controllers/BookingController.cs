@@ -178,6 +178,10 @@ namespace AirlineAPI.Controllers
             var booking = await _context.Bookings.FindAsync(id);
             if (booking == null) return NotFound("Booking not found");
 
+            if (booking.bookingStatus == BookingStatus.Cancelled) 
+    {           return BadRequest("Cannot change seats on a cancelled booking.");
+    }
+
             var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (booking.userId != currentUserId && !User.IsInRole("Admin"))
             {
