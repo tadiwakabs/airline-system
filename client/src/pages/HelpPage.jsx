@@ -15,9 +15,9 @@ const HelpPage = () => {
       { q: "Can I add a lap infant to my booking?", a: "Yes, infants under 2 years old can be added during the passenger check-in process." }
     ],
     "Account & Security": [
-      { q: "I forgot my password, what do I do?", a: "Click 'Forgot Password' on the login screen to receive a reset link via email." },
+      { q: "My account got hacked how do I get it back?", a: "Please contact us ASAP through the phone number or the email. " },
       { q: "How do I delete my account?", a: "Account deletion can be requested through mail or call." },
-      { q: "Is my payment information secure?", a: "Yes, we use industry-standard encryption and do not store full credit card numbers." }
+      { q: "Is my payment information secure?", a: "Yes, we use college-standard encryption and do not store full credit card numbers." }
     ],
     "Payments": [
       { q: "What payment methods are accepted?", a: "We accept all credit cards and PayPal too! We broke " },
