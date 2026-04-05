@@ -54,8 +54,9 @@ export default function Profile() {
     const [error, setError] = useState("");
 
     const role = profile?.userRole || "";
-    const isCorporateEmail = profile?.email?.endsWith("@3380airlines.com");
+    const email = profile?.email || "";
 
+    const isCorporateEmail = email.endsWith("@3380airlines.com");
     const isEmployeeOrAdmin = role === "Employee" || role === "Admin" || isCorporateEmail;
     const isAdmin = role === "Admin";
 
@@ -167,7 +168,7 @@ export default function Profile() {
             </div>
         );
     }
-
+    console.log({ role, email, isEmployeeOrAdmin, isAdmin });
     return (
         <div className="mx-auto max-w-6xl px-4 py-10">
             <div className="grid gap-6 md:grid-cols-[240px_minmax(0,1fr)]">
