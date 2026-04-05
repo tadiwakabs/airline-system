@@ -52,10 +52,11 @@ export default function Profile() {
     const [profileMessage, setProfileMessage] = useState("");
     const [passwordMessage, setPasswordMessage] = useState("");
     const [error, setError] = useState("");
-    const role = profile?.userRole || "";
-    const isCorporateEmail = email.endsWith("@3380airlines.com");
 
-    const isEmployeeOrAdmin = isCorporateEmail === "Employee" || role === "Admin";
+    const role = profile?.userRole || "";
+    const isCorporateEmail = profile?.email?.endsWith("@3380airlines.com");
+
+    const isEmployeeOrAdmin = role === "Employee" || role === "Admin" || isCorporateEmail;
     const isAdmin = role === "Admin";
 
     useEffect(() => {
