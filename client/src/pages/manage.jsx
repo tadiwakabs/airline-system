@@ -7,7 +7,7 @@ function groupSeatsForRender(seats) {
     const rows = new Map();
     for (const seat of seats) {
         const match = String(seat.seatNumber).match(/^(\d+)([A-Z])$/i);
-        if (!match) continue;
+        if (!match) return;
         const rowNumber = Number(match[1]);
         const letter = match[2].toUpperCase();
         if (!rows.has(rowNumber)) rows.set(rowNumber, []);
@@ -20,16 +20,22 @@ function groupSeatsForRender(seats) {
         }));
 }
 
+function getSeatClass(seat, selected) {
+    const base = "w-10 h-10 rounded-lg border text-xs font-bold transition-all";
+    if (seat.seatNumber === selected) return `${base} bg-blue-600 text-white border-blue-700 shadow-md`;
+    if (seat.seatStatus === "Occupied") return `${base} bg-red-100 text-red-400 border-red-200 cursor-not-allowed`;
+    return `${base} bg-green-50 text-green-700 border-green-200 hover:bg-green-100`;
+}
+
 const ManageBooking = () => {
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
-    
-    // Seat Change State
     const [selectedBooking, setSelectedBooking] = useState(null);
     const [availableSeats, setAvailableSeats] = useState([]);
     const [newSeatNumber, setNewSeatNumber] = useState("");
     const [loadingSeats, setLoadingSeats] = useState(false);
-
+    const [allowedClass, setAllowedClass] = useState("economy");
+    
     useEffect(() => {
         fetchBookings();
     }, []);
@@ -44,13 +50,19 @@ const ManageBooking = () => {
 
     
     const openSeatModal = async (booking) => {
+        if (booking.bookingStatus=== "Cancelled" || booking.bookingStatus === 2)
+            return; 
+        
         setSelectedBooking(booking);
         setLoadingSeats(true);
+        setNewSeatNumber("");
+        
         try {
-            // We need to get the flight number from the ticket associated with this booking
-            // For now, assuming your booking object has flightNum or we fetch it
+    
             const ticketRes = await api.get(`/Ticket/by-booking/${booking.bookingId}`);
             const flightNum = ticketRes.data.flightCode;
+
+            setAllowedClass(ticketRes.data.class?.toLowerCase() || "economy");
             
             const seatRes = await getSeatsForFlight(flightNum);
             setAvailableSeats(seatRes.data);
@@ -143,25 +155,34 @@ const ManageBooking = () => {
                                             {groupSeatsForRender(availableSeats).map(row => (
                                                 <div key={row.rowNumber} className="flex gap-2 items-center justify-center">
                                                     <span className="w-6 text-xs text-gray-400">{row.rowNumber}</span>
-                                                    {row.seats.map(seat => (
+                                                    {row.seats.map(seat => {
+                                                    const isWrongClass = seat.seatclass?.toLowerCase() !== allowedClass;
+                                                    const isOccupied = seat.seatStatus === "Occupied";
+                                                    const isSelected = newSeatNumber === seat.seatNumber;
+
+                                                    return (
                                                         <button
                                                             key={seat.seatNumber}
-                                                            disabled={seat.seatStatus === "Occupied"}
+                                                            disabled={isOccupied || isWrongClass}                                                       
                                                             onClick={() => setNewSeatNumber(seat.seatNumber)}
+
                                                             className={`w-10 h-10 rounded-md text-xs font-bold border transition ${
-                                                                newSeatNumber === seat.seatNumber 
+                                                                isSelected 
                                                                 ? "bg-blue-600 text-white border-blue-700" 
-                                                                : seat.seatStatus === "Occupied" 
-                                                                ? "bg-gray-200 text-gray-400 cursor-not-allowed" 
+                                                                : isOccupied 
+                                                                ? "bg-red-100 text-red-400 cursor-not-allowed border-red-200" 
+                                                                : isWrongClass
+                                                                ? "bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200" // THE GRAY OUT STYLE
                                                                 : "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
                                                             }`}
                                                         >
                                                             {seat.letter}
                                                         </button>
-                                                    ))}
+                                                    );
+                                                    })}
                                                 </div>
                                             ))}
-                                        </div>
+                                        </div>\
                                     </div>
                                 </div>
 
