@@ -53,7 +53,9 @@ export default function Profile() {
     const [passwordMessage, setPasswordMessage] = useState("");
     const [error, setError] = useState("");
     const role = profile?.userRole || "";
-    const isEmployeeOrAdmin = role === "Employee" || role === "Admin";
+    const isCorporateEmail = email.endsWith("@3380airlines.com");
+
+    const isEmployeeOrAdmin = isCorporateEmail === "Employee" || role === "Admin";
     const isAdmin = role === "Admin";
 
     useEffect(() => {
@@ -200,9 +202,7 @@ export default function Profile() {
                                 type="button"
                                 onClick={() => setActiveTab("employee")}
                                 className={`w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
-                                    activeTab === "employee"
-                                    ? "bg-blue-600 text-white"
-                                    : "text-gray-700 hover:bg-gray-100 cursor-pointer"
+                                    activeTab === "employee" ? "bg-blue-600 text-white" : "text-gray-700 hover:bg-gray-100 cursor-pointer"
                                 }`}
                             >
                                 Employee Panel
@@ -214,9 +214,7 @@ export default function Profile() {
                                 type="button"
                                 onClick={() => setActiveTab("admin")}
                                 className={`w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
-                                activeTab === "admin"
-                                    ? "bg-blue-600 text-white"
-                                    : "text-gray-700 hover:bg-gray-100 cursor-pointer"
+                                activeTab === "admin" ? "bg-blue-600 text-white" : "text-gray-700 hover:bg-gray-100 cursor-pointer"
                                 }`}
                             >
                                 Admin Panel
@@ -416,7 +414,7 @@ export default function Profile() {
                             </p>
                             <Separator className="my-6" />
 
-                            <Button onClick={() => navigate("/employee/dashboard")}>
+                            <Button onClick={() => navigate("/admin/dashboard")}>
                                 Go to Admin Dashboard
                             </Button>
                         </>

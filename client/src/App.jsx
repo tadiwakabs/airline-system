@@ -61,7 +61,14 @@ function App() {
                     <Route path="/admin" element={<Admin />} />
                     <Route path='/employee' element={<Employee />} />
                     <Route path="/admin/dashboard" element={<Admin />} />
-
+                    <Route 
+                        path="/admin/dashboard" 
+                        element={
+                            <ProtectedRoute roles={["Admin"]}>
+                                <Admin />
+                            </ProtectedRoute>
+                        } 
+                    />
                 </Routes>
             </AppLayout>
         </AuthProvider>
