@@ -57,8 +57,8 @@ export default function Profile() {
     const email = profile?.email || "";
 
     const isCorporateEmail = email.endsWith("@3380airlines.com");
-    const isEmployeeOrAdmin = role === "Employee" || role === "Admin" || isCorporateEmail;
-    const isAdmin = role === "Admin";
+    const isEmployeeOrAdmin = role === "employee" || role === "admin" || isCorporateEmail;
+    const isAdmin = role === "admin";
 
     useEffect(() => {
         loadProfile();
