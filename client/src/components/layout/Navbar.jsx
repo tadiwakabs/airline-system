@@ -155,6 +155,28 @@ export default function Navbar() {
                                             Profile
                                         </Link>
 
+                                        {user?.userRole === "Admin" && (
+                                            <Link
+                                                to="/admin/dashboard"
+                                                onClick={() => setIsProfileMenuOpen(false)}
+                                                className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-blue-600 font-semibold hover:bg-blue-50"
+                                            >
+                                                <div className="h-2 w-2 rounded-full bg-blue-600" />
+                                                Admin Panel
+                                            </Link>
+                                        )}
+
+                                        {user?.userRole === "Employee" && (
+                                            <Link
+                                                to="/employee/management"
+                                                onClick={() => setIsProfileMenuOpen(false)}
+                                                className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-green-600 font-semibold hover:bg-green-50"
+                                            >
+                                                <div className="h-2 w-2 rounded-full bg-green-600" />
+                                                Flight Management
+                                            </Link>
+                                        )}
+
                                         <Link
                                             to="/bookings"
                                             onClick={() => setIsProfileMenuOpen(false)}
