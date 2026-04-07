@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+﻿import { act, useEffect, useState } from "react";
 import Card from "../../components/common/Card";
 import TextInput from "../../components/common/TextInput";
 import Button from "../../components/common/Button";
@@ -53,8 +53,8 @@ export default function Profile() {
     const [passwordMessage, setPasswordMessage] = useState("");
     const [error, setError] = useState("");
 
-    const role = profile?.userRole || "";
-    const email = profile?.email || "";
+    const role = profile?.userRole?.toLowerCase() || "";
+    const email = profile?.email?.toLowerCase() || "";
 
     const isCorporateEmail = email.endsWith("@3380airlines.com");
     const isEmployeeOrAdmin = role === "employee" || role === "admin" || isCorporateEmail;
@@ -65,15 +65,16 @@ export default function Profile() {
     }, []);
 
     useEffect(() => {
-        if (!loading && profile) {
-            if (!isEmployeeOrAdmin && activeTab === "employee") {
-                setActiveTab("profile");
-            }
-        }
-        if (!isAdmin && activeTab === "admin") {
+        if (loading || !profile) return;
+
+        if (activeTab === "employee" && !isEmployeeOrAdmin) {
             setActiveTab("profile");
         }
-    }, [activeTab, isEmployeeOrAdmin, isAdmin, loading, profile]);
+
+        if (activeTab === "admin" && !isAdmin) {
+            setActiveTab("profile");
+        }
+    }, [loading, profile, isEmployeeOrAdmin, isAdmin, activeTab]);
 
     const loadProfile = async () => {
         try {
@@ -393,7 +394,7 @@ export default function Profile() {
                         <>
                             <h1 className="text-2xl font-semibold text-gray-900">
                                 Employee Panel
-                            </h1>"
+                            </h1>
                             <p className="mt-1 text-sm text-gray-500">
                                 Employee tools and operations.
                             </p>
