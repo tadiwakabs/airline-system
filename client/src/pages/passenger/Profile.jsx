@@ -53,12 +53,12 @@ export default function Profile() {
     const [passwordMessage, setPasswordMessage] = useState("");
     const [error, setError] = useState("");
 
-    const role = profile?.userRole?.trim().toLowerCase() || "";
-    const email = profile?.email?.trim().toLowerCase() || "";
+    const role = (profile?.userRole || profile?.UserRole || "").trim().toLowerCase();
+    const email = (profile?.email || profile?.Email || "").trim().toLowerCase();
 
     const isCorporateEmail = email.endsWith("@3380airlines.com");
-    const isEmployeeOrAdmin = role === "employee" || role === "admin" || isCorporateEmail;
     const isAdmin = role === "admin";
+    const isEmployeeOrAdmin = role === "employee" || isAdmin || isCorporateEmail;
 
     useEffect(() => {
         loadProfile();
