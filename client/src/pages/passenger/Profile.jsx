@@ -172,9 +172,9 @@ export default function Profile() {
     console.log({ role, email, isEmployeeOrAdmin, isAdmin });
     return (
         <div className="mx-auto max-w-6xl px-4 py-10">
-            <div className="grid gap-6 md:grid-cols-[240px_minmax(0,1fr)]">
+            <div className="grid gap-6 md:grid-cols-[240px_1fr]">
                 {/* Left sidebar */}
-                <Card className="h-fit p-3">
+                <Card className="p-3">
                     <div className="space-y-2">
                         <button
                             type="button"
