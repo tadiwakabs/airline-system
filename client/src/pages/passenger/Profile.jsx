@@ -53,8 +53,8 @@ export default function Profile() {
     const [passwordMessage, setPasswordMessage] = useState("");
     const [error, setError] = useState("");
 
-    const role = profile?.userRole?.toLowerCase() || "";
-    const email = profile?.email?.toLowerCase() || "";
+    const role = profile?.userRole?.trim().toLowerCase() || "";
+    const email = profile?.email?.trim().toLowerCase() || "";
 
     const isCorporateEmail = email.endsWith("@3380airlines.com");
     const isEmployeeOrAdmin = role === "employee" || role === "admin" || isCorporateEmail;
