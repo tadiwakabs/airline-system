@@ -397,7 +397,7 @@ export default function Profile() {
                             <h1 className="text-2xl font-semibold text-gray-900">
                                 Employee Panel
                             </h1>
-                            <p className="mt-1 text-sm text-gray-500">
+                            <p className="font-semibold mt-1 text-sm text-gray-600">
                                 Employee tools and operations.
                             </p>
 
@@ -411,11 +411,11 @@ export default function Profile() {
 
                     {activeTab === "admin" && isAdmin && (
                         <>
-                            <h1 className="text-2xl font-semibold text-gray-900">
+                            <h1 className="text-2xl font-semibold text-black-600">
                                 Admin Panel
                             </h1>
-                            <p className="mt-1 text-sm text-gray-500">
-                                Administrative tools
+                            <p className="font-semibold mt-1 text-sm text-gray-500">
+                                Administrative tools and operations
                             </p>
                             <Separator className="my-6" />
 
