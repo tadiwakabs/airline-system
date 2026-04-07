@@ -1,22 +1,17 @@
 import React from 'react';
 import Button from '../../components/common/Button';
+import { useNavigate } from 'react-router-dom';
 
 function Admin() {
-    return (
-        <div>
-            <h1>Admin Dashboard</h1>
+    const navigate = useNavigate();
 
-            <h3>Options</h3>
-
-            <ul>
-                <li><a href="/flights"><Button>Manage Flights</Button></a></li>
-                <li><a href="/add-flight"><Button>Add Flight</Button></a></li>
-                <li><a href="/aircraft"><Button>Manage Aircraft</Button></a></li>
-                <li><a href="/reports"><Button>Reports</Button></a></li>
-                <li><a href="/profile"><Button>Profile</Button></a></li>
-            </ul>
-        </div>
-    );
+    const menuItems = [
+        { label: "Manage Flights", icon: "✈️", path: "/flights", color: "bg-blue-50" },
+        { label: "Add Flights", icon: "📝", path: "/add-flight", color: "bg-green-50" },
+        { label: "Manage Aircraft", icon: "🔧", path: "/manage-aircraft", color: "bg-purple-50" },
+        { label: "Reports", icon: "📊", path: "/report", color: "bg-skyblue-50" },
+        { label: "My Profile", icon: "🆔", path: "/profile", color: "bg-gray-50" }
+    ];
 }
 
 export default Admin;

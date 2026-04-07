@@ -56,9 +56,11 @@ export default function Profile() {
     const role = (profile?.userRole || profile?.UserRole || "").trim().toLowerCase();
     const email = (profile?.email || profile?.Email || "").trim().toLowerCase();
 
-    const isCorporateEmail = email.endsWith("@3380airlines.com");
-    const isAdmin = role === "admin";
-    const isEmployeeOrAdmin = role === "employee" || isAdmin || isCorporateEmail;
+    const isAdminEmail = email.endsWith("@admin.3380airlines.com");
+    const isEmployeeEmail = email.endsWith("@3380airlines.com") && !isAdminEmail;
+
+    const isAdmin = role === "admin" || isAdminEmail;
+    const isEmployee = role === "employee" || isEmployeeEmail;
 
     useEffect(() => {
         loadProfile();
@@ -67,14 +69,14 @@ export default function Profile() {
     useEffect(() => {
         if (loading || !profile) return;
 
-        if (activeTab === "employee" && !isEmployeeOrAdmin) {
+        if (activeTab === "employee" && !isEmployee) {
             setActiveTab("profile");
         }
 
         if (activeTab === "admin" && !isAdmin) {
             setActiveTab("profile");
         }
-    }, [loading, profile, isEmployeeOrAdmin, isAdmin, activeTab]);
+    }, [loading, profile, isEmployee, isAdmin, activeTab]);
 
     const loadProfile = async () => {
         try {
@@ -169,7 +171,7 @@ export default function Profile() {
             </div>
         );
     }
-    console.log({ role, email, isEmployeeOrAdmin, isAdmin });
+    console.log({ role, email, isEmployee, isAdmin });
     return (
         <div className="mx-auto max-w-6xl px-4 py-10">
             <div className="grid gap-6 md:grid-cols-[240px_1fr]">
@@ -200,7 +202,7 @@ export default function Profile() {
                             Change Password
                         </button>
 
-                        {isEmployeeOrAdmin && (
+                        {isEmployee && (
                             <button
                                 type="button"
                                 onClick={() => setActiveTab("employee")}
@@ -390,7 +392,7 @@ export default function Profile() {
                         </>
                     )}
 
-                    {activeTab == "employee" && isEmployeeOrAdmin && (
+                    {activeTab == "employee" && isEmployee && (
                         <>
                             <h1 className="text-2xl font-semibold text-gray-900">
                                 Employee Panel
