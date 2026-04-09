@@ -167,6 +167,7 @@ namespace AirlineAPI.Controllers
             
             var bookings = await _context.Bookings
                 .Where(b => b.userId == currentUserId)
+                .OrderByDescending(b=>b.bookingDate)
                 .ToListAsync();
 
             return Ok(bookings);
