@@ -20,6 +20,7 @@ import BookingReview from "./pages/booking/BookingReview.jsx";
 import BookingSeats from "./pages/booking/BookingSeats.jsx";
 import Payment from './pages/booking/BookingPayment'
 import Confirmation from './pages/booking/BookingConfirmation'
+import ManageBooking from './pages/manage.jsx';
 
 //dashboard
 import Admin from './pages/admin/AdminDashboard.jsx';
@@ -38,6 +39,9 @@ function App() {
                     <Route path="/login" element={<Login />} />
                     <Route path="/help" element = {<Help />} />
                     <Route path="/flight-search" element={<FlightSearch />} />
+                    <Route path="/book" element= {<Home />} />
+                    <Route path="/manage" element={<ManageBooking />}/>
+                
 
                     {/* User-Authenticated Routes */}
                     <Route 
