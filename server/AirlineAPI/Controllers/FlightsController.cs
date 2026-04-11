@@ -451,7 +451,7 @@ namespace AirlineAPI.Controllers
                         where (leg1.arrivingPort ?? "").Trim().ToUpper() == (leg2.departingPort ?? "").Trim().ToUpper()
                               && leg2.departTime >= leg1.arrivalTime.AddMinutes(40)
                               && leg2.departTime <= leg1.arrivalTime.AddHours(4)
-                              && layoverAirports.ContainsKey(leg1.arrivingPort)
+                              && layoverAirports.ContainsKey(leg1.arrivingPort!)
                         let layover = layoverAirports[leg1.arrivingPort]
                         let layoverLat = (double)layover.latitude
                         let layoverLon = (double)layover.longitude

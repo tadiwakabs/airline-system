@@ -217,6 +217,10 @@ namespace AirlineAPI.Data
             
             modelBuilder.Entity<Airport>()
                         .HasKey(a => a.airportCode);
+
+            modelBuilder.Entity<Booking>()
+                        .Property(b => b.bookingStatus)
+                        .HasConversion<string>();
             
         }
 
