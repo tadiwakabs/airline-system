@@ -19,7 +19,7 @@ namespace AirlineAPI.Controllers
         public async Task<IActionResult> GetODDemand()
         {
             var results = await _context.Database
-                .SqlQueryRaw<OdDemandRow>("SELECT * FROM vw_od_market_demand")
+                .SqlQueryRaw<OdDemandRow>("SELECT * FROM vw_od_market_demand LIMIT 100")
                 .ToListAsync();
             return Ok(results);
         }
@@ -29,7 +29,7 @@ namespace AirlineAPI.Controllers
         public async Task<IActionResult> GetRouteVitality()
         {
             var results = await _context.Database
-                .SqlQueryRaw<RouteVitalityRow>("SELECT * FROM vw_route_vitality_matrix")
+                .SqlQueryRaw<RouteVitalityRow>("SELECT * FROM vw_route_vitality_matrix LIMIT 100")
                 .ToListAsync();
             return Ok(results);
         }
@@ -39,7 +39,7 @@ namespace AirlineAPI.Controllers
         public async Task<IActionResult> GetRevenueLeakage()
         {
             var results = await _context.Database
-                .SqlQueryRaw<RevenueLeakageRow>("SELECT * FROM vw_revenue_leakage_spill")
+                .SqlQueryRaw<RevenueLeakageRow>("SELECT * FROM vw_revenue_leakage_spill LIMIT 100")
                 .ToListAsync();
             return Ok(results);
         }
