@@ -115,29 +115,57 @@ export default function Reports() {
         { key: "arrivingPort", label: "To" },
         { key: "bookedPassengers", label: "Booked" },
         { key: "totalCapacity", label: "Capacity" },
-        { key: "actualLoadFactorPct", label: "Load Factor", render: (row) => `${row.actualLoadFactorPct}%` },
-        { key: "avgTicketPrice", label: "Avg Price", render: (row) => `$${row.avgTicketPrice}` },
-        { key: "passengerYield", label: "Yield ($/km)", render: (row) => `$${row.passengerYield}` },
-        { key: "quadrant", label: "Status", render: (row) => (
-            <span className={`px-2 py-1 rounded text-xs font-semibold ${QUADRANT_COLORS[row.quadrant] || "bg-gray-100 text-gray-700"}`}>
-                {row.quadrant}
-            </span>
-        )},
+        {
+            key: "actualLoadFactorPct",
+            label: "Load Factor",
+            render: (row) => row.actualLoadFactorPct != null ? `${row.actualLoadFactorPct}%` : "—",
+        },
+        {
+            key: "avgTicketPrice",
+            label: "Avg Price",
+            render: (row) => row.avgTicketPrice != null ? `$${row.avgTicketPrice}` : "—",
+        },
+        {
+            key: "passengerYield",
+            label: "Yield ($/km)",
+            render: (row) => row.passengerYield != null ? `$${row.passengerYield}` : "—",
+        },
+        {
+            key: "quadrant",
+            label: "Status",
+            render: (row) => (
+                <span className={`px-2 py-1 rounded text-xs font-semibold ${QUADRANT_COLORS[row.quadrant] || "bg-gray-100 text-gray-700"}`}>
+                    {row.quadrant || "—"}
+                </span>
+            ),
+        },
     ];
 
     const leakageColumns = [
-        { key: "flightNum", label: "Flight #" },
         { key: "departingPort", label: "From" },
         { key: "arrivingPort", label: "To" },
-        { key: "loadFactorPct", label: "Load Factor", render: (row) => `${row.loadFactorPct}%` },
-        { key: "totalRevenue", label: "Revenue", render: (row) => `$${row.totalRevenue?.toLocaleString()}` },
+        {
+            key: "loadFactorPct",
+            label: "Load Factor",
+            render: (row) => `${row.loadFactorPct ?? 0}%`,
+        },
+        {
+            key: "totalRevenue",
+            label: "Revenue",
+            render: (row) => `$${row.totalRevenue?.toLocaleString() ?? 0}`,
+        },
+         
         { key: "RASK", label: "RASK" },
         { key: "networkAvgRASK", label: "Network Avg RASK" },
-        { key: "estimatedSpillCost", label: "Spill Cost", render: (row) => (
-            <span className={row.estimatedSpillCost > 0 ? "text-red-600 font-semibold" : ""}>
-                ${row.estimatedSpillCost?.toLocaleString()}
-            </span>
-        )},
+        {
+            key: "estimatedSpillCost",
+            label: "Spill Cost",
+            render: (row) => (
+                <span className={row.estimatedSpillCost > 0 ? "text-red-600 font-semibold" : ""}>
+                    ${row.estimatedSpillCost?.toLocaleString() ?? 0}
+                </span>
+            ),
+        },
         { key: "unconstrainedDemandEstimate", label: "Unconstrained Demand" },
     ];
 

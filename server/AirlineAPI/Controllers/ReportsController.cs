@@ -50,9 +50,9 @@ namespace AirlineAPI.Controllers
         public string trueOrigin { get; set; } = string.Empty;
         public string trueDestination { get; set; } = string.Empty;
         public int totalPassengers { get; set; }
-        public double connectionRatioPct { get; set; }
-        public double actualRevenue { get; set; }
-        public double potentialDirectRevenue { get; set; }
+        public double? connectionRatioPct { get; set; }
+        public double? actualRevenue { get; set; }
+        public double? potentialDirectRevenue { get; set; }
     }
 
     public class RouteVitalityRow
@@ -62,26 +62,24 @@ namespace AirlineAPI.Controllers
         public int flightNum { get; set; }
         public int bookedPassengers { get; set; }
         public int totalCapacity { get; set; }
-        public double actualLoadFactorPct { get; set; }
-        public double avgTicketPrice { get; set; }
-        public double passengerYield { get; set; }
-        public double breakEvenLoadFactorPct { get; set; }
+        public double? actualLoadFactorPct { get; set; }
+        public double? avgTicketPrice { get; set; }
+        public double? passengerYield { get; set; }
+        public double? breakEvenLoadFactorPct { get; set; }
         public string quadrant { get; set; } = string.Empty;
     }
 
     public class RevenueLeakageRow
     {
-        public int flightNum { get; set; }
         public string departingPort { get; set; } = string.Empty;
         public string arrivingPort { get; set; } = string.Empty;
-        public int distance { get; set; }
         public int capacity { get; set; }
         public int bookedPassengers { get; set; }
-        public double loadFactorPct { get; set; }
-        public double totalRevenue { get; set; }
-        public double RASK { get; set; }
-        public double networkAvgRASK { get; set; }
-        public double estimatedSpillCost { get; set; }
-        public int unconstrainedDemandEstimate { get; set; }
+        public double? loadFactorPct { get; set; }
+        public double? totalRevenue { get; set; }
+        public double? RASK { get; set; }
+        public double? networkAvgRASK { get; set; }
+        public double? estimatedSpillCost { get; set; }
+        public int? unconstrainedDemandEstimate { get; set; }
     }
 }
