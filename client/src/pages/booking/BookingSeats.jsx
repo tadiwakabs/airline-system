@@ -81,6 +81,17 @@ function groupSeatsForRender(seats) {
         }));
 }
 
+function getCabinSection(rowNumber) {
+    if (rowNumber >= 1 && rowNumber <= 4) return "First Class";
+    if (rowNumber >= 5 && rowNumber <= 10) return "Business Class";
+    return "Economy Class";
+}
+
+function shouldShowSectionDivider(currentRow, previousRow) {
+    if (previousRow == null) return true;
+    return getCabinSection(currentRow) !== getCabinSection(previousRow);
+}
+
 function PlaneLegend() {
     return (
         <div className="flex flex-wrap gap-3 text-xs text-gray-600">
@@ -124,66 +135,81 @@ function SeatMap({
             </div>
 
             <div className="space-y-2">
-                {rows.map((row) => {
+                {rows.map((row, index) => {
+                    const previousRowNumber = index > 0 ? rows[index - 1].rowNumber : null;
+                    const showDivider = shouldShowSectionDivider(row.rowNumber, previousRowNumber);
+
                     const seatLetters = row.seats.map((s) => s.letter);
                     const left = row.seats.filter((s) => ["A", "B", "C"].includes(s.letter));
                     const right = row.seats.filter((s) => ["D", "E", "F"].includes(s.letter));
                     const compact = !seatLetters.includes("E") && !seatLetters.includes("F");
 
                     return (
-                        <div key={row.rowNumber} className="flex items-center justify-center gap-3">
-                            <div className="w-8 text-right text-xs font-medium text-gray-400">
-                                {row.rowNumber}
-                            </div>
+                        <div key={row.rowNumber} className="space-y-2">
+                            {showDivider && (
+                                <div className="flex items-center gap-3 py-2">
+                                    <div className="h-px flex-1 bg-gray-200" />
+                                    <div className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600">
+                                        {getCabinSection(row.rowNumber)}
+                                    </div>
+                                    <div className="h-px flex-1 bg-gray-200" />
+                                </div>
+                            )}
 
-                            <div className="flex items-center gap-2">
-                                {(compact ? row.seats.slice(0, 2) : left).map((seat) => {
-                                    const state = getSeatVisualState(
-                                        seat,
-                                        allowedClass,
-                                        selectedPassengerId,
-                                        selectedSeatNumber
-                                    );
+                            <div className="flex items-center justify-center gap-3">
+                                <div className="w-8 text-right text-xs font-medium text-gray-400">
+                                    {row.rowNumber}
+                                </div>
 
-                                    return (
-                                        <button
-                                            key={seat.seatNumber}
-                                            type="button"
-                                            className={seatButtonClass(state)}
-                                            disabled={state !== "available" && state !== "selected"}
-                                            onClick={() => onSelectSeat(seat)}
-                                        >
-                                            {seat.letter}
-                                        </button>
-                                    );
-                                })}
-                            </div>
+                                <div className="flex items-center gap-2">
+                                    {(compact ? row.seats.slice(0, 2) : left).map((seat) => {
+                                        const state = getSeatVisualState(
+                                            seat,
+                                            allowedClass,
+                                            selectedPassengerId,
+                                            selectedSeatNumber
+                                        );
 
-                            <div className="w-8 text-center text-[10px] uppercase tracking-wide text-gray-300">
-                                aisle
-                            </div>
+                                        return (
+                                            <button
+                                                key={seat.seatNumber}
+                                                type="button"
+                                                className={seatButtonClass(state)}
+                                                disabled={state !== "available" && state !== "selected"}
+                                                onClick={() => onSelectSeat(seat)}
+                                            >
+                                                {seat.letter}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
 
-                            <div className="flex items-center gap-2">
-                                {(compact ? row.seats.slice(2) : right).map((seat) => {
-                                    const state = getSeatVisualState(
-                                        seat,
-                                        allowedClass,
-                                        selectedPassengerId,
-                                        selectedSeatNumber
-                                    );
+                                <div className="w-8 text-center text-[10px] uppercase tracking-wide text-gray-300">
+                                    aisle
+                                </div>
 
-                                    return (
-                                        <button
-                                            key={seat.seatNumber}
-                                            type="button"
-                                            className={seatButtonClass(state)}
-                                            disabled={state !== "available" && state !== "selected"}
-                                            onClick={() => onSelectSeat(seat)}
-                                        >
-                                            {seat.letter}
-                                        </button>
-                                    );
-                                })}
+                                <div className="flex items-center gap-2">
+                                    {(compact ? row.seats.slice(2) : right).map((seat) => {
+                                        const state = getSeatVisualState(
+                                            seat,
+                                            allowedClass,
+                                            selectedPassengerId,
+                                            selectedSeatNumber
+                                        );
+
+                                        return (
+                                            <button
+                                                key={seat.seatNumber}
+                                                type="button"
+                                                className={seatButtonClass(state)}
+                                                disabled={state !== "available" && state !== "selected"}
+                                                onClick={() => onSelectSeat(seat)}
+                                            >
+                                                {seat.letter}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         </div>
                     );

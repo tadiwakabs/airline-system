@@ -29,6 +29,17 @@ function groupSeatsForRender(seats) {
         }));
 }
 
+function getCabinSection(rowNumber) {
+    if (rowNumber >= 1 && rowNumber <= 4) return "First Class";
+    if (rowNumber >= 5 && rowNumber <= 10) return "Business Class";
+    return "Economy Class";
+}
+
+function shouldShowSectionDivider(currentRow, previousRow) {
+    if (previousRow == null) return true;
+    return getCabinSection(currentRow) !== getCabinSection(previousRow);
+}
+
 function seatColor(seat, passengersBySeat, highlightedSeat) {
     const isHighlighted = highlightedSeat === seat.seatNumber;
     if (isHighlighted)
@@ -69,69 +80,84 @@ function ReadOnlySeatMap({ seats, passengersBySeat, highlightedSeat, onHoverSeat
             </div>
 
             <div className="space-y-1.5">
-                {rows.map((row) => {
-                    const left  = row.seats.filter((s) => ["A", "B", "C"].includes(s.letter));
+                {rows.map((row, index) => {
+                    const previousRowNumber = index > 0 ? rows[index - 1].rowNumber : null;
+                    const showDivider = shouldShowSectionDivider(row.rowNumber, previousRowNumber);
+
+                    const left = row.seats.filter((s) => ["A", "B", "C"].includes(s.letter));
                     const right = row.seats.filter((s) => ["D", "E", "F"].includes(s.letter));
                     const compact = !row.seats.some((s) => ["E", "F"].includes(s.letter));
 
                     return (
-                        <div key={row.rowNumber} className="flex items-center justify-center gap-3">
-                            <div className="w-7 text-right text-xs font-medium text-gray-400">
-                                {row.rowNumber}
-                            </div>
+                        <div key={row.rowNumber} className="space-y-1.5">
+                            {showDivider && (
+                                <div className="flex items-center gap-3 py-2">
+                                    <div className="h-px flex-1 bg-gray-200" />
+                                    <div className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600">
+                                        {getCabinSection(row.rowNumber)}
+                                    </div>
+                                    <div className="h-px flex-1 bg-gray-200" />
+                                </div>
+                            )}
 
-                            <div className="flex items-center gap-1.5">
-                                {(compact ? row.seats.slice(0, 2) : left).map((seat) => {
-                                    const p = passengersBySeat[seat.seatNumber];
-                                    return (
-                                        <div
-                                            key={seat.seatNumber}
-                                            className="relative group"
-                                            onMouseEnter={() => onHoverSeat(seat.seatNumber)}
-                                            onMouseLeave={() => onHoverSeat(null)}
-                                        >
-                                            <div className={`w-10 h-10 rounded-lg border text-xs font-semibold flex items-center justify-center cursor-default transition-colors ${seatColor(seat, passengersBySeat, highlightedSeat)}`}>
-                                                {seat.letter}
-                                            </div>
-                                            {p && (
-                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-10 hidden group-hover:block w-44 rounded-lg border border-gray-200 bg-white px-2.5 py-2 shadow-lg text-xs text-gray-700 pointer-events-none">
-                                                    <p className="font-medium">{p.passenger.firstName} {p.passenger.lastName}</p>
-                                                    <p className="text-gray-500">{seat.seatNumber} · {p.ticketClass ?? "—"}</p>
-                                                    <p className="text-gray-500">{p.passenger.passengerType}</p>
+                            <div className="flex items-center justify-center gap-3">
+                                <div className="w-7 text-right text-xs font-medium text-gray-400">
+                                    {row.rowNumber}
+                                </div>
+
+                                <div className="flex items-center gap-1.5">
+                                    {(compact ? row.seats.slice(0, 2) : left).map((seat) => {
+                                        const p = passengersBySeat[seat.seatNumber];
+                                        return (
+                                            <div
+                                                key={seat.seatNumber}
+                                                className="relative group"
+                                                onMouseEnter={() => onHoverSeat(seat.seatNumber)}
+                                                onMouseLeave={() => onHoverSeat(null)}
+                                            >
+                                                <div className={`w-10 h-10 rounded-lg border text-xs font-semibold flex items-center justify-center cursor-default transition-colors ${seatColor(seat, passengersBySeat, highlightedSeat)}`}>
+                                                    {seat.letter}
                                                 </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-
-                            <div className="w-8 text-center text-[10px] uppercase tracking-wide text-gray-300">
-                                aisle
-                            </div>
-
-                            <div className="flex items-center gap-1.5">
-                                {(compact ? row.seats.slice(2) : right).map((seat) => {
-                                    const p = passengersBySeat[seat.seatNumber];
-                                    return (
-                                        <div
-                                            key={seat.seatNumber}
-                                            className="relative group"
-                                            onMouseEnter={() => onHoverSeat(seat.seatNumber)}
-                                            onMouseLeave={() => onHoverSeat(null)}
-                                        >
-                                            <div className={`w-10 h-10 rounded-lg border text-xs font-semibold flex items-center justify-center cursor-default transition-colors ${seatColor(seat, passengersBySeat, highlightedSeat)}`}>
-                                                {seat.letter}
+                                                {p && (
+                                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-10 hidden group-hover:block w-44 rounded-lg border border-gray-200 bg-white px-2.5 py-2 shadow-lg text-xs text-gray-700 pointer-events-none">
+                                                        <p className="font-medium">{p.passenger.firstName} {p.passenger.lastName}</p>
+                                                        <p className="text-gray-500">{seat.seatNumber} · {p.ticketClass ?? "—"}</p>
+                                                        <p className="text-gray-500">{p.passenger.passengerType}</p>
+                                                    </div>
+                                                )}
                                             </div>
-                                            {p && (
-                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-10 hidden group-hover:block w-44 rounded-lg border border-gray-200 bg-white px-2.5 py-2 shadow-lg text-xs text-gray-700 pointer-events-none">
-                                                    <p className="font-medium">{p.passenger.firstName} {p.passenger.lastName}</p>
-                                                    <p className="text-gray-500">{seat.seatNumber} · {p.ticketClass ?? "—"}</p>
-                                                    <p className="text-gray-500">{p.passenger.passengerType}</p>
+                                        );
+                                    })}
+                                </div>
+
+                                <div className="w-8 text-center text-[10px] uppercase tracking-wide text-gray-300">
+                                    aisle
+                                </div>
+
+                                <div className="flex items-center gap-1.5">
+                                    {(compact ? row.seats.slice(2) : right).map((seat) => {
+                                        const p = passengersBySeat[seat.seatNumber];
+                                        return (
+                                            <div
+                                                key={seat.seatNumber}
+                                                className="relative group"
+                                                onMouseEnter={() => onHoverSeat(seat.seatNumber)}
+                                                onMouseLeave={() => onHoverSeat(null)}
+                                            >
+                                                <div className={`w-10 h-10 rounded-lg border text-xs font-semibold flex items-center justify-center cursor-default transition-colors ${seatColor(seat, passengersBySeat, highlightedSeat)}`}>
+                                                    {seat.letter}
                                                 </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
+                                                {p && (
+                                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-10 hidden group-hover:block w-44 rounded-lg border border-gray-200 bg-white px-2.5 py-2 shadow-lg text-xs text-gray-700 pointer-events-none">
+                                                        <p className="font-medium">{p.passenger.firstName} {p.passenger.lastName}</p>
+                                                        <p className="text-gray-500">{seat.seatNumber} · {p.ticketClass ?? "—"}</p>
+                                                        <p className="text-gray-500">{p.passenger.passengerType}</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         </div>
                     );
