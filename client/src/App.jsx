@@ -97,17 +97,17 @@ function App() {
                     {/* Administrator-Authenticated Routes */}
                     <Route
                         path='/aircraft'
-                        element={<RoleProtectedRoute allowedRoles={"Administrator"}>
+                        element={<RoleProtectedRoute allowedRoles={["Administrator"]}>
                             <Aircraft />
                         </RoleProtectedRoute>} />
                     <Route
                         path='/airports'
-                        element={<RoleProtectedRoute allowedRoles={"Administrator"}>
+                        element={<RoleProtectedRoute allowedRoles={["Administrator"]}>
                             <Airport />
                         </RoleProtectedRoute>} />
                     <Route
                         path='/admin/dashboard'
-                        element={<RoleProtectedRoute allowedRoles={"Administrator"}>
+                        element={<RoleProtectedRoute allowedRoles={["Administrator"]}>
                             <Admin />
                         </RoleProtectedRoute>} />
                     <Route

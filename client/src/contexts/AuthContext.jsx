@@ -1,24 +1,16 @@
-﻿import { createContext, useContext, useEffect, useMemo, useState } from "react";
+﻿import { createContext, useContext, useMemo, useState } from "react";
 import { loginUser } from "../services/authService";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-    const [user, setUser] = useState(null);
-    const [token, setToken] = useState(localStorage.getItem("token"));
-    const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem("token"));
+    const savedUser = localStorage.getItem("user");
+    const savedToken = localStorage.getItem("token");
+
+    const [user, setUser] = useState(savedUser ? JSON.parse(savedUser) : null);
+    const [token, setToken] = useState(savedToken);
+    const [isAuthenticated, setIsAuthenticated] = useState(!!savedToken);
     const [loading, setLoading] = useState(false);
-
-    useEffect(() => {
-        const savedUser = localStorage.getItem("user");
-        const savedToken = localStorage.getItem("token");
-
-        if (savedUser && savedToken) {
-            setUser(JSON.parse(savedUser));
-            setToken(savedToken);
-            setIsAuthenticated(true);
-        }
-    }, []);
 
     const login = async ({ username, password }) => {
         setLoading(true);
@@ -56,12 +48,12 @@ export function AuthProvider({ children }) {
 
     const loginWithToken = (data) => {
         const authUser = {
-            userId:    data.userId,
-            username:  data.username,
-            email:     data.email,
+            userId: data.userId,
+            username: data.username,
+            email: data.email,
             firstName: data.firstName,
-            lastName:  data.lastName,
-            userRole:  data.userRole,
+            lastName: data.lastName,
+            userRole: data.userRole,
         };
 
         localStorage.setItem("token", data.token);
