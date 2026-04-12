@@ -258,6 +258,20 @@ namespace AirlineAPI.Data
                     .HasColumnName("passengerType")
                     .HasConversion<string>()
                     .IsRequired();
+                
+                entity.Property(p => p.OwnerUserId)
+                    .HasColumnName("ownerUserId")
+                    .HasMaxLength(50);
+
+                entity.HasOne(p => p.User)
+                    .WithMany()
+                    .HasForeignKey(p => p.UserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(p => p.OwnerUser)
+                    .WithMany()
+                    .HasForeignKey(p => p.OwnerUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
             
             modelBuilder.Entity<Seating>()
