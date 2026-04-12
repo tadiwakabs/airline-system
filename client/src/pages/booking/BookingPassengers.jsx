@@ -439,27 +439,31 @@ export default function BookingPassengers() {
                                         />
                                     </div>
 
-                                    <div>
-                                        <label className="block text-sm text-gray-600 mb-1">Email</label>
-                                        <input
-                                            className="w-full border rounded-lg px-3 py-2"
-                                            value={passenger.email}
-                                            onChange={(e) =>
-                                                handlePassengerChange(index, "email", e.target.value)
-                                            }
-                                        />
-                                    </div>
+                                    {passenger.passengerType === "Adult" && (
+                                        <>
+                                            <div>
+                                                <label className="block text-sm text-gray-600 mb-1">Email</label>
+                                                <input
+                                                    className="w-full border rounded-lg px-3 py-2"
+                                                    value={passenger.email}
+                                                    onChange={(e) =>
+                                                        handlePassengerChange(index, "email", e.target.value)
+                                                    }
+                                                />
+                                            </div>
 
-                                    <div>
-                                        <label className="block text-sm text-gray-600 mb-1">Phone Number</label>
-                                        <input
-                                            className="w-full border rounded-lg px-3 py-2"
-                                            value={passenger.phoneNumber}
-                                            onChange={(e) =>
-                                                handlePassengerChange(index, "phoneNumber", e.target.value)
-                                            }
-                                        />
-                                    </div>
+                                            <div>
+                                                <label className="block text-sm text-gray-600 mb-1">Phone Number</label>
+                                                <input
+                                                    className="w-full border rounded-lg px-3 py-2"
+                                                    value={passenger.phoneNumber}
+                                                    onChange={(e) =>
+                                                        handlePassengerChange(index, "phoneNumber", e.target.value)
+                                                    }
+                                                />
+                                            </div>
+                                        </>
+                                    )}
 
                                     <div>
                                         <label className="block text-sm text-gray-600 mb-1">Date of Birth</label>
