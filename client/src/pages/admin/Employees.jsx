@@ -10,9 +10,9 @@ import {
     getAllEmployees,
     createEmployee,
     updateEmployee,
-    deleteEmployee,
     lookupUserByIdOrEmail,
 } from "../../services/employeeService";
+import airportOptions from "../../dropdownData/airports.json";
 
 // ── Static option lists ───────────────────────────────────────────────────────
 
@@ -30,49 +30,53 @@ const formStatusOptions = [
 ];
 
 const deptFilterOptions = [
-    { label: "All Departments", value: "" },
-    { label: "Flight Ops",       value: "Flight Ops" },
-    { label: "Cabin Crew",       value: "Cabin Crew" },
-    { label: "Operations",       value: "Operations" },
-    { label: "Human Resources",  value: "Human Resources" },
+    { label: "All Departments",    value: "" },
+    { label: "Flight Ops",         value: "Flight Ops" },
+    { label: "Cabin Crew",         value: "Cabin Crew" },
+    { label: "Operations",         value: "Operations" },
+    { label: "Human Resources",    value: "Human Resources" },
     { label: "Passenger Services", value: "Passenger Services" },
-    { label: "Engineering",      value: "Engineering" },
-    { label: "Finance",          value: "Finance" },
-    { label: "IT",               value: "IT" },
+    { label: "Engineering",        value: "Engineering" },
+    { label: "Finance",            value: "Finance" },
+    { label: "IT",                 value: "IT" },
 ];
 
 const sortOptions = [
     { label: "Employee ID",   value: "employeeId" },
     { label: "Last Name",     value: "lastName" },
     { label: "Department",    value: "department" },
-    { label: "Hire Date",     value: "hire_date" },
+    { label: "Hire Date",     value: "hireDate" },
     { label: "Status",        value: "status" },
     { label: "Work Location", value: "workLocation" },
+];
+
+// Build airport dropdown options from the JSON (value = IATA code)
+const airportDropdownOptions = [
+    { label: "Select airport...", value: "" },
+    ...airportOptions.map((a) => ({ label: a.label, value: a.value })),
 ];
 
 // ── Empty form shapes ─────────────────────────────────────────────────────────
 
 const emptyAddForm = {
-    lookupValue: "",   // userId or email — used only in the lookup step
-    userId: "",
-    workEmail: "",
-    workPhone: "",
-    jobTitle: "",
-    department: "",
-    hire_date: "",
+    lookupValue:  "",
+    userId:       "",
+    workEmail:    "",
+    workPhone:    "",
+    jobTitle:     "",
+    department:   "",
+    hire_date:    "",
     workLocation: "",
-    isAdmin: false,
 };
 
 const emptyEditForm = {
-    workEmail: "",
-    workPhone: "",
-    jobTitle: "",
-    department: "",
-    hire_date: "",
+    workEmail:    "",
+    workPhone:    "",
+    jobTitle:     "",
+    department:   "",
+    hire_date:    "",
     workLocation: "",
-    status: "Active",
-    isAdmin: false,
+    status:       "Active",
 };
 
 // ── Status badge helper ───────────────────────────────────────────────────────
@@ -117,7 +121,7 @@ export default function Employees() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [addForm, setAddForm] = useState(emptyAddForm);
     const [lookupLoading, setLookupLoading] = useState(false);
-    const [lookedUpUser, setLookedUpUser] = useState(null); // { userId, firstName, lastName, email }
+    const [lookedUpUser, setLookedUpUser] = useState(null);
     const [lookupError, setLookupError] = useState("");
 
     // ── Edit employee modal ───────────────────────────────────────────────────
@@ -125,13 +129,9 @@ export default function Employees() {
     const [editingEmployeeId, setEditingEmployeeId] = useState(null);
     const [editForm, setEditForm] = useState(emptyEditForm);
 
-    // ── Delete dialog ─────────────────────────────────────────────────────────
-    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-    const [employeeToDelete, setEmployeeToDelete] = useState(null);
-
     // ── Status-change dialog ──────────────────────────────────────────────────
     const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
-    const [statusTarget, setStatusTarget] = useState(null);      // the employee object
+    const [statusTarget, setStatusTarget] = useState(null);
     const [pendingStatus, setPendingStatus] = useState("");
 
     // ── Initial load ──────────────────────────────────────────────────────────
@@ -142,8 +142,9 @@ export default function Employees() {
     const loadEmployees = async () => {
         try {
             setLoading(true);
+            // employeeService returns response.data directly — already the array
             const res = await getAllEmployees();
-            setEmployees(res.data);
+            setEmployees(res);
         } catch (err) {
             setError(err?.response?.data?.message || "Failed to load employees.");
         } finally {
@@ -158,13 +159,12 @@ export default function Employees() {
 
         if (term) {
             result = result.filter((e) =>
-                (e.employeeId  || "").toLowerCase().includes(term) ||
-                (e.userId      || "").toLowerCase().includes(term) ||
-                (e.workEmail   || "").toLowerCase().includes(term) ||
-                (e.jobTitle    || "").toLowerCase().includes(term) ||
-                (e.department  || "").toLowerCase().includes(term) ||
-                (e.workLocation|| "").toLowerCase().includes(term) ||
-                // support full name search if joined from user
+                (e.employeeId   || "").toLowerCase().includes(term) ||
+                (e.userId       || "").toLowerCase().includes(term) ||
+                (e.workEmail    || "").toLowerCase().includes(term) ||
+                (e.jobTitle     || "").toLowerCase().includes(term) ||
+                (e.department   || "").toLowerCase().includes(term) ||
+                (e.workLocation || "").toLowerCase().includes(term) ||
                 ((e.firstName || "") + " " + (e.lastName || "")).toLowerCase().includes(term)
             );
         }
@@ -209,8 +209,8 @@ export default function Employees() {
     };
 
     const handleAddFormChange = (e) => {
-        const { name, value, type, checked } = e.target;
-        setAddForm((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
+        const { name, value } = e.target;
+        setAddForm((prev) => ({ ...prev, [name]: value }));
     };
 
     const handleLookup = async () => {
@@ -222,9 +222,10 @@ export default function Employees() {
         setLookupLoading(true);
 
         try {
+            // employeeService returns response.data directly — res IS the user object
             const res = await lookupUserByIdOrEmail(val);
-            setLookedUpUser(res.data);
-            setAddForm((prev) => ({ ...prev, userId: res.data.userId }));
+            setLookedUpUser(res);
+            setAddForm((prev) => ({ ...prev, userId: res.userId }));
         } catch (err) {
             setLookupError(
                 err?.response?.status === 404
@@ -250,7 +251,7 @@ export default function Employees() {
             hire_date:    addForm.hire_date  || null,
             workLocation: addForm.workLocation.toUpperCase(),
             status:       "Active",
-            isAdmin:      addForm.isAdmin,
+            isAdmin:      false,
         };
 
         try {
@@ -276,10 +277,9 @@ export default function Employees() {
             workPhone:    emp.workPhone    ?? "",
             jobTitle:     emp.jobTitle     ?? "",
             department:   emp.department   ?? "",
-            hire_date:    emp.hire_date    ? emp.hire_date.slice(0, 10) : "",
+            hire_date:    emp.hireDate     ? emp.hireDate.slice(0, 10) : "",
             workLocation: emp.workLocation ?? "",
             status:       emp.status       ?? "Active",
-            isAdmin:      !!emp.isAdmin,
         });
         setIsEditModalOpen(true);
     };
@@ -291,14 +291,17 @@ export default function Employees() {
     };
 
     const handleEditFormChange = (e) => {
-        const { name, value, type, checked } = e.target;
-        setEditForm((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
+        const { name, value } = e.target;
+        setEditForm((prev) => ({ ...prev, [name]: value }));
     };
 
     const handleEditSubmit = async (e) => {
         e.preventDefault();
         setError("");
         setSuccessMessage("");
+
+        // Preserve isAdmin from the existing record — not editable via this form
+        const existing = employees.find((emp) => emp.employeeId === editingEmployeeId);
 
         const payload = {
             workEmail:    editForm.workEmail,
@@ -308,18 +311,16 @@ export default function Employees() {
             hire_date:    editForm.hire_date  || null,
             workLocation: editForm.workLocation.toUpperCase(),
             status:       editForm.status,
-            isAdmin:      editForm.isAdmin,
+            isAdmin:      existing?.isAdmin ?? false,
         };
 
         try {
             await updateEmployee(editingEmployeeId, payload);
 
-            // Derive the role-update note for the user
-            const prev = employees.find((e) => e.employeeId === editingEmployeeId);
             let roleNote = "";
-            if (prev && prev.status !== "Terminated" && editForm.status === "Terminated") {
+            if (existing && existing.status !== "Terminated" && editForm.status === "Terminated") {
                 roleNote = " User role updated to Administrator.";
-            } else if (prev && prev.status === "Terminated" && editForm.status !== "Terminated") {
+            } else if (existing && existing.status === "Terminated" && editForm.status !== "Terminated") {
                 roleNote = " User role updated to Employee.";
             }
 
@@ -328,30 +329,6 @@ export default function Employees() {
             await loadEmployees();
         } catch (err) {
             setError(err?.response?.data?.message || "Failed to update employee.");
-        }
-    };
-
-    // ── Delete dialog handlers ────────────────────────────────────────────────
-
-    const handleDelete = (emp) => {
-        setError("");
-        setSuccessMessage("");
-        setEmployeeToDelete(emp);
-        setIsDeleteDialogOpen(true);
-    };
-
-    const confirmDelete = async () => {
-        if (!employeeToDelete) return;
-        try {
-            setError("");
-            setSuccessMessage("");
-            await deleteEmployee(employeeToDelete.employeeId);
-            setSuccessMessage(`Employee ${employeeToDelete.employeeId} deleted successfully.`);
-            setIsDeleteDialogOpen(false);
-            setEmployeeToDelete(null);
-            await loadEmployees();
-        } catch (err) {
-            setError(err?.response?.data?.message || "Failed to delete employee.");
         }
     };
 
@@ -376,7 +353,7 @@ export default function Employees() {
                 workPhone:    statusTarget.workPhone,
                 jobTitle:     statusTarget.jobTitle,
                 department:   statusTarget.department,
-                hire_date:    statusTarget.hire_date,
+                hire_date:    statusTarget.hireDate,
                 workLocation: statusTarget.workLocation,
                 status:       pendingStatus,
                 isAdmin:      statusTarget.isAdmin,
@@ -496,7 +473,7 @@ export default function Employees() {
                                     <td className="px-3 py-3">{emp.jobTitle ?? "—"}</td>
                                     <td className="px-3 py-3">{emp.department ?? "—"}</td>
                                     <td className="px-3 py-3">{emp.workLocation}</td>
-                                    <td className="px-3 py-3">{formatDate(emp.hire_date)}</td>
+                                    <td className="px-3 py-3">{formatDate(emp.hireDate)}</td>
                                     <td className="px-3 py-3">
                                         <StatusBadge status={emp.status} />
                                     </td>
@@ -546,14 +523,6 @@ export default function Employees() {
                                                     Terminate
                                                 </Button>
                                             )}
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                className="border-red-300 text-red-600 hover:bg-red-50"
-                                                onClick={() => handleDelete(emp)}
-                                            >
-                                                Delete
-                                            </Button>
                                         </div>
                                     </td>
                                 </tr>
@@ -645,7 +614,7 @@ export default function Employees() {
                     )}
                 </div>
 
-                {/* Step 2 — employment details (only shown after a successful lookup) */}
+                {/* Step 2 — employment details */}
                 {lookedUpUser && (
                     <form onSubmit={handleAddSubmit} className="space-y-4">
                         <p className="text-sm font-medium text-gray-700">Step 2 — Employment details</p>
@@ -695,28 +664,13 @@ export default function Employees() {
                                 value={addForm.hire_date}
                                 onChange={handleAddFormChange}
                             />
-                            <TextInput
-                                label="Work Location (IATA)"
-                                name="workLocation"
-                                placeholder="e.g. JFK"
-                                maxLength={3}
+                            <Dropdown
+                                label="Work Location"
                                 value={addForm.workLocation}
-                                onChange={handleAddFormChange}
-                                required
+                                onChange={(val) => setAddForm((p) => ({ ...p, workLocation: val }))}
+                                options={airportDropdownOptions}
+                                defaultValue="Select airport..."
                             />
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="checkbox"
-                                id="addIsAdmin"
-                                name="isAdmin"
-                                checked={addForm.isAdmin}
-                                onChange={handleAddFormChange}
-                            />
-                            <label htmlFor="addIsAdmin" className="text-sm text-gray-700">
-                                Grant admin access
-                            </label>
                         </div>
 
                         <p className="rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-700">
@@ -795,13 +749,12 @@ export default function Employees() {
                             value={editForm.hire_date}
                             onChange={handleEditFormChange}
                         />
-                        <TextInput
-                            label="Work Location (IATA)"
-                            name="workLocation"
-                            maxLength={3}
+                        <Dropdown
+                            label="Work Location"
                             value={editForm.workLocation}
-                            onChange={handleEditFormChange}
-                            required
+                            onChange={(val) => setEditForm((p) => ({ ...p, workLocation: val }))}
+                            options={airportDropdownOptions}
+                            defaultValue="Select airport..."
                         />
                     </div>
 
@@ -811,19 +764,6 @@ export default function Employees() {
                         onChange={(val) => setEditForm((p) => ({ ...p, status: val }))}
                         options={formStatusOptions}
                     />
-
-                    <div className="flex items-center gap-2">
-                        <input
-                            type="checkbox"
-                            id="editIsAdmin"
-                            name="isAdmin"
-                            checked={editForm.isAdmin}
-                            onChange={handleEditFormChange}
-                        />
-                        <label htmlFor="editIsAdmin" className="text-sm text-gray-700">
-                            Admin access
-                        </label>
-                    </div>
 
                     <div className="flex gap-3 pt-2">
                         <Button type="submit">Save Changes</Button>
@@ -867,43 +807,6 @@ export default function Employees() {
                         )}
                     </div>
                 )}
-            </Dialog>
-
-
-            {/* ════════════════════════════════════════════════════════════════
-                DELETE EMPLOYEE DIALOG
-            ════════════════════════════════════════════════════════════════ */}
-            <Dialog
-                isOpen={isDeleteDialogOpen}
-                onClose={() => {
-                    setIsDeleteDialogOpen(false);
-                    setEmployeeToDelete(null);
-                }}
-                title="Delete Employee"
-                description={
-                    employeeToDelete
-                        ? `Are you sure you want to delete employee ${employeeToDelete.employeeId}?`
-                        : "Are you sure you want to delete this employee?"
-                }
-                confirmText="Delete Employee"
-                confirmVariant="danger"
-                onConfirm={confirmDelete}
-                className="!max-w-md"
-            >
-                <div className="space-y-4">
-                    <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                        This action cannot be undone.
-                    </div>
-
-                    {employeeToDelete && (
-                        <div className="rounded-lg bg-gray-50 px-3 py-3 text-sm text-gray-700">
-                            <p><span className="font-medium">Employee ID:</span> {employeeToDelete.employeeId}</p>
-                            <p><span className="font-medium">Email:</span> {employeeToDelete.workEmail}</p>
-                            <p><span className="font-medium">Department:</span> {employeeToDelete.department ?? "—"}</p>
-                            <p><span className="font-medium">Status:</span> {employeeToDelete.status}</p>
-                        </div>
-                    )}
-                </div>
             </Dialog>
 
         </div>

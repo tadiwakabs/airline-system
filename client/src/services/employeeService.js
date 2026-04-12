@@ -20,11 +20,6 @@ export async function updateEmployee(employeeId, payload) {
     return response.data;
 }
 
-export async function deleteEmployee(employeeId) {
-    const response = await api.delete(`/employee/${employeeId}`);
-    return response.data;
-}
-
 export async function lookupUserByIdOrEmail(value) {
     const response = await api.get("/user/lookup", { params: { q: value } });
     return response.data;

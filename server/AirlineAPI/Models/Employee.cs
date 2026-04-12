@@ -39,7 +39,7 @@ namespace AirlineAPI.Models
         [StringLength(50)]
         public string? department { get; set; }
 
-        public DateTime hire_date { get; set; }
+        public DateTime? hire_date { get; set; }
 
         [Required]
         [StringLength(3)]
