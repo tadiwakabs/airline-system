@@ -22,7 +22,7 @@ namespace AirlineAPI.Data
         public DbSet<Seating> Seating { get; set; }
         public DbSet<Payment> Payments { get; set; }
         public DbSet<Booking> Bookings { get; set; }
-        
+        public DbSet<Employee> Employees { get; set; }
         public DbSet<Ticket> Ticket { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -290,6 +290,68 @@ namespace AirlineAPI.Data
             modelBuilder.Entity<Airport>()
                         .HasKey(a => a.airportCode);
             
+            modelBuilder.Entity<Employee>(entity =>
+            {
+                entity.ToTable("Employees");
+
+                entity.HasKey(e => e.employeeId);
+
+                entity.Property(e => e.employeeId)
+                    .HasColumnName("employeeId")
+                    .HasMaxLength(50);
+
+                entity.Property(e => e.userId)
+                    .HasColumnName("userId")
+                    .HasMaxLength(50);
+
+                entity.Property(e => e.workEmail)
+                    .HasColumnName("workEmail")
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                entity.Property(e => e.workPhone)
+                    .HasColumnName("workPhone");
+
+                entity.Property(e => e.jobTitle)
+                    .HasColumnName("jobTitle")
+                    .HasMaxLength(50);
+
+                entity.Property(e => e.department)
+                    .HasColumnName("department")
+                    .HasMaxLength(50);
+
+                entity.Property(e => e.hire_date)
+                    .HasColumnName("hire_date")
+                    .HasColumnType("date");
+
+                entity.Property(e => e.workLocation)
+                    .HasColumnName("workLocation")
+                    .HasMaxLength(3)
+                    .IsRequired();
+
+                entity.Property(e => e.status)
+                    .HasColumnName("status")
+                    .HasConversion(
+                        v => ConvertWorkStatusToDb(v),
+                        v => ConvertWorkStatusFromDb(v)
+                    )
+                    .IsRequired();
+
+                entity.Property(e => e.IsAdmin)
+                    .HasColumnName("isAdmin")
+                    .IsRequired();
+
+                entity.HasOne(e => e.Users)
+                    .WithMany()
+                    .HasForeignKey(e => e.userId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.Aiport)
+                    .WithMany()
+                    .HasForeignKey(e => e.workLocation)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+            
         }
 
         private static string? ConvertTitleToDb(UserTitle? title)
@@ -381,5 +443,23 @@ namespace AirlineAPI.Data
                 default: return null;
             }
         }
+        
+        private static string ConvertWorkStatusToDb(WorkStatus status) =>
+            status switch
+            {
+                WorkStatus.Active     => "Active",
+                WorkStatus.OnLeave    => "On Leave",
+                WorkStatus.Terminated => "Terminated",
+                _                     => "Active",
+            };
+
+        private static WorkStatus ConvertWorkStatusFromDb(string? status) =>
+            status switch
+            {
+                "Active"     => WorkStatus.Active,
+                "On Leave"   => WorkStatus.OnLeave,
+                "Terminated" => WorkStatus.Terminated,
+                _            => WorkStatus.Active,
+            };
     }
 }

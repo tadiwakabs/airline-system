@@ -10,7 +10,7 @@ namespace AirlineAPI.Models
         Terminated
     }
 
-    [Table("Employee")]
+    [Table("Employees")]
     public class Employee
     {
         [Key]

@@ -22,6 +22,7 @@ import BookingReview from "./pages/booking/BookingReview.jsx";
 import BookingSeats from "./pages/booking/BookingSeats.jsx";
 import BookingPayment from './pages/booking/BookingPayment'
 import Confirmation from './pages/booking/BookingConfirmation'
+import Employees from "./pages/admin/Employees.jsx";
 
 //dashboard
 import Admin from './pages/admin/AdminDashboard.jsx';
@@ -109,6 +110,9 @@ function App() {
                         element={<RoleProtectedRoute allowedRoles={"Administrator"}>
                             <Admin />
                         </RoleProtectedRoute>} />
+                    <Route
+                        path='/employees'
+                        element={<Employees />} />
                     
                 </Routes>
             </AppLayout>
