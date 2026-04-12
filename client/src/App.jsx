@@ -25,7 +25,7 @@ import ManageBooking from './pages/manage.jsx';
 //dashboard
 import Admin from './pages/admin/AdminDashboard.jsx';
 import Employee from './pages/employee/EmployeeDashboard.jsx';
-
+import Reports from './pages/admin/Reports'
 
 
 function App() {
@@ -63,6 +63,7 @@ function App() {
                     <Route path= "/airport" element={<Airport />}/>
                     <Route path="/admin" element={<Admin />} />
                     <Route path='/employee' element={<Employee />} />
+                    <Route path="/reports" element={<Reports />} />
 
                 </Routes>
             </AppLayout>
