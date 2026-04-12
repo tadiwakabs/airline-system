@@ -207,7 +207,7 @@ namespace AirlineAPI.Controllers
             {
                 if (previousStatus != WorkStatus.Terminated && parsedStatus == WorkStatus.Terminated)
                 {
-                    employee.Users.UserRole  = UserRole.Administrator;
+                    employee.Users.UserRole  = UserRole.Passenger;
                     employee.Users.UpdatedAt = DateTime.UtcNow;
                 }
                 else if (previousStatus == WorkStatus.Terminated && parsedStatus != WorkStatus.Terminated)

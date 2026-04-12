@@ -41,6 +41,18 @@ const deptFilterOptions = [
     { label: "IT",                 value: "IT" },
 ];
 
+const deptFormOptions = [
+    { label: "Select department...", value: "" },
+    { label: "Flight Ops",           value: "Flight Ops" },
+    { label: "Cabin Crew",           value: "Cabin Crew" },
+    { label: "Operations",           value: "Operations" },
+    { label: "Human Resources",      value: "Human Resources" },
+    { label: "Passenger Services",   value: "Passenger Services" },
+    { label: "Engineering",          value: "Engineering" },
+    { label: "Finance",              value: "Finance" },
+    { label: "IT",                   value: "IT" },
+];
+
 const sortOptions = [
     { label: "Employee ID",   value: "employeeId" },
     { label: "Last Name",     value: "lastName" },
@@ -319,7 +331,7 @@ export default function Employees() {
 
             let roleNote = "";
             if (existing && existing.status !== "Terminated" && editForm.status === "Terminated") {
-                roleNote = " User role updated to Administrator.";
+                roleNote = " User role updated to Passenger.";
             } else if (existing && existing.status === "Terminated" && editForm.status !== "Terminated") {
                 roleNote = " User role updated to Employee.";
             }
@@ -361,7 +373,7 @@ export default function Employees() {
 
             let roleNote = "";
             if (statusTarget.status !== "Terminated" && pendingStatus === "Terminated") {
-                roleNote = " User role updated to Administrator.";
+                roleNote = " User role updated to Passenger.";
             } else if (statusTarget.status === "Terminated" && pendingStatus !== "Terminated") {
                 roleNote = " User role updated to Employee.";
             }
@@ -647,12 +659,12 @@ export default function Employees() {
                                 value={addForm.jobTitle}
                                 onChange={handleAddFormChange}
                             />
-                            <TextInput
+                            <Dropdown
                                 label="Department"
-                                name="department"
-                                placeholder="e.g. Cabin Crew"
                                 value={addForm.department}
-                                onChange={handleAddFormChange}
+                                onChange={(val) => setAddForm((p) => ({ ...p, department: val }))}
+                                options={deptFormOptions}
+                                defaultValue="Select department..."
                             />
                         </div>
 
@@ -733,11 +745,12 @@ export default function Employees() {
                             value={editForm.jobTitle}
                             onChange={handleEditFormChange}
                         />
-                        <TextInput
+                        <Dropdown
                             label="Department"
-                            name="department"
                             value={editForm.department}
-                            onChange={handleEditFormChange}
+                            onChange={(val) => setEditForm((p) => ({ ...p, department: val }))}
+                            options={deptFormOptions}
+                            defaultValue="Select department..."
                         />
                     </div>
 
@@ -796,7 +809,7 @@ export default function Employees() {
                 {pendingStatus === "Terminated" && (
                     <div className="space-y-3">
                         <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                            This will mark the employee as Terminated and update their user role to Administrator.
+                            This will mark the employee as Terminated and update their user role to Passenger.
                         </div>
                         {statusTarget && (
                             <div className="rounded-lg bg-gray-50 px-3 py-3 text-sm text-gray-700">
