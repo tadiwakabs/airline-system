@@ -14,3 +14,13 @@ export const getCountries = () =>
 
 export const getStates = () =>
     api.get("/lookup/states");
+
+export async function getPassengersForFlight(flightNum) {
+    const response = await api.get(`/ticket/flight/${flightNum}`);
+    return response.data;
+}
+
+export async function getSeatsForFlight(flightNum) {
+    const response = await api.get(`/seating/flight/${flightNum}`);
+    return response.data;
+}

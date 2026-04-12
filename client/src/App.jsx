@@ -23,10 +23,12 @@ import BookingSeats from "./pages/booking/BookingSeats.jsx";
 import BookingPayment from './pages/booking/BookingPayment'
 import Confirmation from './pages/booking/BookingConfirmation'
 import Employees from "./pages/admin/Employees.jsx";
+import PassengerList from "./pages/employee/PassengerList.jsx";
 
-//dashboard
+// Dashboards
 import Admin from './pages/admin/AdminDashboard.jsx';
 import Employee from './pages/employee/EmployeeDashboard.jsx';
+
 
 
 
@@ -92,6 +94,12 @@ function App() {
                         path='/flights'
                         element={<RoleProtectedRoute allowedRoles={["Employee", "Administrator"]}>
                             <Flights />
+                        </RoleProtectedRoute>} />
+
+                    <Route
+                        path='/passenger-list'
+                        element={<RoleProtectedRoute allowedRoles={["Employee", "Administrator"]}>
+                            <PassengerList />
                         </RoleProtectedRoute>} />
                     
                     {/* Administrator-Authenticated Routes */}
