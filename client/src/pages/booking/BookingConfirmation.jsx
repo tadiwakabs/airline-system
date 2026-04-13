@@ -78,7 +78,7 @@ export default function Confirmation() {
                 ))}
 
                 <div className="flex gap-4 mx-2 mt-2">
-                    <Button onClick={() => navigate("/bookings")} className="w-full cursor-pointer">
+                    <Button onClick={() => navigate("/manage")} className="w-full cursor-pointer">
                         Manage your Bookings
                     </Button>
 
