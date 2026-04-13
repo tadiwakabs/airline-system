@@ -257,7 +257,7 @@ namespace AirlineAPI.Controllers
             else
             {
                 newPassenger.UserId = null;
-                newPassenger.OwnerUserId = currentUserId;
+                newPassenger.OwnerUserId = null;
             }
 
             if (newPassenger.PassengerType != PassengerType.Adult)
