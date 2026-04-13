@@ -125,10 +125,14 @@ function App() {
                         </RoleProtectedRoute>} />
                     <Route
                         path='/employees'
-                        element={<Employees />} />
+                        element={<RoleProtectedRoute allowedRoles={["Administrator"]}>
+                            <Employees />
+                        </RoleProtectedRoute>} />
                     <Route
                         path='/reports'
-                        element={<Reports />} />
+                        element={<RoleProtectedRoute allowedRoles={["Administrator"]}>
+                            <Reports />
+                        </RoleProtectedRoute>} />
 
                 </Routes>
             </AppLayout>
