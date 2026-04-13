@@ -24,11 +24,13 @@ import BookingPayment from './pages/booking/BookingPayment'
 import Confirmation from './pages/booking/BookingConfirmation'
 import Employees from "./pages/admin/Employees.jsx";
 import PassengerList from "./pages/employee/PassengerList.jsx";
+import ManageBooking from './pages/manage.jsx';
+
 
 // Dashboards
 import Admin from './pages/admin/AdminDashboard.jsx';
 import Employee from './pages/employee/EmployeeDashboard.jsx';
-
+import Reports from './pages/admin/Reports'
 
 
 
@@ -51,6 +53,9 @@ function App() {
                         </PublicOnlyRoute>} />
                     <Route path="/help" element = {<Help />} />
                     <Route path="/flight-search" element={<FlightSearch />} />
+                    <Route path="/book" element= {<Home />} />
+                    <Route path="/manage" element={<ManageBooking />}/>
+                
 
                     {/* User-Authenticated Routes */}
                     <Route 
@@ -121,7 +126,10 @@ function App() {
                     <Route
                         path='/employees'
                         element={<Employees />} />
-                    
+                    <Route
+                        path='/reports'
+                        element={<Reports />} />
+
                 </Routes>
             </AppLayout>
         </AuthProvider>

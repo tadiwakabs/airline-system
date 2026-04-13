@@ -3,9 +3,12 @@ using AirlineAPI.Models;
 using AirlineAPI.DTOs.Booking;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace AirlineAPI.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
 
@@ -156,18 +159,18 @@ namespace AirlineAPI.Controllers
             return Ok("Booking Modified!");
         }
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> CancelBooking(string id, [FromBody] Booking cancelBooking)
-        {
-            var book = await _context.Bookings.FindAsync(id);
-            if (book==null)
-            {
-                return NotFound("Booking not found");
-            }
 
-            _context.Bookings.Remove(book);
-            await _context.SaveChangesAsync();
-            return Ok("Booknig Canceled!");
+        [HttpGet("myBooking")]
+        public async Task<ActionResult> GetMyBookings()
+        {
+            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            
+            var bookings = await _context.Bookings
+                .Where(b => b.userId == currentUserId)
+                .OrderByDescending(b=>b.bookingDate)
+                .ToListAsync();
+
+            return Ok(bookings);
         }
         
         [HttpGet("{bookingId}/flights")]
@@ -189,19 +192,91 @@ namespace AirlineAPI.Controllers
             return Ok(flights);
         }
 
-        /*[HttpGet("{id}/payments")]
-        public async Task<ActionResult<Booking>>GetBookingHistory(string id)
+        [HttpPut("{id}/change-seat")]
+        public async Task<IActionResult> ModifySeat(string id, [FromBody] string newSeatNumber)
         {
-            var history= await _context.Booking
-                .Include(b=>b.)
-                .FirstOrDefaultAsync(b=>b.bookingId == id);
+            var booking = await _context.Bookings.FindAsync(id);
+            if (booking == null) return NotFound("Booking not found");
 
-            if (history==null)
+            if (booking.bookingStatus == BookingStatus.Cancelled) 
+    {           return BadRequest("Cannot change seats on a cancelled booking.");
+    }
+
+            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (booking.userId != currentUserId && !User.IsInRole("Admin"))
             {
-                return NotFound("No payment history found");
+                return Forbid();
             }
-            return Ok(history);
-        }*/
+
+            var ticket = await _context.Ticket.FirstOrDefaultAsync(t => t.bookingId == booking.bookingId);
+
+            if (ticket == null) 
+            return NotFound("No ticket found for this booking.");
+
+
+            var newSeat = await _context.Seating
+                .FirstOrDefaultAsync(s => s.flightNum == ticket.flightCode && s.seatNumber == newSeatNumber);
+
+            if (newSeat == null) return NotFound("Seat not found on this flight.");
+            if (newSeat.seatStatus== SeatStatus.Occupied) return BadRequest("Seat already taken.");
+
+            var oldSeat = await _context.Seating
+                .FirstOrDefaultAsync(s => s.flightNum == ticket.flightCode && s.seatNumber == ticket.seatNumber);
+
+            if (oldSeat != null)
+            {
+                oldSeat.seatStatus = SeatStatus.Available;
+            }
+
+            ticket.seatNumber = newSeatNumber;
+            newSeat.seatStatus = SeatStatus.Occupied;
+
+            await _context.SaveChangesAsync();
+
+            return Ok($"Seat changed successfully to {newSeatNumber}");
+        }
+
+
+        [HttpDelete("{id}/cancel")]
+        public async Task<IActionResult> CancelBooking(string id)
+        {
+            var booking = await _context.Bookings.FindAsync(id);
+            if (booking == null) return NotFound("Booking not found");
+
+
+            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (booking.userId != currentUserId && !User.IsInRole("Admin")) return Forbid();
+
+            
+            var ticket = await _context.Ticket
+                .Include(t => t.Flight)
+                .FirstOrDefaultAsync(t => t.bookingId == booking.bookingId);
+
+            if (ticket == null || ticket.Flight == null) 
+                return BadRequest("Flight information not found for this booking.");
+
+        
+            if (ticket.Flight.departTime <= DateTime.UtcNow)
+            {
+                return BadRequest("Cannot cancel a flight that has already departed or is currently in the air.");
+            }
+
+            var seat = await _context.Seating
+                .FirstOrDefaultAsync(s => s.flightNum == ticket.flightCode && s.seatNumber == ticket.seatNumber);
+            
+            if (seat != null)
+            {
+                seat.seatStatus = SeatStatus.Available;
+            }
+
+            booking.bookingStatus = BookingStatus.Cancelled;
+            ticket.status = TicketStatus.Cancelled;
+
+            await _context.SaveChangesAsync();
+
+            return Ok("Booking successfully cancelled. Your seat has been released.");
+        
+        }
 
     }   
 
