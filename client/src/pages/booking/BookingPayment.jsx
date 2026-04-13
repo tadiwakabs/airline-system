@@ -151,7 +151,7 @@ export default function Payment() {
         if (!form.address.trim()) newErrors.address = "Address is required";
         if (!form.city.trim()) newErrors.city = "City is required";
         if (!form.state.trim()) newErrors.state = "State is required";
-        if (!isValidZip(form.zip)) newErrors.zip = "Invalid zip/postal code";
+        if (!isValidZip(form.zip)) newErrors.zip = "Invalid zip/postal code. Must be 5 digits";
         if (!form.country.trim()) newErrors.country = "Country is required";
 
         return newErrors;
