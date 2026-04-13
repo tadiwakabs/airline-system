@@ -17,8 +17,8 @@ export default function Navbar() {
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const profileMenuRef = useRef(null);
 
-    const role = (profile?.userRole || profile?.UserRole || "").trim().toLowerCase();
-    const email = (profile?.email || profile?.Email || "").trim().toLowerCase();
+    const role = (user?.userRole || user?.UserRole || "").trim().toLowerCase();
+    const email = (user?.email || user?.Email || "").trim().toLowerCase();
 
     const isAdmin = role === "admin" || email.endsWith("@admin.3380airlines.com");
     const isEmployee = role === "employee" || (email.endsWith("@3380airlines.com") && !isAdmin);
@@ -119,7 +119,7 @@ export default function Navbar() {
                             )}
                             {isEmployee && (
                                 <NavLink to="/employee/dashboard" className={navLinkBase}>
-                                    Staff
+                                    Employee
                                 </NavLink>
                             )}
                         </div>
@@ -176,7 +176,7 @@ export default function Navbar() {
                                             Profile
                                         </Link>
 
-                                        {user?.userRole === "Admin" && (
+                                        {isAdmin && (
                                             <Link
                                                 to="/admin/dashboard"
                                                 onClick={() => setIsProfileMenuOpen(false)}
@@ -187,14 +187,14 @@ export default function Navbar() {
                                             </Link>
                                         )}
 
-                                        {user?.userRole === "Employee" && (
+                                        {isEmployee && (
                                             <Link
-                                                to="/employee/management"
+                                                to="/employee/dashboard"
                                                 onClick={() => setIsProfileMenuOpen(false)}
                                                 className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-green-600 font-semibold hover:bg-green-50"
                                             >
                                                 <div className="h-2 w-2 rounded-full bg-green-600" />
-                                                Flight Management
+                                                Employee Panel
                                             </Link>
                                         )}
 
