@@ -21,7 +21,7 @@ export default function Navbar() {
     const email = (user?.email || user?.Email || "").trim().toLowerCase();
 
     const isAdmin = role === "admin" || email.endsWith("@admin.3380airlines.com");
-    const isEmployee = role === "employee" || (email.endsWith("@3380airlines.com") && !isAdmin);
+    const isEmployee = isAdmin || role === "employee" || email.endsWith("@3380airlines.com");
 
     const handleSearch = (e) => {
         e.preventDefault();
@@ -176,17 +176,6 @@ export default function Navbar() {
                                             Profile
                                         </Link>
 
-                                        {isAdmin && (
-                                            <Link
-                                                to="/admin/dashboard"
-                                                onClick={() => setIsProfileMenuOpen(false)}
-                                                className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-blue-600 font-semibold hover:bg-blue-50"
-                                            >
-                                                <div className="h-2 w-2 rounded-full bg-blue-600" />
-                                                Admin Panel
-                                            </Link>
-                                        )}
-
                                         {isEmployee && (
                                             <Link
                                                 to="/employee/dashboard"
@@ -195,6 +184,17 @@ export default function Navbar() {
                                             >
                                                 <div className="h-2 w-2 rounded-full bg-green-600" />
                                                 Employee Panel
+                                            </Link>
+                                        )}
+
+                                        {isAdmin && (
+                                            <Link
+                                                to="/admin/dashboard"
+                                                onClick={() => setIsProfileMenuOpen(false)}
+                                                className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-blue-600 font-semibold hover:bg-blue-50"
+                                            >
+                                                <div className="h-2 w-2 rounded-full bg-blue-600" />
+                                                Admin Panel
                                             </Link>
                                         )}
 

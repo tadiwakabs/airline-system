@@ -9,14 +9,14 @@ function Employee() {
             label: "View Flights", 
             icon: "✈️", 
             path: "/flights", 
-            color: "bg-blue-400",
+            color: "bg-red-400",
             description: "Check schedules and status" 
         },
         { 
             label: "Passenger List", 
             icon: "👥", 
             path: "/passenger-list", 
-            color: "bg-red-400",
+            color: "bg-blue-400",
             description: "View and edit traveler info" 
         },
         { 
