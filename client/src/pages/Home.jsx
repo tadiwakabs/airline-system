@@ -8,6 +8,7 @@ import Hero from "../components/home/HeroSection.jsx";
 import FeaturedFlights from "../components/home/FeaturedFlights.jsx";
 import Card from "../components/common/Card.jsx";
 import { getFlightById } from "../services/flightService";
+import { getFlightsByBooking } from "../services/bookingService";
 
 function getStatusBadgeClass(status) {
     switch ((status || "").toLowerCase()) {
@@ -78,32 +79,39 @@ export default function Home() {
             setStatusError("");
             setStatusResult(null);
 
-            // supports either:
-            // onCheck("1024")
-            // or onCheck({ flightNum: "1024" })
-            const flightNum =
-                typeof query === "object" ? query?.flightNum : query;
-
-            if (!flightNum) {
-                setStatusError("Please enter a flight number.");
+            const input = typeof query === "object" ? query?.flightNum : query;
+            if (!input) {
+                setStatusError("Please enter a flight or booking number.");
                 return;
             }
 
-            const res = await getFlightById(flightNum);
-            const flight = res.data;
+            // Booking IDs are GUIDs, flight nums are numeric
+            const isBookingId = input.includes("-") || isNaN(Number(input));
 
-            setStatusResult({
-                flightNum: flight.flightNum,
-                status: flight.status,
-                departingPort: getAirportCode(flight, "depart"),
-                arrivingPort: getAirportCode(flight, "arrive"),
-                departTime: flight.departTime,
-                arrivalTime: flight.arrivalTime,
-                aircraftUsed: flight.aircraftUsed,
-            });
+            if (isBookingId) {
+                const res = await getFlightsByBooking(input);
+                const flights = res.data;
+                if (!flights?.length) {
+                    setStatusError("No flights found for that booking.");
+                    return;
+                }
+                setStatusResult({ bookingFlights: flights });
+            } else {
+                const res = await getFlightById(input);
+                const flight = res.data;
+                setStatusResult({
+                    flightNum: flight.flightNum,
+                    status: flight.status,
+                    departingPort: getAirportCode(flight, "depart"),
+                    arrivingPort: getAirportCode(flight, "arrive"),
+                    departTime: flight.departTime,
+                    arrivalTime: flight.arrivalTime,
+                    aircraftUsed: flight.aircraftUsed,
+                });
+            }
         } catch (err) {
-            console.error("Error checking flight status:", err);
-            setStatusError("Could not find that flight.");
+            console.error("Error checking status:", err);
+            setStatusError("Could not find that flight or booking.");
         } finally {
             setStatusLoading(false);
         }
@@ -135,7 +143,7 @@ export default function Home() {
                                 </Card>
                             )}
 
-                            {!statusLoading && !statusError && statusResult && (
+                            {!statusLoading && !statusError && statusResult && !statusResult.bookingFlights && (
                                 <Card className="p-5">
                                     <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                                         <div>
@@ -197,6 +205,47 @@ export default function Home() {
                                         </div>
                                     </div>
                                 </Card>
+                            )}
+
+                            {!statusLoading && !statusError && statusResult?.bookingFlights && (
+                                <div className="space-y-3">
+                                    {statusResult.bookingFlights.map((flight) => (
+                                        <Card key={flight.flightNum} className="p-5">
+                                            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                                                <div>
+                                                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Flight</p>
+                                                    <h3 className="text-xl font-semibold text-gray-900">{flight.flightNum}</h3>
+                                                    <p className="mt-1 text-sm text-gray-600">
+                                                        {getAirportCode(flight, "depart")} → {getAirportCode(flight, "arrive")}
+                                                    </p>
+                                                </div>
+                                                <span className={`inline-flex w-fit rounded-full px-3 py-1 text-sm font-semibold ${getStatusBadgeClass(flight.status)}`}>
+                        {flight.status || "Unknown"}
+                    </span>
+                                            </div>
+                                            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                                                <div>
+                                                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Departure</p>
+                                                    <p className="text-sm font-semibold text-gray-900">{formatDateTime(flight.departTime)}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Arrival</p>
+                                                    <p className="text-sm font-semibold text-gray-900">{formatDateTime(flight.arrivalTime)}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Aircraft</p>
+                                                    <p className="text-sm font-semibold text-gray-900">{flight.aircraftUsed || "—"}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Route</p>
+                                                    <p className="text-sm font-semibold text-gray-900">
+                                                        {getAirportCode(flight, "depart")} → {getAirportCode(flight, "arrive")}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </Card>
+                                    ))}
+                                </div>
                             )}
                         </>
                     )}

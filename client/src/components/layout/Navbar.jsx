@@ -204,8 +204,45 @@ export default function Navbar() {
                             </button>
                             {isProfileMenuOpen && (
                                 <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-gray-200 bg-white p-2 shadow-lg">
-                                    <Link to="/profile" onClick={() => setIsProfileMenuOpen(false)} className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"><User size={16} /> Profile</Link>
-                                    <button onClick={handleLogout} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-red-600 hover:bg-red-50"><LogOut size={16} /> Logout</button>
+                                    <div className="border-b border-gray-100 px-3 py-2">
+                                        <p className="text-sm font-semibold text-gray-900">
+                                            {user?.firstName} {user?.lastName}
+                                        </p>
+                                        <p className="truncate text-xs text-gray-500">
+                                            {user?.userRole}
+                                        </p>
+                                    </div>
+
+                                    <div className="py-2">
+                                        <Link
+                                            to="/profile"
+                                            onClick={() => setIsProfileMenuOpen(false)}
+                                            className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                        >
+                                            <User size={16} />
+                                            Profile
+                                        </Link>
+
+                                        <Link
+                                            to="/bookings"
+                                            onClick={() => setIsProfileMenuOpen(false)}
+                                            className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                        >
+                                            <Ticket size={16} />
+                                            Bookings
+                                        </Link>
+                                    </div>
+
+                                    <div className="border-t border-gray-100 pt-2">
+                                        <button
+                                            type="button"
+                                            onClick={handleLogout}
+                                            className="cursor-pointer flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                                        >
+                                            <LogOut size={16} />
+                                            Logout
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </div>

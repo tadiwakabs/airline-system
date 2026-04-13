@@ -172,6 +172,25 @@ namespace AirlineAPI.Controllers
 
             return Ok(bookings);
         }
+        
+        [HttpGet("{bookingId}/flights")]
+        public async Task<IActionResult> GetFlightsByBooking(string bookingId)
+        {
+            var bookingExists = await _context.Bookings.AnyAsync(b => b.bookingId == bookingId);
+            if (!bookingExists)
+                return NotFound("Booking not found.");
+
+            var flights = await _context.Ticket
+                .Where(t => t.bookingId == bookingId)
+                .Include(t => t.Flight)
+                .Where(t => t.Flight != null)
+                .Select(t => t.Flight)
+                .Distinct()
+                .OrderBy(f => f!.departTime)
+                .ToListAsync();
+            
+            return Ok(flights);
+        }
 
         [HttpPut("{id}/change-seat")]
         public async Task<IActionResult> ModifySeat(string id, [FromBody] string newSeatNumber)
