@@ -7,30 +7,23 @@ function Admin() {
     const menuItems = [
         { 
             label: "Manage Flights", 
-            icon: "✈️", 
+            icon: "🛫", 
             path: "/flights", 
-            color: "bg-blue-400",
+            color: "bg-purple-600",
             description: "Manage existing flights"
         },
         { 
-            label: "Add Flights", 
-            icon: "📝", 
-            path: "/add-flight", 
-            color: "bg-green-400",
-            description: "Create new flight entries"
-        },
-        { 
             label: "My Profile", 
-            icon: "🆔", 
+            icon: "👤", 
             path: "/profile", 
             color: "bg-yellow-500",
             description: "Manage your account settings"
         },
         { 
             label: "Manage Aircraft", 
-            icon: "🔧", 
-            path: "/manage-aircraft", 
-            color: "bg-purple-600",
+            icon: "⚙️", 
+            path: "/aircraft", 
+            color: "bg-blue-600",
             description: "Maintain fleet and plane assignments"
         },
         { 
@@ -39,7 +32,21 @@ function Admin() {
             path: "/report", 
             color: "bg-red-400",
             description: "Analyze reports"
-        }
+        },
+        { 
+            label: "Manage Employees", 
+            icon: "👥", 
+            path: "/employees", 
+            color: "bg-green-400",
+            description: "Manage existing flights"
+        },
+        { 
+            label: "Manage Airports", 
+            icon: "🏢", 
+            path: "/airports", 
+            color: "bg-orange-400",
+            description: "Manage existing flights"
+        },
     ];
 
     return (

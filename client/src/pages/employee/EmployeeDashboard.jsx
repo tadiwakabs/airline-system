@@ -13,13 +13,6 @@ function Employee() {
             description: "Check schedules and status" 
         },
         { 
-            label: "Add Flights", 
-            icon: "➕", 
-            path: "/add-flight", 
-            color: "bg-green-400",
-            description: "Create new flight entries" 
-        },
-        { 
             label: "Passenger List", 
             icon: "👥", 
             path: "/passenger-list", 
