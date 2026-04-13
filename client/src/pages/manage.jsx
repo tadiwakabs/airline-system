@@ -63,7 +63,7 @@ const ManageBooking = () => {
                         
                         detailsMap[b.bookingId] = {
                             ...flightRes.data,
-                            cabinClass: ticketRes.data.class
+                            cabinClass: ticketRes.data.ticketClass
                         };
                     } catch (e) {
                         console.error(`Data chain broken for ${b.bookingId}`, e);
