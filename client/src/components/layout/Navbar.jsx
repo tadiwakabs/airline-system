@@ -17,6 +17,12 @@ export default function Navbar() {
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const profileMenuRef = useRef(null);
 
+    const role = (profile?.userRole || profile?.UserRole || "").trim().toLowerCase();
+    const email = (profile?.email || profile?.Email || "").trim().toLowerCase();
+
+    const isAdmin = role === "admin" || email.endsWith("@admin.3380airlines.com");
+    const isEmployee = role === "employee" || (email.endsWith("@3380airlines.com") && !isAdmin);
+
     const handleSearch = (e) => {
         e.preventDefault();
         console.log("Search:", searchValue);
@@ -103,6 +109,21 @@ export default function Navbar() {
                             Search
                         </Button>
                     </form>
+
+                    {isAuthenticated && (
+                        <div className="flex items-center gap-3 border-l border-gray-200 pl-3 mr-2">
+                            {isAdmin && (
+                                <NavLink to="/admin/dashboard" className={navLinkBase}>
+                                    Admin
+                                </NavLink>
+                            )}
+                            {isEmployee && (
+                                <NavLink to="/employee/dashboard" className={navLinkBase}>
+                                    Staff
+                                </NavLink>
+                            )}
+                        </div>
+                    )}
 
                     {!isAuthenticated ? (
                         <>

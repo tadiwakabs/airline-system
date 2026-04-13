@@ -68,14 +68,6 @@ export default function Profile() {
 
     useEffect(() => {
         if (loading || !profile) return;
-
-        if (activeTab === "employee" && !isEmployee) {
-            setActiveTab("profile");
-        }
-
-        if (activeTab === "admin" && !isAdmin) {
-            setActiveTab("profile");
-        }
     }, [loading, profile, isEmployee, isAdmin, activeTab]);
 
     const loadProfile = async () => {
@@ -201,30 +193,6 @@ export default function Profile() {
                         >
                             Change Password
                         </button>
-
-                        {isEmployee && (
-                            <button
-                                type="button"
-                                onClick={() => setActiveTab("employee")}
-                                className={`w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
-                                    activeTab === "employee" ? "bg-blue-600 text-white" : "text-gray-700 hover:bg-gray-100 cursor-pointer"
-                                }`}
-                            >
-                                Employee Panel
-                            </button>
-                        )}
-
-                        {isAdmin && (
-                            <button
-                                type="button"
-                                onClick={() => setActiveTab("admin")}
-                                className={`w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
-                                activeTab === "admin" ? "bg-blue-600 text-white" : "text-gray-700 hover:bg-gray-100 cursor-pointer"
-                                }`}
-                            >
-                                Admin Panel
-                            </button>
-                            )}
                     </div>
                 
                 </Card>
@@ -389,39 +357,6 @@ export default function Profile() {
 
                                 <Button type="submit">Change Password</Button>
                             </form>
-                        </>
-                    )}
-
-                    {activeTab == "employee" && isEmployee && (
-                        <>
-                            <h1 className="text-2xl font-semibold text-gray-900">
-                                Employee Panel
-                            </h1>
-                            <p className="font-semibold mt-1 text-sm text-gray-600">
-                                Employee tools and operations.
-                            </p>
-
-                            <Button onClick={() => navigate("/employee/dashboard")}>
-                                Go to Employee Dashboard
-                            </Button>
-
-                            <Separator className="my-6" />
-                        </>
-                    )}
-
-                    {activeTab === "admin" && isAdmin && (
-                        <>
-                            <h1 className="text-2xl font-semibold text-black-600">
-                                Admin Panel
-                            </h1>
-                            <p className="font-semibold mt-1 text-sm text-gray-500">
-                                Administrative tools and operations
-                            </p>
-                            <Separator className="my-6" />
-
-                            <Button onClick={() => navigate("/admin/dashboard")}>
-                                Go to Admin Dashboard
-                            </Button>
                         </>
                     )}
                 </Card>
