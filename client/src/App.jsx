@@ -54,7 +54,6 @@ function App() {
                     <Route path="/help" element = {<Help />} />
                     <Route path="/flight-search" element={<FlightSearch />} />
                     <Route path="/book" element= {<Home />} />
-                    <Route path="/manage" element={<ManageBooking />}/>
                 
 
                     {/* User-Authenticated Routes */}
@@ -88,6 +87,11 @@ function App() {
                         element={<ProtectedRoute>
                                     <Confirmation />
                                 </ProtectedRoute>} />
+                    <Route
+                        path="/manage"
+                        element={<ProtectedRoute>
+                            <ManageBooking />
+                        </ProtectedRoute>} />
 
                     {/* Employee-Authenticated Routes */}
                     <Route 
