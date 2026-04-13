@@ -1,9 +1,12 @@
-﻿import { useEffect, useState } from "react";
-import Card from "../../components/common/Card";
+﻿import Card from "../../components/common/Card";
 import TextInput from "../../components/common/TextInput";
 import Button from "../../components/common/Button";
 import Dropdown from "../../components/common/Dropdown";
 import Separator from "../../components/common/Separator";
+import FormError from "../../components/common/FormError";
+
+import { useFormErrors } from "../../utils/useFormErrors";
+import { useEffect, useState } from "react";
 import {
     getMyProfile,
     updateMyProfile,
@@ -34,6 +37,7 @@ export default function Profile() {
     const [activeTab, setActiveTab] = useState("profile");
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
+    const { errors: serverErrors, setErrors: setServerErrors, clearErrors } = useFormErrors();
 
     const [editableData, setEditableData] = useState({
         email: "",
@@ -49,7 +53,6 @@ export default function Profile() {
 
     const [profileMessage, setProfileMessage] = useState("");
     const [passwordMessage, setPasswordMessage] = useState("");
-    const [error, setError] = useState("");
 
     useEffect(() => {
         loadProfile();
@@ -58,6 +61,7 @@ export default function Profile() {
     const loadProfile = async () => {
         try {
             setLoading(true);
+            clearErrors();
             const data = await getMyProfile();
             setProfile(data);
             setEditableData({
@@ -65,8 +69,8 @@ export default function Profile() {
                 title: data.title || "",
                 gender: data.gender || "",
             });
-        } catch (err) {
-            setError(err?.response?.data?.message || "Failed to load profile.");
+        } catch (err) { 
+          setServerErrors(err);  
         } finally {
             setLoading(false);
         }
@@ -79,7 +83,7 @@ export default function Profile() {
             [name]: value,
         }));
         setProfileMessage("");
-        setError("");
+        clearErrors();
     };
 
     const handlePasswordChange = (e) => {
@@ -89,12 +93,12 @@ export default function Profile() {
             [name]: value,
         }));
         setPasswordMessage("");
-        setError("");
+        clearErrors();
     };
 
     const handleProfileSubmit = async (e) => {
         e.preventDefault();
-        setError("");
+        clearErrors();
         setProfileMessage("");
 
         try {
@@ -102,17 +106,17 @@ export default function Profile() {
             setProfileMessage(response.message || "Profile updated.");
             await loadProfile();
         } catch (err) {
-            setError(err?.response?.data?.message || "Failed to update profile.");
+            setServerErrors(err);
         }
     };
 
     const handlePasswordSubmit = async (e) => {
         e.preventDefault();
-        setError("");
+        clearErrors();
         setPasswordMessage("");
 
         if (passwordData.newPassword !== passwordData.confirmPassword) {
-            setError("New passwords do not match.");
+            setServerError({response:{data:"New passwords do not match."}});
             return;
         }
 
@@ -129,7 +133,7 @@ export default function Profile() {
                 confirmPassword: "",
             });
         } catch (err) {
-            setError(err?.response?.data?.message || "Failed to change password.");
+            setServerErrors(err);
         }
     };
 
@@ -144,7 +148,7 @@ export default function Profile() {
     if (!profile) {
         return (
             <div className="mx-auto max-w-6xl px-4 py-10">
-                <p className="text-red-600">{error || "Profile not found."}</p>
+                <p className="text-red-600">"Profile not found."</p>
             </div>
         );
     }
@@ -183,6 +187,7 @@ export default function Profile() {
 
                 {/* Right content */}
                 <Card className="p-6">
+                    <FormError errors= {serverErrors}/>
                     {activeTab === "profile" && (
                         <>
                             <h1 className="text-2xl font-semibold text-gray-900">
@@ -287,10 +292,6 @@ export default function Profile() {
                                     <p className="text-sm text-green-600">{profileMessage}</p>
                                 )}
 
-                                {error && (
-                                    <p className="text-sm text-red-600">{error}</p>
-                                )}
-
                                 <Button type="submit">Save Changes</Button>
                             </form>
                         </>
@@ -336,9 +337,7 @@ export default function Profile() {
                                     <p className="text-sm text-green-600">{passwordMessage}</p>
                                 )}
 
-                                {error && (
-                                    <p className="text-sm text-red-600">{error}</p>
-                                )}
+                                
 
                                 <Button type="submit">Change Password</Button>
                             </form>

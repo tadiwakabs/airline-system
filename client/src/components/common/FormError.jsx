@@ -1,6 +1,6 @@
 import React from 'react';
 
-const FormErrorSummary = ({ errors }) => {
+const FormError = ({ errors }) => {
     if (!errors || errors.length === 0) return null;
 
     return (

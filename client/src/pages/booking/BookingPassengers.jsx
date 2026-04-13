@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import {getCountries, getPassengerByUserId, getStates, updatePassenger, createPassenger} from "../../services/passengerService";
+import { useFormErrors } from "../../utils/useFormErrors.js";
+import FormError from "../../components/common/FormError.jsx";
 import Card from "../../components/common/Card.jsx";
 import Button from "../../components/common/Button.jsx";
 import Dropdown from "../../components/common/Dropdown.jsx";
-import {getCountries, getPassengerByUserId, getStates, updatePassenger, createPassenger} from "../../services/passengerService";
 
 function capitalize(value) {
     if (!value) return "";
@@ -152,6 +154,13 @@ function validatePassenger(passenger, isDomesticItinerary) {
         }
     }
 
+    if (passenger.phoneNumber){
+        const onlyNums= /^\d+$/;
+        if (!onlyNums.test(passenger.phoneNumber)){
+            return "Phone number must contain only digits."
+        }
+    }
+
     if (!isDomesticItinerary) {
         if (!passenger.passportNumber) {
             return `${passenger.firstName || passenger.passengerType} is missing a passport number.`;
@@ -179,10 +188,11 @@ export default function BookingPassengers() {
 
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
+    const [localErrors, setLocalErrors] = useState({});
     const [passengerForms, setPassengerForms] = useState(initialPassengerForms);
     const [countries, setCountries] = useState([]);
     const [states, setStates] = useState([]);
+    const {errors:serverErrors,setErrors:setServerErrors,clearErrors}= useFormErrors();
 
     const countryOptions = countries.map(c => ({
         label: c.name,
@@ -228,7 +238,7 @@ export default function BookingPassengers() {
         const fetchPassengerProfile = async () => {
             try {
                 setLoading(true);
-                setError("");
+                clearErrors();
 
                 const userId = getUserIdFromStorage();
 
@@ -279,8 +289,8 @@ export default function BookingPassengers() {
                     return updated;
                 });
             } catch (err) {
-                console.error("Error loading passenger profile:", err);
-                setError("Could not load saved passenger profile.");
+                console.error("Error loading passenger profile:", err)
+                setServerErrors({response:{data:"Couldn't load saved passenger profile."}});
             } finally {
                 setLoading(false);
             }
@@ -299,7 +309,7 @@ export default function BookingPassengers() {
 
     const handleContinue = async () => {
         try {
-            setError("");
+            clearErrors();
 
             const userId = getUserIdFromStorage();
             const returnItinerary = state?.returnItinerary ?? null;
@@ -307,7 +317,7 @@ export default function BookingPassengers() {
             for (const passenger of passengerForms) {
                 const validationError = validatePassenger(passenger, isDomesticItinerary);
                 if (validationError) {
-                    setError(validationError);
+                    setServerErrors({response:{data:validationError}});
                     return;
                 }
             }
@@ -348,12 +358,7 @@ export default function BookingPassengers() {
                 },
             });
         } catch (err) {
-            console.error("Error saving passenger:", err.response?.data || err.message);
-            setError(
-                err.response?.data?.message ||
-                (typeof err.response?.data === "string" ? err.response.data : "") ||
-                "Error saving passenger"
-            );
+            setServerErrors(err);
         }
     };
 
@@ -389,11 +394,7 @@ export default function BookingPassengers() {
                     </Card>
                 )}
 
-                {error && (
-                    <Card className="p-5 border-red-200">
-                        <p className="text-red-600">{error}</p>
-                    </Card>
-                )}
+                <FormError errors={serverErrors}/>
 
                 {!loading &&
                     passengerForms.map((passenger, index) => {

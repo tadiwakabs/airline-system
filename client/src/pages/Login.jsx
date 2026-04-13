@@ -1,40 +1,47 @@
 ﻿import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import { useFormErrors } from "../utils/useFormErrors";
+
 import Card from "../components/common/Card";
 import TextInput from "../components/common/TextInput";
 import Button from "../components/common/Button";
 import Separator from "../components/common/Separator";
-import { useAuth } from "../contexts/AuthContext";
+import FormError from "../components/common/FormError";
+
 
 export default function Login() {
     const navigate = useNavigate();
     const location = useLocation();
     const { login, loading } = useAuth();
+    const {errors, setErrors, clearErrors}=useFormErrors();
+    const [localErrors, setLocalErrors]= useState({});
+
 
     const [formData, setFormData] = useState({
         username: "",
         password: "",
     });
 
-    const [errors, setErrors] = useState({});
-    const [submitError, setSubmitError] = useState("");
 
+    const [submitError, setSubmitError] = useState("");
     const from = location.state?.from?.pathname || "/";
 
     const handleChange = (e) => {
         const { name, value } = e.target;
+
 
         setFormData((prev) => ({
             ...prev,
             [name]: value,
         }));
 
-        setErrors((prev) => ({
+        setLocalErrors((prev) => ({
             ...prev,
             [name]: "",
         }));
 
-        setSubmitError("");
+        
     };
 
     const validateForm = () => {
@@ -54,13 +61,14 @@ export default function Login() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        clearErrors();
 
         if (!validateForm()) return;
 
         const result = await login(formData);
 
         if (!result.success) {
-            setSubmitError(result.message);
+            setErrors({response:{data:result.message}});
             return;
         }
 
@@ -76,7 +84,8 @@ export default function Login() {
                         Sign in to manage bookings, view trips, and access your account.
                     </p>
 
-                    <Separator />
+                    <Separator className="my-4"/>
+                    <FormError errors={errors}/>
 
                     {/* Username */}
                     <form onSubmit={handleSubmit} className="flex flex-col gap-y-4">

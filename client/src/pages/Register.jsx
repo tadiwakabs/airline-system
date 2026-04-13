@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-
+import { useFormErrors } from "../utils/useFormErrors";
 import { registerUser } from "../services/authService";
 
 // Your components
@@ -10,10 +10,11 @@ import TextInput from "../components/common/TextInput";
 import Dropdown from "../components/common/Dropdown";
 import DatePicker from "../components/common/DatePicker";
 import Separator from "../components/common/Separator";
+import FormError from "../components/common/FormError";
 
 export default function Register() {
     const navigate = useNavigate();
-
+    const {errors,setErrors,clearErrors}= useFormErrors();
     const [formData, setFormData] = useState({
         username: "",
         email: "",
@@ -27,7 +28,6 @@ export default function Register() {
     });
 
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
 
     function updateField(name, value) {
         setFormData((prev) => ({
@@ -38,10 +38,10 @@ export default function Register() {
 
     async function handleSubmit(e) {
         e.preventDefault();
-        setError("");
+        clearErrors();
 
         if (formData.password !== formData.confirmPassword) {
-            setError("Passwords do not match.");
+            setErrors({response:{data:"Password do not match"}})
             return;
         }
 
@@ -68,10 +68,7 @@ export default function Register() {
 
             navigate("/"); // redirect after success
         } catch (err) {
-            setError(
-                err.response?.data?.message ||
-                "Registration failed. Please try again."
-            );
+            setErrors(err);
         } finally {
             setLoading(false);
         }
@@ -87,11 +84,7 @@ export default function Register() {
 
                 <Separator className="mb-4" />
 
-                {error && (
-                    <div className="mb-4 p-3 rounded-lg bg-red-100 text-red-700">
-                        {error}
-                    </div>
-                )}
+                <FormError errors={errors}/>
 
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4">
 
