@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import Button from "../common/Button";
 import { useAuth } from "../../contexts/AuthContext";
-import { LogOut, ChevronDown, User, Ticket } from 'lucide-react';
+import { LogOut, ChevronDown, User, Ticket, LayoutDashboard } from 'lucide-react';
 
 const navLinkBase = "text-sm font-medium text-gray-700 transition-colors hover:text-blue-600";
 const navLinkActive = "text-blue-600";
@@ -33,19 +33,19 @@ function searchPages(query) {
 }
 
 // FIX 1: Define SearchBox OUTSIDE the Navbar component
-const SearchBox = ({ 
-    className, 
-    searchValue, 
-    setSearchValue, 
-    searchResults, 
-    showDropdown, 
-    setShowDropdown, 
-    activeIndex, 
-    handleKeyDown, 
-    handleSearch, 
-    goToPage, 
-    searchRef 
-}) => (
+const SearchBox = ({
+                       className,
+                       searchValue,
+                       setSearchValue,
+                       searchResults,
+                       showDropdown,
+                       setShowDropdown,
+                       activeIndex,
+                       handleKeyDown,
+                       handleSearch,
+                       goToPage,
+                       searchRef
+                   }) => (
     <div ref={searchRef} className={`relative ${className}`}>
         <form onSubmit={handleSearch} className="flex items-center gap-2">
             <div className="relative flex-1">
@@ -66,7 +66,7 @@ const SearchBox = ({
                                 type="button"
                                 // FIX 2: Use onMouseDown instead of onClick to prevent focus-loss issues
                                 onMouseDown={(e) => {
-                                    e.preventDefault(); 
+                                    e.preventDefault();
                                     goToPage(result.path);
                                 }}
                                 className={`w-full text-left px-4 py-3 text-sm transition-colors ${
@@ -97,7 +97,7 @@ export default function Navbar() {
     const { isAuthenticated, user, logout } = useAuth();
     const navigate = useNavigate();
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-    
+
     const profileMenuRef = useRef(null);
     const searchRef = useRef(null);
 
@@ -120,6 +120,11 @@ export default function Navbar() {
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
+
+    const role = (user?.userRole || user?.UserRole || "").trim().toLowerCase();
+
+    const isAdmin = role === "administrator";
+    const isEmployee = isAdmin || role === "employee";
 
     const handleSearch = (e) => {
         e.preventDefault();
@@ -161,8 +166,8 @@ export default function Navbar() {
 
     // Props bundle to keep the return clean
     const searchProps = {
-        searchValue, setSearchValue, searchResults, 
-        showDropdown, setShowDropdown, activeIndex, 
+        searchValue, setSearchValue, searchResults,
+        showDropdown, setShowDropdown, activeIndex,
         handleKeyDown, handleSearch, goToPage, searchRef
     };
 
@@ -182,26 +187,71 @@ export default function Navbar() {
                 </Link>
 
                 <nav className="hidden items-center gap-6 md:flex">
-                    <NavLink to="/" className={({ isActive }) => `${navLinkBase} ${isActive ? navLinkActive : ""}`}>Book</NavLink>
-                    <NavLink to="/manage" className={({ isActive }) => `${navLinkBase} ${isActive ? navLinkActive : ""}`}>Manage</NavLink>
-                    <NavLink to="/help" className={({ isActive }) => `${navLinkBase} ${isActive ? navLinkActive : ""}`}>Help</NavLink>
+                    <NavLink
+                        to="/"
+                        className={({ isActive }) =>
+                            `${navLinkBase} ${isActive ? navLinkActive : ""}`
+                        }
+                    >
+                        Book
+                    </NavLink>
+
+                    <NavLink
+                        to="/manage"
+                        className={({ isActive }) =>
+                            `${navLinkBase} ${isActive ? navLinkActive : ""}`
+                        }
+                    >
+                        Manage
+                    </NavLink>
+
+                    <NavLink
+                        to="/help"
+                        className={({ isActive }) =>
+                            `${navLinkBase} ${isActive ? navLinkActive : ""}`
+                        }
+                    >
+                        Help
+                    </NavLink>
                 </nav>
 
                 <div className="hidden items-center gap-3 lg:flex">
                     <SearchBox className="w-72" {...searchProps} />
-                    
+
+
+
+
+
                     {!isAuthenticated ? (
-                        <div className="flex gap-2">
-                            <NavLink to="/login"><Button variant="outline" size="sm">Login</Button></NavLink>
-                            <NavLink to="/register"><Button size="sm">Register</Button></NavLink>
-                        </div>
+                        <>
+                            <NavLink to="/login">
+                                <Button variant="outline" size="sm">
+                                    Login
+                                </Button>
+                            </NavLink>
+
+                            <NavLink to="/register">
+                                <Button size="sm">Register</Button>
+                            </NavLink>
+                        </>
                     ) : (
                         <div className="relative" ref={profileMenuRef}>
-                            <button onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)} className="flex items-center gap-2 rounded-xl border border-gray-200 px-2 py-1.5 hover:bg-gray-50">
-                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-600 text-white"><User size={20} /></div>
-                                <span className="text-sm font-medium">{user?.firstName || user?.username}</span>
-                                <ChevronDown size={16} />
+                            <button
+                                type="button"
+                                onClick={() => setIsProfileMenuOpen((prev) => !prev)}
+                                className="flex items-center gap-2 rounded-xl border border-gray-200 px-2 py-1.5 hover:bg-gray-50 transition"
+                            >
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-600 text-white">
+                                    <User size={20}/>
+                                </div>
+
+                                <span className="max-w-30 truncate text-sm font-medium text-gray-700">
+                                    {user?.firstName || user?.username}
+                                </span>
+
+                                <ChevronDown size={16} className="text-gray-500" />
                             </button>
+
                             {isProfileMenuOpen && (
                                 <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-gray-200 bg-white p-2 shadow-lg">
                                     <div className="border-b border-gray-100 px-3 py-2">
@@ -219,16 +269,38 @@ export default function Navbar() {
                                             onClick={() => setIsProfileMenuOpen(false)}
                                             className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
                                         >
-                                            <User size={16} />
+                                            <User size={16} className="text-amber-600" />
                                             Profile
                                         </Link>
+
+                                        {isEmployee && (
+                                            <Link
+                                                to="/employee/dashboard"
+                                                onClick={() => setIsProfileMenuOpen(false)}
+                                                className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm hover:bg-green-50"
+                                            >
+                                                <LayoutDashboard size={16} className="text-green-600" />
+                                                Employee Dashboard
+                                            </Link>
+                                        )}
+
+                                        {isAdmin && (
+                                            <Link
+                                                to="/admin/dashboard"
+                                                onClick={() => setIsProfileMenuOpen(false)}
+                                                className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm hover:bg-blue-50"
+                                            >
+                                                <LayoutDashboard size={16} className="text-blue-600" />
+                                                Admin Dashboard
+                                            </Link>
+                                        )}
 
                                         <Link
                                             to="/bookings"
                                             onClick={() => setIsProfileMenuOpen(false)}
                                             className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
                                         >
-                                            <Ticket size={16} />
+                                            <Ticket size={16} className="text-gray-600" />
                                             Bookings
                                         </Link>
                                     </div>
@@ -253,7 +325,76 @@ export default function Navbar() {
             {/* Mobile View */}
             <div className="border-t border-gray-100 px-4 py-3 md:hidden">
                 <SearchBox className="mb-3" {...searchProps} />
-                {/* ... rest of mobile menu */}
+                <div className="mx-auto flex max-w-7xl flex-col gap-3">
+                    <nav className="flex items-center justify-around">
+                        <NavLink
+                            to="/book"
+                            className={({ isActive }) =>
+                                `${navLinkBase} ${isActive ? navLinkActive : ""}`
+                            }
+                        >
+                            Book
+                        </NavLink>
+
+                        <NavLink
+                            to="/manage"
+                            className={({ isActive }) =>
+                                `${navLinkBase} ${isActive ? navLinkActive : ""}`
+                            }
+                        >
+                            Manage
+                        </NavLink>
+
+                        <NavLink
+                            to="/help"
+                            className={({ isActive }) =>
+                                `${navLinkBase} ${isActive ? navLinkActive : ""}`
+                            }
+                        >
+                            Help
+                        </NavLink>
+                    </nav>
+
+                    <form onSubmit={handleSearch} className="flex gap-2">
+                        <input
+                            type="text"
+                            value={searchValue}
+                            onChange={(e) => setSearchValue(e.target.value)}
+                            placeholder="Search..."
+                            className="flex-1 rounded-xl border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <Button type="submit" size="sm" variant="outline">
+                            Search
+                        </Button>
+                    </form>
+
+                    <div className="flex gap-2">
+                        {!isAuthenticated ? (
+                            <>
+                                <NavLink to="/login" className="flex-1">
+                                    <Button variant="outline" size="sm" className="w-full">
+                                        Login
+                                    </Button>
+                                </NavLink>
+
+                                <NavLink to="/register" className="flex-1">
+                                    <Button size="sm" className="w-full">
+                                        Register
+                                    </Button>
+                                </NavLink>
+                            </>
+                        ) : (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full"
+                                onClick={logout}
+                            >
+                                Logout
+                            </Button>
+                        )}
+                    </div>
+                </div>
             </div>
         </header>
     );
