@@ -1,9 +1,10 @@
-﻿import { useEffect, useState } from "react";
+﻿import { act, useEffect, useState } from "react";
 import Card from "../../components/common/Card";
 import TextInput from "../../components/common/TextInput";
 import Button from "../../components/common/Button";
 import Dropdown from "../../components/common/Dropdown";
 import Separator from "../../components/common/Separator";
+import { useNavigate } from "react-router-dom";
 import {
     getMyProfile,
     updateMyProfile,
@@ -51,6 +52,7 @@ export default function Profile() {
     const [profile, setProfile] = useState(null);
     const [passenger, setPassenger] = useState(null);
     const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
 
     const [countries, setCountries] = useState([]);
     const [states, setStates] = useState([]);
@@ -111,6 +113,11 @@ export default function Profile() {
     const [passwordMessage, setPasswordMessage] = useState("");
     const [error, setError] = useState("");
 
+    const role = (profile?.userRole || profile?.UserRole || "").trim().toLowerCase();
+
+    const isAdmin = role === "administrator";
+    const isEmployee = isAdmin || role === "employee";
+
     const countryOptions = countries.map((c) => ({
         label: c.name,
         value: c.code,
@@ -126,6 +133,10 @@ export default function Profile() {
         loadLookups();
         loadSavedPassengers();
     }, []);
+
+    useEffect(() => {
+        if (loading || !profile) return;
+    }, [loading, profile, isEmployee, isAdmin, activeTab]);
 
     const loadLookups = async () => {
         try {
@@ -396,7 +407,7 @@ export default function Profile() {
             setError(err?.response?.data?.message || "Failed to delete passenger.");
         }
     };
-    
+
 
     const handlePasswordSubmit = async (e) => {
         e.preventDefault();
@@ -444,6 +455,7 @@ export default function Profile() {
     return (
         <div className="mx-auto max-w-6xl px-4 py-10">
             <div className="grid gap-6 md:grid-cols-[240px_minmax(0,1fr)]">
+                {/* Left sidebar */}
                 <Card className="h-fit p-3">
                     <div className="space-y-2">
                         <button
@@ -481,7 +493,7 @@ export default function Profile() {
                         >
                             Saved Passengers
                         </button>
-                        
+
                         <button
                             type="button"
                             onClick={() => setActiveTab("password")}
@@ -496,6 +508,7 @@ export default function Profile() {
                     </div>
                 </Card>
 
+                {/* Right content */}
                 <Card className="p-6">
                     {activeTab === "profile" && (
                         <>
@@ -665,9 +678,9 @@ export default function Profile() {
                                         onChange={handlePassengerChange}
                                     />
                                 </div>
-                                
+
                                 <Separator className="my-6" />
-                                
+
                                 <h1 className="text-lg font-semibold">Domestic Details</h1>
                                 <div className="grid gap-4 md:grid-cols-2">
                                     <TextInput
@@ -685,9 +698,9 @@ export default function Profile() {
                                         options={stateOptions}
                                     />
                                 </div>
-                                
+
                                 <Separator className="my-6" />
-                                
+
                                 <h1 className="text-lg font-semibold">International Details</h1>
                                 <div className="grid gap-4 md:grid-cols-2">
                                     <TextInput
@@ -726,7 +739,7 @@ export default function Profile() {
                                         options={countryOptions}
                                     />
                                 </div>
-                                
+
 
                                 {passengerMessage && (
                                     <p className="text-sm text-green-600">{passengerMessage}</p>
