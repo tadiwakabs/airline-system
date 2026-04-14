@@ -218,20 +218,7 @@ export default function Navbar() {
                 <div className="hidden items-center gap-3 lg:flex">
                     <SearchBox className="w-72" {...searchProps} />
 
-                    {isAuthenticated && (
-                        <div className="flex items-center gap-3 border-l border-gray-200 pl-3 mr-2">
-                            {isAdmin && (
-                                <NavLink to="/admin/dashboard" className={navLinkBase}>
-                                    Admin
-                                </NavLink>
-                            )}
-                            {isEmployee && (
-                                <NavLink to="/employee/dashboard" className={navLinkBase}>
-                                    Employee
-                                </NavLink>
-                            )}
-                        </div>
-                    )}
+
 
 
 
