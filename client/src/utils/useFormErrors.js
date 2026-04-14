@@ -5,7 +5,7 @@ export const useFormErrors = () => {
 
     const handleSetErrors = (err) => {
         const errorData = err.response?.data;
-        const errorString = JSON.stringify(errorData);
+        const errorString = JSON.stringify(errorData || "") || "";
 
         if (
         errorString.includes("DbUpdateException") || 
