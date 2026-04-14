@@ -267,7 +267,7 @@ export default function Navbar() {
                                         <Link
                                             to="/profile"
                                             onClick={() => setIsProfileMenuOpen(false)}
-                                            className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                            className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-gray-700 hover:bg-amber-50"
                                         >
                                             <User size={16} className="text-amber-600" />
                                             Profile
