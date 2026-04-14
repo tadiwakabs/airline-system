@@ -47,22 +47,24 @@ namespace AirlineAPI.Controllers
 
             var employees = await _context.Employees
                 .Include(e => e.Users)
-                .Select(e => new EmployeeDto
-                {
-                    EmployeeId   = e.employeeId,
-                    UserId       = e.userId,
-                    FirstName    = e.Users != null ? e.Users.FirstName : null,
-                    LastName     = e.Users != null ? e.Users.LastName  : null,
-                    WorkEmail    = e.workEmail,
-                    WorkPhone    = e.workPhone,
-                    JobTitle     = e.jobTitle,
-                    Department   = e.department,
-                    HireDate     = e.hire_date,
-                    WorkLocation = e.workLocation,
-                    Status       = e.status.ToString(),
-                    IsAdmin      = e.IsAdmin,
-                })
                 .ToListAsync();
+            var result = employees.Select(e => new EmployeeDto
+            {
+                EmployeeId   = e.employeeId,
+                UserId       = e.userId,
+                FirstName    = e.Users?.FirstName,
+                LastName     = e.Users?.LastName,
+                WorkEmail    = e.workEmail,
+                WorkPhone    = e.workPhone,
+                JobTitle     = e.jobTitle,
+                Department   = FormatDepartment(e.department),
+                HireDate     = e.hire_date,
+                WorkLocation = e.workLocation,
+                Status       = e.status.ToString(),
+                IsAdmin      = e.IsAdmin,
+            }).ToList();
+
+            return Ok(result);
 
             return Ok(employees);
         }
@@ -95,7 +97,7 @@ namespace AirlineAPI.Controllers
                 WorkEmail    = e.workEmail,
                 WorkPhone    = e.workPhone,
                 JobTitle     = e.jobTitle,
-                Department   = e.department,
+                Department   = FormatDepartment(e.department),
                 HireDate     = e.hire_date,
                 WorkLocation = e.workLocation,
                 Status       = e.status.ToString(),
@@ -135,6 +137,10 @@ namespace AirlineAPI.Controllers
             var parsedStatus = ParseStatus(request.Status);
             if (parsedStatus == null)
                 return BadRequest(new { message = "Invalid status value." });
+            
+            var parsedDepartment = ParseDepartment(request.Department);
+            if (parsedDepartment == null)
+                return BadRequest(new { message = "Invalid department value." });
 
             var employee = new Employee
             {
@@ -143,7 +149,7 @@ namespace AirlineAPI.Controllers
                 workEmail    = request.WorkEmail,
                 workPhone    = request.WorkPhone,
                 jobTitle     = request.JobTitle,
-                department   = request.Department,
+                department   = parsedDepartment.Value,
                 hire_date    = request.HireDate ?? DateTime.UtcNow,
                 workLocation = request.WorkLocation.ToUpper(),
                 status       = parsedStatus.Value,
@@ -190,13 +196,17 @@ namespace AirlineAPI.Controllers
             var parsedStatus = ParseStatus(request.Status);
             if (parsedStatus == null)
                 return BadRequest(new { message = "Invalid status value." });
+            
+            var parsedDepartment = ParseDepartment(request.Department);
+            if (parsedDepartment == null)
+                return BadRequest(new { message = "Invalid department value." });
 
             var previousStatus = employee.status;
 
             employee.workEmail    = request.WorkEmail;
             employee.workPhone    = request.WorkPhone;
             employee.jobTitle     = request.JobTitle;
-            employee.department   = request.Department;
+            employee.department   = parsedDepartment.Value;
             employee.hire_date    = request.HireDate ?? employee.hire_date;
             employee.workLocation = request.WorkLocation.ToUpper();
             employee.status       = parsedStatus.Value;
@@ -285,6 +295,24 @@ namespace AirlineAPI.Controllers
                 "OnLeave"    => WorkStatus.OnLeave,
                 "Terminated" => WorkStatus.Terminated,
                 _            => null,
+            };
+        
+        private static EmployeeDepartment? ParseDepartment(string? department) =>
+            department switch
+            {
+                "Cabin Crew" => EmployeeDepartment.CabinCrew,
+                "Flight Ops" => EmployeeDepartment.FlightOps,
+                "Administrative" => EmployeeDepartment.Administrative,
+                _ => null,
+            };
+        
+        private static string FormatDepartment(EmployeeDepartment department) =>
+            department switch
+            {
+                EmployeeDepartment.CabinCrew => "Cabin Crew",
+                EmployeeDepartment.FlightOps => "Flight Ops",
+                EmployeeDepartment.Administrative => "Administrative",
+                _ => department.ToString()
             };
     }
 }

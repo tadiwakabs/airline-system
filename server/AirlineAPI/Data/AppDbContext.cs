@@ -336,7 +336,11 @@ namespace AirlineAPI.Data
 
                 entity.Property(e => e.department)
                     .HasColumnName("department")
-                    .HasMaxLength(50);
+                    .HasConversion(
+                        v => ConvertDepartmentToDb(v),
+                        v => ConvertDepartmentFromDb(v)
+                    )
+                    .IsRequired();
 
                 entity.Property(e => e.hire_date)
                     .HasColumnName("hire_date")
@@ -478,6 +482,24 @@ namespace AirlineAPI.Data
                 "On Leave"   => WorkStatus.OnLeave,
                 "Terminated" => WorkStatus.Terminated,
                 _            => WorkStatus.Active,
+            };
+        
+        private static string ConvertDepartmentToDb(EmployeeDepartment department) =>
+            department switch
+            {
+                EmployeeDepartment.CabinCrew => "Cabin Crew",
+                EmployeeDepartment.FlightOps => "Flight Ops",
+                EmployeeDepartment.Administrative => "Administrative",
+                _ => "Administrative",
+            };
+
+        private static EmployeeDepartment ConvertDepartmentFromDb(string? department) =>
+            department switch
+            {
+                "Cabin Crew" => EmployeeDepartment.CabinCrew,
+                "Flight Ops" => EmployeeDepartment.FlightOps,
+                "Administrative" => EmployeeDepartment.Administrative,
+                _ => EmployeeDepartment.Administrative,
             };
     }
 }
