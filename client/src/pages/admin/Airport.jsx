@@ -6,6 +6,8 @@ import {
     deleteAirport,
     getStates,
 } from "../../services/airportService";
+import {useFormErrors} from "../../utils/useFormErrors";
+import FormError from "../../components/common/FormError";
 
 const emptyForm = {
     airportCode: "",
@@ -24,11 +26,12 @@ export default function Airports() {
     const [form, setForm] = useState(emptyForm);
     const [editingCode, setEditingCode] = useState(null); 
     const [showForm, setShowForm] = useState(false);
-    const [error, setError] = useState("");
+    const [localErrors,setlocalErrors]= useState([]);
+    const {errors: serverErrors, setErrors: setServerErrors, clearErrors}=useFormErrors();
     const [filterText, setFilterText] = useState("");
     const [sortField, setSortField] = useState("airportCode");
     const [sortDir, setSortDir] = useState("asc");
-    const [states, setStates] = useState([]); // New state for the dropdown
+    const [states, setStates] = useState([]);
   
     useEffect(() => {
         fetchAirports();
@@ -67,7 +70,7 @@ export default function Airports() {
             const res = await getAllAirports();
             setAirportList(res.data);
         } catch (err) {
-            setError("Failed to load airports.");
+            setServerErrors({response:{data:"Failed to load airports."}});
         }
     };
 
@@ -77,7 +80,7 @@ export default function Airports() {
             console.log("States received from API:", res.data); 
             setStates(res.data);
         } catch (err) {
-            console.error("Could not fetch states:", err.response || err);
+            setServerErrors({response:{data:"Failed to load state list"}})
         }
     };
 
@@ -120,24 +123,23 @@ export default function Airports() {
         });
         setEditingCode(airport.airportCode);
         setShowForm(true);
-        setError("");
+        clearErrors();
     };
 
     const handleDelete = async (code) => {
         if (!window.confirm(`Delete airport ${code}?`)) return;
         try {
+            clearErrors();
             await deleteAirport(code);
             setAirportList((prev) => prev.filter((a) => a.airportCode !== code));
         } catch (err) {
-            
-            const msg = err.response?.data?.message || "Failed to delete airport.";
-            setError(msg);
+           setServerErrors(err);
         }
     };
 
     const handleSubmit = async () => {
     try {
-        setError(""); 
+        clearErrors(); 
         if (editingCode) {
             await updateAirport(editingCode, form);
             setAirportList((prev) =>
@@ -153,21 +155,7 @@ export default function Airports() {
         setEditingCode(null);
 
     } catch (err) {
-        // 1. Check if the server actually responded (Validation error)
-        if (err.response) {
-            const serverMsg = err.response.data?.message || "Server rejected the request.";
-            setError(`Failed to save: ${serverMsg}`);
-        } 
-        // 2. Check if the request was made but no response (Server is DOWN)
-        else if (err.request) {
-            setError("Could not connect to the server. Please ensure the C# Backend is running.");
-        } 
-        // 3. Something else happened
-        else {
-            setError("An unexpected error occurred. Please try again.");
-        }
-        
-        console.error("Airport Submit Error:", err);
+        setServerErrors(err);        
     }
 };
 
@@ -175,7 +163,7 @@ export default function Airports() {
         setShowForm(false);
         setForm(emptyForm);
         setEditingCode(null);
-        setError("");
+        clearErrors();
     };
 
     const sortArrow = (field) => {
@@ -195,8 +183,7 @@ export default function Airports() {
                 </button>
             </div>
 
-            {error && <p className="text-red-500 mb-3 bg-red-50 p-2 rounded border border-red-200">{error}</p>}
-
+            <FormError errors={serverErrors}/>
             <input
                 type="text"
                 placeholder="Filter by code, name, city, or country..."
