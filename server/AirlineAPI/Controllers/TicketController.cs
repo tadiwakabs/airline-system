@@ -71,6 +71,17 @@ namespace AirlineAPI.Controllers
             return Ok(newTicket);
         }
 
+        [HttpPut("{ticketCode}/change-seat")]
+        public async Task<IActionResult> ChangeSeat(string ticketCode, [FromBody] string newSeat)
+        {
+            var ticket = await _context.Ticket.FirstOrDefaultAsync(t => t.ticketCode == ticketCode);
+            if (ticket == null) return NotFound("Ticket not found");
+
+            ticket.seatNumber = newSeat;
+            await _context.SaveChangesAsync();
+            return Ok();
+        }
+
         [HttpDelete("{ticketCode}")]
         public async Task<IActionResult> DeleteTicket(string ticketCode, [FromBody] Ticket deletedTicket)
         {
