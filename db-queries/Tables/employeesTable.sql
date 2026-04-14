@@ -4,7 +4,7 @@ CREATE TABLE `Employees` (
      `workEmail` varchar(100) NOT NULL,
      `workPhone` int DEFAULT NULL,
      `jobTitle` varchar(50) DEFAULT NULL,
-     `department` varchar(50) DEFAULT NULL,
+     `department` enum('CabinCrew','FlightOps','Administrative') NOT NULL,
      `hire_date` date DEFAULT NULL,
      `workLocation` char(3) NOT NULL,
      `status` enum('Active','On Leave','Terminated') NOT NULL,
