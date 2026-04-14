@@ -24,6 +24,7 @@ namespace AirlineAPI.Data
         public DbSet<Booking> Bookings { get; set; }
         public DbSet<Employee> Employees { get; set; }
         public DbSet<Ticket> Ticket { get; set; }
+        public DbSet<FlightCrewAssignment> FlightCrewAssignments { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -372,6 +373,35 @@ namespace AirlineAPI.Data
                     .WithMany()
                     .HasForeignKey(e => e.workLocation)
                     .OnDelete(DeleteBehavior.Restrict);
+            });
+            
+            modelBuilder.Entity<FlightCrewAssignment>(entity =>
+            {
+                entity.ToTable("FlightCrewAssignment");
+
+                entity.HasKey(x => new { x.flightNum, x.employeeId });
+
+                entity.Property(x => x.flightNum)
+                    .HasColumnName("flightNum")
+                    .IsRequired();
+
+                entity.Property(x => x.employeeId)
+                    .HasColumnName("employeeId")
+                    .HasMaxLength(50)
+                    .IsRequired();
+
+                entity.Property(x => x.assignedAt)
+                    .HasColumnName("assignedAt");
+
+                entity.HasOne(x => x.Flight)
+                    .WithMany()
+                    .HasForeignKey(x => x.flightNum)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.Employee)
+                    .WithMany()
+                    .HasForeignKey(x => x.employeeId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
             
         }

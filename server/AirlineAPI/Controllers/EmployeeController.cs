@@ -65,8 +65,7 @@ namespace AirlineAPI.Controllers
             }).ToList();
 
             return Ok(result);
-
-            return Ok(employees);
+            
         }
 
         // ── GET /api/employee/{employeeId} ────────────────────────────────────
@@ -285,6 +284,180 @@ namespace AirlineAPI.Controllers
                 userRole  = user.UserRole.ToString(),
             });
         }
+        
+        [HttpGet("flight/{flightNum}/crew")]
+        public async Task<IActionResult> GetCrewForFlight(int flightNum)
+        {
+            var requesterId = GetCurrentUserId();
+            if (string.IsNullOrEmpty(requesterId))
+                return Unauthorized(new { message = "Invalid token." });
+
+            if (!await IsAdminAsync(requesterId))
+                return Forbid();
+
+            var flightExists = await _context.Flights.AnyAsync(f => f.flightNum == flightNum);
+            if (!flightExists)
+                return NotFound(new { message = "Flight not found." });
+
+            var crew = await _context.FlightCrewAssignments
+                .Where(a => a.flightNum == flightNum)
+                .Include(a => a.Employee)
+                .ThenInclude(e => e!.Users)
+                .OrderBy(a => a.Employee!.Users!.LastName)
+                .ThenBy(a => a.Employee!.Users!.FirstName)
+                .Select(a => new CrewAssignmentDto
+                {
+                    FlightNum = a.flightNum,
+                    EmployeeId = a.employeeId,
+                    FirstName = a.Employee != null && a.Employee.Users != null ? a.Employee.Users.FirstName : null,
+                    LastName = a.Employee != null && a.Employee.Users != null ? a.Employee.Users.LastName : null,
+                    Department = a.Employee != null ? FormatDepartment(a.Employee.department) : null,
+                    JobTitle = a.Employee != null ? a.Employee.jobTitle : null,
+                    AssignedAt = a.assignedAt
+                })
+                .ToListAsync();
+
+            return Ok(crew);
+        }
+        
+        [HttpPost("flight/assign-crew")]
+        public async Task<IActionResult> AssignCrewToFlight([FromBody] AssignCrewDto request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var requesterId = GetCurrentUserId();
+            if (string.IsNullOrEmpty(requesterId))
+                return Unauthorized(new { message = "Invalid token." });
+
+            if (!await IsAdminAsync(requesterId))
+                return Forbid();
+
+            var flight = await _context.Flights.FirstOrDefaultAsync(f => f.flightNum == request.FlightNum);
+            if (flight == null)
+                return NotFound(new { message = "Flight not found." });
+
+            var employee = await _context.Employees
+                .Include(e => e.Users)
+                .FirstOrDefaultAsync(e => e.employeeId == request.EmployeeId);
+
+            if (employee == null)
+                return NotFound(new { message = "Employee not found." });
+
+            if (employee.status != WorkStatus.Active)
+                return BadRequest(new { message = "Only active employees can be assigned to flights." });
+
+            if (employee.department != EmployeeDepartment.CabinCrew)
+                return BadRequest(new { message = "Only Cabin Crew employees can be assigned to flights." });
+
+            var existing = await _context.FlightCrewAssignments
+                .AnyAsync(a => a.flightNum == request.FlightNum && a.employeeId == request.EmployeeId);
+
+            if (existing)
+                return BadRequest(new { message = "This crew member is already assigned to the flight." });
+
+            var assignment = new FlightCrewAssignment
+            {
+                flightNum = request.FlightNum,
+                employeeId = request.EmployeeId,
+                assignedAt = DateTime.UtcNow
+            };
+
+            _context.FlightCrewAssignments.Add(assignment);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Crew member assigned successfully." });
+        }
+        
+        [HttpDelete("flight/{flightNum}/crew/{employeeId}")]
+        public async Task<IActionResult> RemoveCrewFromFlight(int flightNum, string employeeId)
+        {
+            var requesterId = GetCurrentUserId();
+            if (string.IsNullOrEmpty(requesterId))
+                return Unauthorized(new { message = "Invalid token." });
+
+            if (!await IsAdminAsync(requesterId))
+                return Forbid();
+
+            var assignment = await _context.FlightCrewAssignments
+                .FirstOrDefaultAsync(a => a.flightNum == flightNum && a.employeeId == employeeId);
+
+            if (assignment == null)
+                return NotFound(new { message = "Crew assignment not found." });
+
+            _context.FlightCrewAssignments.Remove(assignment);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Crew member removed from flight." });
+        }
+        
+        [HttpGet("my-upcoming-flights")]
+        public async Task<IActionResult> GetMyUpcomingFlights()
+        {
+            var employee = await GetCurrentEmployeeAsync();
+
+            if (employee == null)
+                return Unauthorized(new { message = "Invalid token." });
+
+            if (!IsCabinCrew(employee) && !employee.IsAdmin)
+                return Forbid();
+
+            var now = DateTime.UtcNow;
+
+            var flights = await _context.FlightCrewAssignments
+                .Where(a => a.employeeId == employee.employeeId)
+                .Include(a => a.Flight)
+                .Where(a => a.Flight != null && a.Flight.departTime >= now)
+                .OrderBy(a => a.Flight!.departTime)
+                .Select(a => new CrewUpcomingFlightDto
+                {
+                    FlightNum = a.Flight!.flightNum,
+                    DepartTime = a.Flight.departTime,
+                    ArrivalTime = a.Flight.arrivalTime,
+                    AircraftUsed = a.Flight.aircraftUsed,
+                    Status = a.Flight.status,
+                    DepartingPort = a.Flight.departingPort,
+                    ArrivingPort = a.Flight.arrivingPort
+                })
+                .ToListAsync();
+
+            return Ok(flights);
+        }
+        
+        [HttpGet("my-flights/{flightNum}/passengers")]
+        public async Task<IActionResult> GetPassengersForMyFlight(int flightNum)
+        {
+            var employee = await GetCurrentEmployeeAsync();
+
+            if (employee == null)
+                return Unauthorized(new { message = "Invalid token." });
+
+            if (!IsCabinCrew(employee) && !employee.IsAdmin)
+                return Forbid();
+
+            var isAssigned = await _context.FlightCrewAssignments
+                .AnyAsync(a => a.flightNum == flightNum && a.employeeId == employee.employeeId);
+
+            if (!isAssigned && !employee.IsAdmin)
+                return Forbid();
+
+            var passengers = await _context.Ticket
+                .Include(t => t.Passenger)
+                .Where(t => t.flightCode == flightNum && t.status == TicketStatus.Booked)
+                .OrderBy(t => t.seatNumber)
+                .Select(t => new CrewFlightPassengerDto
+                {
+                    PassengerId = t.passengerId,
+                    FirstName = t.Passenger != null ? t.Passenger.FirstName : null,
+                    LastName = t.Passenger != null ? t.Passenger.LastName : null,
+                    SeatNumber = t.seatNumber,
+                    TicketClass = t.ticketClass != null ? t.ticketClass.ToString() : null,
+                    TicketStatus = t.status != null ? t.status.ToString() : null
+                })
+                .ToListAsync();
+
+            return Ok(passengers);
+        }
 
         // ── Helpers ───────────────────────────────────────────────────────────
 
@@ -314,5 +487,24 @@ namespace AirlineAPI.Controllers
                 EmployeeDepartment.Administrative => "Administrative",
                 _ => department.ToString()
             };
+        
+        private async Task<Employee?> GetCurrentEmployeeAsync()
+        {
+            var userId = GetCurrentUserId();
+            if (string.IsNullOrEmpty(userId))
+                return null;
+
+            return await _context.Employees
+                .Include(e => e.Users)
+                .FirstOrDefaultAsync(e => e.userId == userId);
+        }
+
+        private static bool IsCabinCrew(Employee employee) =>
+            employee.department == EmployeeDepartment.CabinCrew &&
+            employee.status == WorkStatus.Active;
+
+        private static bool IsFlightOps(Employee employee) =>
+            employee.department == EmployeeDepartment.FlightOps &&
+            employee.status == WorkStatus.Active;
     }
 }
