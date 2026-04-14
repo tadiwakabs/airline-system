@@ -13,13 +13,6 @@ function Admin() {
             description: "Manage existing flights"
         },
         { 
-            label: "My Profile", 
-            icon: "👤", 
-            path: "/profile", 
-            color: "bg-yellow-500",
-            description: "Manage your account settings"
-        },
-        { 
             label: "Manage Aircraft", 
             icon: "⚙️", 
             path: "/aircraft", 
@@ -27,25 +20,32 @@ function Admin() {
             description: "Maintain fleet and plane assignments"
         },
         { 
-            label: "Reports", 
-            icon: "📊", 
-            path: "/report", 
-            color: "bg-red-400",
-            description: "Analyze reports"
-        },
-        { 
-            label: "Manage Employees", 
-            icon: "👥", 
-            path: "/employees", 
-            color: "bg-green-400",
-            description: "Manage existing flights"
-        },
-        { 
             label: "Manage Airports", 
             icon: "🏢", 
             path: "/airports", 
             color: "bg-orange-400",
-            description: "Manage existing flights"
+            description: "Manage existing airports"
+        },
+        {
+            label: "Manage Employees",
+            icon: "👥",
+            path: "/employees",
+            color: "bg-green-400",
+            description: "Manage existing employees"
+        },
+        {
+            label: "Reports",
+            icon: "📊",
+            path: "/reports",
+            color: "bg-red-400",
+            description: "Analyze reports"
+        },
+        {
+            label: "My Profile",
+            icon: "👤",
+            path: "/profile",
+            color: "bg-yellow-500",
+            description: "Manage your account information"
         },
     ];
 

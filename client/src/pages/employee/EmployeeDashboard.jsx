@@ -17,14 +17,14 @@ function Employee() {
             icon: "👥", 
             path: "/passenger-list", 
             color: "bg-blue-400",
-            description: "View and edit traveler info" 
+            description: "View traveler info" 
         },
         { 
             label: "My Profile", 
             icon: "👤", 
             path: "/profile", 
             color: "bg-yellow-400",
-            description: "Manage your account settings" 
+            description: "Manage your account information" 
         }
     ];
 

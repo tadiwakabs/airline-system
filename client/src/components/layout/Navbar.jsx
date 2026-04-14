@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import Button from "../common/Button";
 import { useAuth } from "../../contexts/AuthContext";
-import { LogOut, ChevronDown, User, Ticket } from 'lucide-react';
+import { LogOut, ChevronDown, User, Ticket, LayoutDashboard } from 'lucide-react';
 
 const navLinkBase = "text-sm font-medium text-gray-700 transition-colors hover:text-blue-600";
 const navLinkActive = "text-blue-600";
@@ -269,7 +269,7 @@ export default function Navbar() {
                                             onClick={() => setIsProfileMenuOpen(false)}
                                             className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
                                         >
-                                            <User size={16} />
+                                            <User size={16} className="text-amber-600" />
                                             Profile
                                         </Link>
 
@@ -277,10 +277,10 @@ export default function Navbar() {
                                             <Link
                                                 to="/employee/dashboard"
                                                 onClick={() => setIsProfileMenuOpen(false)}
-                                                className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-green-600 font-semibold hover:bg-green-50"
+                                                className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm hover:bg-green-50"
                                             >
-                                                <div className="h-2 w-2 rounded-full bg-green-600" />
-                                                Employee Panel
+                                                <LayoutDashboard size={16} className="text-green-600" />
+                                                Employee Dashboard
                                             </Link>
                                         )}
 
@@ -288,10 +288,10 @@ export default function Navbar() {
                                             <Link
                                                 to="/admin/dashboard"
                                                 onClick={() => setIsProfileMenuOpen(false)}
-                                                className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-blue-600 font-semibold hover:bg-blue-50"
+                                                className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm hover:bg-blue-50"
                                             >
-                                                <div className="h-2 w-2 rounded-full bg-blue-600" />
-                                                Admin Panel
+                                                <LayoutDashboard size={16} className="text-blue-600" />
+                                                Admin Dashboard
                                             </Link>
                                         )}
 
@@ -300,7 +300,7 @@ export default function Navbar() {
                                             onClick={() => setIsProfileMenuOpen(false)}
                                             className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
                                         >
-                                            <Ticket size={16} />
+                                            <Ticket size={16} className="text-gray-600" />
                                             Bookings
                                         </Link>
                                     </div>
