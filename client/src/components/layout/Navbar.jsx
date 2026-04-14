@@ -33,19 +33,19 @@ function searchPages(query) {
 }
 
 // FIX 1: Define SearchBox OUTSIDE the Navbar component
-const SearchBox = ({ 
-    className, 
-    searchValue, 
-    setSearchValue, 
-    searchResults, 
-    showDropdown, 
-    setShowDropdown, 
-    activeIndex, 
-    handleKeyDown, 
-    handleSearch, 
-    goToPage, 
-    searchRef 
-}) => (
+const SearchBox = ({
+                       className,
+                       searchValue,
+                       setSearchValue,
+                       searchResults,
+                       showDropdown,
+                       setShowDropdown,
+                       activeIndex,
+                       handleKeyDown,
+                       handleSearch,
+                       goToPage,
+                       searchRef
+                   }) => (
     <div ref={searchRef} className={`relative ${className}`}>
         <form onSubmit={handleSearch} className="flex items-center gap-2">
             <div className="relative flex-1">
@@ -66,7 +66,7 @@ const SearchBox = ({
                                 type="button"
                                 // FIX 2: Use onMouseDown instead of onClick to prevent focus-loss issues
                                 onMouseDown={(e) => {
-                                    e.preventDefault(); 
+                                    e.preventDefault();
                                     goToPage(result.path);
                                 }}
                                 className={`w-full text-left px-4 py-3 text-sm transition-colors ${
@@ -97,7 +97,7 @@ export default function Navbar() {
     const { isAuthenticated, user, logout } = useAuth();
     const navigate = useNavigate();
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-    
+
     const profileMenuRef = useRef(null);
     const searchRef = useRef(null);
 
@@ -122,10 +122,9 @@ export default function Navbar() {
     }, []);
 
     const role = (user?.userRole || user?.UserRole || "").trim().toLowerCase();
-    const email = (user?.email || user?.Email || "").trim().toLowerCase();
 
-    const isAdmin = role === "admin" || email.endsWith("@admin.3380airlines.com");
-    const isEmployee = isAdmin || role === "employee" || email.endsWith("@3380airlines.com");
+    const isAdmin = role === "administrator";
+    const isEmployee = isAdmin || role === "employee";
 
     const handleSearch = (e) => {
         e.preventDefault();
@@ -167,8 +166,8 @@ export default function Navbar() {
 
     // Props bundle to keep the return clean
     const searchProps = {
-        searchValue, setSearchValue, searchResults, 
-        showDropdown, setShowDropdown, activeIndex, 
+        searchValue, setSearchValue, searchResults,
+        showDropdown, setShowDropdown, activeIndex,
         handleKeyDown, handleSearch, goToPage, searchRef
     };
 
@@ -234,8 +233,8 @@ export default function Navbar() {
                         </div>
                     )}
 
-                    
-                    
+
+
                     {!isAuthenticated ? (
                         <>
                             <NavLink to="/login">

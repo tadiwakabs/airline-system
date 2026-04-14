@@ -114,13 +114,9 @@ export default function Profile() {
     const [error, setError] = useState("");
 
     const role = (profile?.userRole || profile?.UserRole || "").trim().toLowerCase();
-    const email = (profile?.email || profile?.Email || "").trim().toLowerCase();
 
-    const isAdminEmail = email.endsWith("@admin.3380airlines.com");
-    const isEmployeeEmail = email.endsWith("@3380airlines.com") && !isAdminEmail;
-
-    const isAdmin = role === "admin" || isAdminEmail;
-    const isEmployee = role === "employee" || isEmployeeEmail;
+    const isAdmin = role === "administrator";
+    const isEmployee = isAdmin || role === "employee";
 
     const countryOptions = countries.map((c) => ({
         label: c.name,
@@ -141,7 +137,7 @@ export default function Profile() {
     useEffect(() => {
         if (loading || !profile) return;
     }, [loading, profile, isEmployee, isAdmin, activeTab]);
-    
+
     const loadLookups = async () => {
         try {
             const [countriesRes, statesRes] = await Promise.all([
@@ -411,7 +407,7 @@ export default function Profile() {
             setError(err?.response?.data?.message || "Failed to delete passenger.");
         }
     };
-    
+
 
     const handlePasswordSubmit = async (e) => {
         e.preventDefault();
@@ -497,7 +493,7 @@ export default function Profile() {
                         >
                             Saved Passengers
                         </button>
-                        
+
                         <button
                             type="button"
                             onClick={() => setActiveTab("password")}
@@ -682,9 +678,9 @@ export default function Profile() {
                                         onChange={handlePassengerChange}
                                     />
                                 </div>
-                                
+
                                 <Separator className="my-6" />
-                                
+
                                 <h1 className="text-lg font-semibold">Domestic Details</h1>
                                 <div className="grid gap-4 md:grid-cols-2">
                                     <TextInput
@@ -702,9 +698,9 @@ export default function Profile() {
                                         options={stateOptions}
                                     />
                                 </div>
-                                
+
                                 <Separator className="my-6" />
-                                
+
                                 <h1 className="text-lg font-semibold">International Details</h1>
                                 <div className="grid gap-4 md:grid-cols-2">
                                     <TextInput
@@ -743,7 +739,7 @@ export default function Profile() {
                                         options={countryOptions}
                                     />
                                 </div>
-                                
+
 
                                 {passengerMessage && (
                                     <p className="text-sm text-green-600">{passengerMessage}</p>
