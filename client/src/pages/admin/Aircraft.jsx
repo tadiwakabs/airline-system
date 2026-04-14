@@ -5,6 +5,8 @@ import {
     updateAircraft,
     deleteAircraft,
 } from "../../services/aircraftService";
+import { useFormErrors } from "../../utils/useFormErrors";
+import FormError from "../../components/common/FormError";
 
 const emptyForm = {
     tailnumber: "",
@@ -61,7 +63,7 @@ function parseCsv(text) {
 
         const seats = Number(raw.numSeats);
         if (!raw.numSeats || isNaN(seats))            errors.push("numSeats must be a number");
-        else if (seats < 90 || seats > 140)          errors.push("numSeats must be 90–140");
+        else if (seats < 90 || seats > 140)          errors.push("numSeats must be 90-140");
 
         const range = Number(raw.flightRange);
         if (!raw.flightRange || isNaN(range))         errors.push("flightRange must be a number");
@@ -103,10 +105,10 @@ export default function Aircraft() {
     const [form,         setForm]         = useState(emptyForm);
     const [editingTail,  setEditingTail]  = useState(null);
     const [showForm,     setShowForm]     = useState(false);
-    const [error,        setError]        = useState("");
     const [filterText,   setFilterText]   = useState("");
     const [sortField,    setSortField]    = useState("tailnumber");
     const [sortDir,      setSortDir]      = useState("asc");
+    const {errors: serverErrors, setErrors: setServerErrors, clearErrors}=useFormErrors();
 
     // ── Import modal state ────────────────────────────────────────────────────
     const [importOpen,    setImportOpen]    = useState(false);
@@ -145,7 +147,7 @@ export default function Aircraft() {
             const res = await getAllAircraft();
             setAircraftList(res.data);
         } catch {
-            setError("Failed to load aircraft.");
+            setServerErrors({response:{data:"Failed to load Aircraft."}});
         }
     };
 
@@ -166,7 +168,7 @@ export default function Aircraft() {
         });
         setEditingTail(aircraft.tailnumber);
         setShowForm(true);
-        setError("");
+        clearErrors();
     };
 
     const handleDelete = async (tailnumber) => {
@@ -174,13 +176,14 @@ export default function Aircraft() {
         try {
             await deleteAircraft(tailnumber);
             setAircraftList((prev) => prev.filter((a) => a.tailnumber !== tailnumber));
-        } catch {
-            setError("Failed to delete aircraft.");
+        } catch (err){
+            setServerErrors(err);
         }
     };
 
     const handleSubmit = async () => {
         try {
+            clearErrors();
             if (editingTail) {
                 await updateAircraft(editingTail, form);
                 setAircraftList((prev) =>
@@ -193,9 +196,9 @@ export default function Aircraft() {
             setShowForm(false);
             setForm(emptyForm);
             setEditingTail(null);
-            setError("");
-        } catch {
-            setError("Failed to save aircraft.");
+            clearErrors("");
+        } catch (err){
+            setServerErrors(err);
         }
     };
 
@@ -203,7 +206,7 @@ export default function Aircraft() {
         setShowForm(false);
         setForm(emptyForm);
         setEditingTail(null);
-        setError("");
+        clearErrors();
     };
 
     const sortArrow = (field) => {
@@ -283,7 +286,7 @@ export default function Aircraft() {
                 </div>
             </div>
 
-            {error && <p className="text-red-500 mb-3">{error}</p>}
+
 
             {/* Filter */}
             <input
@@ -298,6 +301,7 @@ export default function Aircraft() {
             {showForm && (
                 <div className="border rounded p-4 mb-6 bg-gray-50">
                     <h2 className="font-semibold mb-3">{editingTail ? "Edit Aircraft" : "Add Aircraft"}</h2>
+                    <FormError errors={serverErrors}/>
                     <div className="grid grid-cols-2 gap-3">
                         <input
                             placeholder="Tail Number"
@@ -313,7 +317,7 @@ export default function Aircraft() {
                             className="border px-3 py-2 rounded"
                         />
                         <input
-                            placeholder="Num Seats (200–300)"
+                            placeholder="Num Seats (90-140)"
                             type="number"
                             value={form.numSeats}
                             onChange={(e) => setForm({ ...form, numSeats: parseInt(e.target.value) })}

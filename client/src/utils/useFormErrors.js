@@ -1,23 +1,29 @@
 import { useState } from 'react';
 
 export const useFormErrors = () => {
-    const [errors, setErrors] = useState([]);
+    const [errors, setErrors] = useState({});
 
-    const handleFieldError = (err) => {
-        const serverResponse = err.response?.data;
-        
-        if (typeof serverResponse === 'string') {
-            // Handles: return BadRequest("Message")
-            setErrors([serverResponse]);
-        } else if (serverResponse?.errors) {
-            // Handles: Model Validation 
-            setErrors(Object.values(serverResponse.errors).flat());
-        } else {
-            setErrors(["An unexpected error occurred. Please check your connection."]);
+    const handleSetErrors = (err) => {
+        const errorData = err.response?.data;
+        const errorString = JSON.stringify(errorData || "") || "";
+
+        if (
+        errorString.includes("DbUpdateException") || 
+        errorString.includes("SqlException") || 
+        errorString.includes("CONSTRAINT")
+        ) {
+            // OVERRIDE: Show your custom unified message instead of the chunk
+            setErrors({ database: "Database error. Check FK and constraint feild" })
+        } 
+        else if (typeof errorData === "object") {
+            setErrors(errorData);
+        } 
+        else {
+            setErrors({ general: "An unexpected error occurred." });
         }
     };
 
-    const clearErrors = () => setErrors([]);
+    const clearErrors = () => setErrors({});
 
-    return { errors, setErrors: handleFieldError, clearErrors, hasErrors: errors.length > 0 };
+    return { errors, setErrors: handleSetErrors, clearErrors, hasErrors: errors.length > 0 };
 };
