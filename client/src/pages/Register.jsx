@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext.jsx";
 import { useFormErrors } from "../utils/useFormErrors";
 import { registerUser } from "../services/authService";
 
-// Your components
 import Button from "../components/common/Button";
 import Card from "../components/common/Card";
 import TextInput from "../components/common/TextInput";
@@ -14,7 +14,9 @@ import FormError from "../components/common/FormError";
 
 export default function Register() {
     const navigate = useNavigate();
+    const { loginWithToken } = useAuth();
     const {errors,setErrors,clearErrors}= useFormErrors();
+    
     const [formData, setFormData] = useState({
         username: "",
         email: "",
@@ -60,13 +62,9 @@ export default function Register() {
             };
 
             const data = await registerUser(payload);
-
-            // store token
-            if (data.token) {
-                localStorage.setItem("token", data.token);
-            }
-
+            loginWithToken(data);
             navigate("/"); // redirect after success
+            
         } catch (err) {
             setErrors(err);
         } finally {

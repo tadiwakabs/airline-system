@@ -59,7 +59,7 @@ const Field = ({ label, field, placeholder, type = "text", value, onChange, erro
     </div>
 );
 
-export default function Payment() {
+export default function BookingPayment() {
     const navigate = useNavigate();
     const location = useLocation();
     const { user } = useAuth();
@@ -218,11 +218,34 @@ export default function Payment() {
             const res = await createBooking(bookingPayload);
             const confirmation = res.data;
 
+            const cabinClassLabel =
+                searchParams?.cabinClass?.toLowerCase() === "first"
+                    ? "First Class"
+                    : searchParams?.cabinClass?.toLowerCase() === "business"
+                        ? "Business Class"
+                        : "Economy Class";
+
+            const ticketsWithDetails = (confirmation.tickets ?? []).map((ticket) => {
+                const matchedPassenger = passengers.find(
+                    (p) => p.passengerId === ticket.passengerId
+                );
+
+                return {
+                    ...ticket,
+                    passengerName: matchedPassenger
+                        ? `${matchedPassenger.firstName} ${matchedPassenger.lastName}`
+                        : "Unknown Passenger",
+                    seatDisplay: ticket.seatNumber
+                        ? `${ticket.seatNumber} (${cabinClassLabel})`
+                        : "—",
+                };
+            });
+
             navigate("/booking/confirmation", {
                 state: {
                     transactionId: confirmation.transactionId,
-                    bookingId:     confirmation.bookingId,
-                    tickets:       confirmation.tickets,   // full array now
+                    bookingId: confirmation.bookingId,
+                    tickets: ticketsWithDetails,
                     passengerName,
                     flightDetails,
                     totalPrice,

@@ -16,6 +16,12 @@ namespace AirlineAPI.Models
         [ForeignKey(nameof(UserId))]
         public User? User { get; set; }
 
+        [StringLength(50)]
+        public string? OwnerUserId { get; set; }
+
+        [ForeignKey(nameof(OwnerUserId))]
+        public User? OwnerUser { get; set; }
+
         public UserTitle? Title { get; set; }
 
         [Required]

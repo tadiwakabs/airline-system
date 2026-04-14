@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import {getCountries, getPassengerByUserId, getStates, updatePassenger, createPassenger} from "../../services/passengerService";
-import { useFormErrors } from "../../utils/useFormErrors.js";
-import FormError from "../../components/common/FormError.jsx";
 import Card from "../../components/common/Card.jsx";
 import Button from "../../components/common/Button.jsx";
 import Dropdown from "../../components/common/Dropdown.jsx";
+import {
+    getCountries,
+    getPassengerByUserId,
+    getStates,
+    updatePassenger,
+    createPassenger,
+    getSavedPassengers,
+} from "../../services/passengerService";
 
 function capitalize(value) {
     if (!value) return "";
@@ -35,6 +40,7 @@ function createEmptyPassenger(type) {
         dlNumber: "",
         dlState: "",
         isAccountPassenger: false,
+        selectedSavedPassengerId: "",
     };
 }
 
@@ -193,6 +199,7 @@ export default function BookingPassengers() {
     const [countries, setCountries] = useState([]);
     const [states, setStates] = useState([]);
     const {errors:serverErrors,setErrors:setServerErrors,clearErrors}= useFormErrors();
+    const [savedPassengers, setSavedPassengers] = useState([]);
 
     const countryOptions = countries.map(c => ({
         label: c.name,
@@ -230,6 +237,19 @@ export default function BookingPassengers() {
         };
 
         fetchLookups();
+    }, []);
+
+    useEffect(() => {
+        const loadSavedPassengers = async () => {
+            try {
+                const res = await getSavedPassengers();
+                setSavedPassengers(res.data || []);
+            } catch (err) {
+                console.error("Error loading saved passengers:", err);
+            }
+        };
+
+        loadSavedPassengers();
     }, []);
 
     useEffect(() => {
@@ -283,6 +303,7 @@ export default function BookingPassengers() {
                             dlNumber: savedProfile?.dlNumber || savedProfile?.DLNumber || "",
                             dlState: savedProfile?.dlState || savedProfile?.DLState || "",
                             isAccountPassenger: true,
+                            selectedSavedPassengerId: "",
                         };
                     }
 
@@ -303,6 +324,42 @@ export default function BookingPassengers() {
         setPassengerForms((prev) =>
             prev.map((passenger, i) =>
                 i === index ? { ...passenger, [field]: value } : passenger
+            )
+        );
+    };
+
+    const handleApplySavedPassenger = (index, savedPassengerId) => {
+        const selected = savedPassengers.find((p) => p.passengerId === savedPassengerId);
+        if (!selected) return;
+
+        setPassengerForms((prev) =>
+            prev.map((passenger, i) =>
+                i === index
+                    ? {
+                        ...passenger,
+                        title: selected.title || "",
+                        firstName: selected.firstName || "",
+                        lastName: selected.lastName || "",
+                        dateOfBirth: selected.dateOfBirth
+                            ? String(selected.dateOfBirth).slice(0, 10)
+                            : "",
+                        gender: selected.gender || "",
+                        email: selected.email || "",
+                        phoneNumber: selected.phoneNumber || "",
+                        passportNumber: selected.passportNumber || "",
+                        passportCountryCode: selected.passportCountryCode || "",
+                        passportExpirationDate: selected.passportExpirationDate
+                            ? String(selected.passportExpirationDate).slice(0, 10)
+                            : "",
+                        placeOfBirth: selected.placeOfBirth || "",
+                        nationality: selected.nationality || "",
+                        dlNumber: selected.dlNumber || "",
+                        dlState: selected.dlState || "",
+                        passengerType: selected.passengerType || passenger.passengerType,
+                        isAccountPassenger: false,
+                        selectedSavedPassengerId: selected.passengerId,
+                    }
+                    : passenger
             )
         );
     };
@@ -417,6 +474,28 @@ export default function BookingPassengers() {
                                     )}
                                 </div>
 
+                                {!passenger.isAccountPassenger && (
+                                    <div>
+                                        <label className="block text-sm text-gray-600 mb-1">
+                                            Use Saved Passenger
+                                        </label>
+                                        <select
+                                            className="w-full border rounded-lg px-3 py-2"
+                                            value={passenger.selectedSavedPassengerId || ""}
+                                            onChange={(e) => handleApplySavedPassenger(index, e.target.value)}
+                                        >
+                                            <option value="">Select saved passenger</option>
+                                            {savedPassengers
+                                                .filter((p) => p.passengerType === passenger.passengerType)
+                                                .map((p) => (
+                                                    <option key={p.passengerId} value={p.passengerId}>
+                                                        {p.firstName} {p.lastName}
+                                                    </option>
+                                                ))}
+                                        </select>
+                                    </div>
+                                )}
+
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm text-gray-600 mb-1">First Name</label>
@@ -440,27 +519,31 @@ export default function BookingPassengers() {
                                         />
                                     </div>
 
-                                    <div>
-                                        <label className="block text-sm text-gray-600 mb-1">Email</label>
-                                        <input
-                                            className="w-full border rounded-lg px-3 py-2"
-                                            value={passenger.email}
-                                            onChange={(e) =>
-                                                handlePassengerChange(index, "email", e.target.value)
-                                            }
-                                        />
-                                    </div>
+                                    {passenger.passengerType === "Adult" && (
+                                        <>
+                                            <div>
+                                                <label className="block text-sm text-gray-600 mb-1">Email</label>
+                                                <input
+                                                    className="w-full border rounded-lg px-3 py-2"
+                                                    value={passenger.email}
+                                                    onChange={(e) =>
+                                                        handlePassengerChange(index, "email", e.target.value)
+                                                    }
+                                                />
+                                            </div>
 
-                                    <div>
-                                        <label className="block text-sm text-gray-600 mb-1">Phone Number</label>
-                                        <input
-                                            className="w-full border rounded-lg px-3 py-2"
-                                            value={passenger.phoneNumber}
-                                            onChange={(e) =>
-                                                handlePassengerChange(index, "phoneNumber", e.target.value)
-                                            }
-                                        />
-                                    </div>
+                                            <div>
+                                                <label className="block text-sm text-gray-600 mb-1">Phone Number</label>
+                                                <input
+                                                    className="w-full border rounded-lg px-3 py-2"
+                                                    value={passenger.phoneNumber}
+                                                    onChange={(e) =>
+                                                        handlePassengerChange(index, "phoneNumber", e.target.value)
+                                                    }
+                                                />
+                                            </div>
+                                        </>
+                                    )}
 
                                     <div>
                                         <label className="block text-sm text-gray-600 mb-1">Date of Birth</label>

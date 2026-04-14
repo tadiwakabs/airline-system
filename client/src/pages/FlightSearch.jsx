@@ -107,7 +107,7 @@ export default function FlightSearch() {
     };
 
     const [searchParams, setSearchParams]         = useState(state || fallback);
-    const [showSearchForm, setShowSearchForm]      = useState(true);
+    const [showSearchForm, setShowSearchForm] = useState(!state);
     // "outbound" | "return"
     const [selectionStage, setSelectionStage]      = useState("outbound");
     const [selectedOutbound, setSelectedOutbound]  = useState(null);
