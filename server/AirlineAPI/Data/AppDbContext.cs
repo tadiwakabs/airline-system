@@ -22,7 +22,7 @@ namespace AirlineAPI.Data
         public DbSet<Seating> Seating { get; set; }
         public DbSet<Payment> Payments { get; set; }
         public DbSet<Booking> Bookings { get; set; }
-        
+        public DbSet<Employee> Employees { get; set; }
         public DbSet<Ticket> Ticket { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -178,14 +178,100 @@ namespace AirlineAPI.Data
             
             modelBuilder.Entity<Passenger>(entity =>
             {
+                entity.ToTable("Passenger");
+
+                entity.HasKey(p => p.PassengerId);
+
+                entity.Property(p => p.PassengerId)
+                    .HasColumnName("passengerId")
+                    .HasMaxLength(50);
+
+                entity.Property(p => p.UserId)
+                    .HasColumnName("userId")
+                    .HasMaxLength(50);
+
                 entity.Property(p => p.Title)
-                    .HasConversion<string>();
+                    .HasColumnName("title")
+                    .HasConversion(
+                        v => ConvertTitleToDb(v),
+                        v => ConvertTitleFromDb(v)
+                    );
+
+                entity.Property(p => p.FirstName)
+                    .HasColumnName("firstName")
+                    .HasMaxLength(30)
+                    .IsRequired();
+
+                entity.Property(p => p.LastName)
+                    .HasColumnName("lastName")
+                    .HasMaxLength(30)
+                    .IsRequired();
+
+                entity.Property(p => p.DateOfBirth)
+                    .HasColumnName("dateOfBirth")
+                    .HasColumnType("date")
+                    .IsRequired();
 
                 entity.Property(p => p.Gender)
-                    .HasConversion<string>();
+                    .HasColumnName("gender")
+                    .HasConversion(
+                        v => ConvertGenderToDb(v),
+                        v => ConvertGenderFromDb(v)
+                    );
+
+                entity.Property(p => p.PhoneNumber)
+                    .HasColumnName("phoneNumber")
+                    .HasMaxLength(20);
+
+                entity.Property(p => p.Email)
+                    .HasColumnName("email")
+                    .HasMaxLength(100);
+
+                entity.Property(p => p.DLNumber)
+                    .HasColumnName("DLNumber");
+
+                entity.Property(p => p.DLState)
+                    .HasColumnName("DLState")
+                    .HasMaxLength(2);
+
+                entity.Property(p => p.PassportNumber)
+                    .HasColumnName("passportNumber")
+                    .HasMaxLength(20);
+
+                entity.Property(p => p.PassportCountryCode)
+                    .HasColumnName("passportCountryCode")
+                    .HasMaxLength(3);
+
+                entity.Property(p => p.PassportExpirationDate)
+                    .HasColumnName("passportExpirationDate")
+                    .HasColumnType("date");
+
+                entity.Property(p => p.PlaceOfBirth)
+                    .HasColumnName("placeOfBirth")
+                    .HasMaxLength(30);
+
+                entity.Property(p => p.Nationality)
+                    .HasColumnName("nationality")
+                    .HasMaxLength(3);
 
                 entity.Property(p => p.PassengerType)
-                    .HasConversion<string>();
+                    .HasColumnName("passengerType")
+                    .HasConversion<string>()
+                    .IsRequired();
+                
+                entity.Property(p => p.OwnerUserId)
+                    .HasColumnName("ownerUserId")
+                    .HasMaxLength(50);
+
+                entity.HasOne(p => p.User)
+                    .WithMany()
+                    .HasForeignKey(p => p.UserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(p => p.OwnerUser)
+                    .WithMany()
+                    .HasForeignKey(p => p.OwnerUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
             
             modelBuilder.Entity<Seating>()
@@ -217,6 +303,72 @@ namespace AirlineAPI.Data
             
             modelBuilder.Entity<Airport>()
                         .HasKey(a => a.airportCode);
+
+            modelBuilder.Entity<Booking>()
+                        .Property(b => b.bookingStatus)
+                        .HasConversion<string>();
+            
+            modelBuilder.Entity<Employee>(entity =>
+            {
+                entity.ToTable("Employees");
+
+                entity.HasKey(e => e.employeeId);
+
+                entity.Property(e => e.employeeId)
+                    .HasColumnName("employeeId")
+                    .HasMaxLength(50);
+
+                entity.Property(e => e.userId)
+                    .HasColumnName("userId")
+                    .HasMaxLength(50);
+
+                entity.Property(e => e.workEmail)
+                    .HasColumnName("workEmail")
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                entity.Property(e => e.workPhone)
+                    .HasColumnName("workPhone");
+
+                entity.Property(e => e.jobTitle)
+                    .HasColumnName("jobTitle")
+                    .HasMaxLength(50);
+
+                entity.Property(e => e.department)
+                    .HasColumnName("department")
+                    .HasMaxLength(50);
+
+                entity.Property(e => e.hire_date)
+                    .HasColumnName("hire_date")
+                    .HasColumnType("date");
+
+                entity.Property(e => e.workLocation)
+                    .HasColumnName("workLocation")
+                    .HasMaxLength(3)
+                    .IsRequired();
+
+                entity.Property(e => e.status)
+                    .HasColumnName("status")
+                    .HasConversion(
+                        v => ConvertWorkStatusToDb(v),
+                        v => ConvertWorkStatusFromDb(v)
+                    )
+                    .IsRequired();
+
+                entity.Property(e => e.IsAdmin)
+                    .HasColumnName("isAdmin")
+                    .IsRequired();
+
+                entity.HasOne(e => e.Users)
+                    .WithMany()
+                    .HasForeignKey(e => e.userId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.Aiport)
+                    .WithMany()
+                    .HasForeignKey(e => e.workLocation)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
             
         }
 
@@ -309,5 +461,23 @@ namespace AirlineAPI.Data
                 default: return null;
             }
         }
+        
+        private static string ConvertWorkStatusToDb(WorkStatus status) =>
+            status switch
+            {
+                WorkStatus.Active     => "Active",
+                WorkStatus.OnLeave    => "On Leave",
+                WorkStatus.Terminated => "Terminated",
+                _                     => "Active",
+            };
+
+        private static WorkStatus ConvertWorkStatusFromDb(string? status) =>
+            status switch
+            {
+                "Active"     => WorkStatus.Active,
+                "On Leave"   => WorkStatus.OnLeave,
+                "Terminated" => WorkStatus.Terminated,
+                _            => WorkStatus.Active,
+            };
     }
 }

@@ -73,20 +73,50 @@ namespace AirlineAPI.Controllers
             if (user == null)
                 return NotFound(new { message = "User not found." });
 
+            var passenger = await _context.Passenger
+                .FirstOrDefaultAsync(p => p.UserId == userId);
+
             var emailExists = await _context.Users
                 .AnyAsync(u => u.Email == request.Email && u.UserId != userId);
 
             if (emailExists)
                 return BadRequest(new { message = "Email is already in use." });
 
+            var parsedTitle = ParseTitle(request.Title);
+            var parsedGender = ParseGender(request.Gender);
+
             user.Email = request.Email;
-            user.Title = ParseTitle(request.Title);
-            user.Gender = ParseGender(request.Gender);
+            user.Title = parsedTitle;
+            user.Gender = parsedGender;
+
+            if (!string.IsNullOrWhiteSpace(request.FirstName))
+                user.FirstName = request.FirstName.Trim();
+
+            if (!string.IsNullOrWhiteSpace(request.LastName))
+                user.LastName = request.LastName.Trim();
+
+            if (request.DateOfBirth.HasValue)
+                user.DateOfBirth = request.DateOfBirth.Value;
+
             user.UpdatedAt = DateTime.UtcNow;
+
+            if (passenger != null)
+            {
+                passenger.Email = user.Email;
+                passenger.Title = user.Title;
+                passenger.Gender = user.Gender;
+                passenger.FirstName = user.FirstName;
+                passenger.LastName = user.LastName;
+                passenger.DateOfBirth = user.DateOfBirth;
+            }
 
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Profile updated successfully." });
+            return Ok(new
+            {
+                message = "Profile updated successfully.",
+                passengerSynced = passenger != null
+            });
         }
 
         [HttpPut("change-password")]

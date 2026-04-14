@@ -1,21 +1,125 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useNavigate } from "react-router-dom";
 import Button from "../common/Button";
 import { useAuth } from "../../contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
-import { LogOut, ChevronDown, User, Ticket } from 'lucide-react'
+import { LogOut, ChevronDown, User, Ticket } from 'lucide-react';
 
-const navLinkBase =
-    "text-sm font-medium text-gray-700 transition-colors hover:text-blue-600";
-
+const navLinkBase = "text-sm font-medium text-gray-700 transition-colors hover:text-blue-600";
 const navLinkActive = "text-blue-600";
+
+const SEARCH_PAGES = [
+    { label: "Home", path: "/", keywords: ["home", "main", "start"] },
+    { label: "Book a Flight", path: "/", keywords: ["book", "flight", "search", "ticket"] },
+    { label: "Flight Search", path: "/flight-search", keywords: ["flight search", "find flight", "search flights"] },
+    { label: "Manage Booking", path: "/bookings", keywords: ["manage", "booking", "my booking", "manage booking"] },
+    { label: "My Profile", path: "/profile", keywords: ["profile", "account", "my account", "settings"] },
+    { label: "Login", path: "/login", keywords: ["login", "sign in", "signin"] },
+    { label: "Register", path: "/register", keywords: ["register", "sign up", "signup", "create account"] },
+    { label: "Help", path: "/help", keywords: ["help", "support", "contact", "faq"] },
+    { label: "Aircraft", path: "/aircraft", keywords: ["aircraft", "planes", "fleet"] },
+    { label: "Flights", path: "/flights", keywords: ["flights", "schedule", "manage flights"] },
+    { label: "Reports", path: "/reports", keywords: ["reports", "analytics", "demand", "revenue"] },
+    { label: "Payment", path: "/booking/payment", keywords: ["payment", "pay", "checkout"] },
+];
+
+function searchPages(query) {
+    if (!query.trim()) return [];
+    const lower = query.toLowerCase();
+    return SEARCH_PAGES.filter(
+        (page) =>
+            page.label.toLowerCase().includes(lower) ||
+            page.keywords.some((k) => k.includes(lower))
+    );
+}
+
+// FIX 1: Define SearchBox OUTSIDE the Navbar component
+const SearchBox = ({ 
+    className, 
+    searchValue, 
+    setSearchValue, 
+    searchResults, 
+    showDropdown, 
+    setShowDropdown, 
+    activeIndex, 
+    handleKeyDown, 
+    handleSearch, 
+    goToPage, 
+    searchRef 
+}) => (
+    <div ref={searchRef} className={`relative ${className}`}>
+        <form onSubmit={handleSearch} className="flex items-center gap-2">
+            <div className="relative flex-1">
+                <input
+                    type="text"
+                    value={searchValue}
+                    onChange={(e) => setSearchValue(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
+                    placeholder="Search pages..."
+                    className="w-full rounded-xl border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                {showDropdown && (
+                    <div className="absolute top-full left-0 mt-1 w-full rounded-xl border border-gray-200 bg-white shadow-lg z-50 overflow-hidden">
+                        {searchResults.map((result, i) => (
+                            <button
+                                key={result.path + result.label}
+                                type="button"
+                                // FIX 2: Use onMouseDown instead of onClick to prevent focus-loss issues
+                                onMouseDown={(e) => {
+                                    e.preventDefault(); 
+                                    goToPage(result.path);
+                                }}
+                                className={`w-full text-left px-4 py-3 text-sm transition-colors ${
+                                    i === activeIndex
+                                        ? "bg-blue-50 text-blue-700"
+                                        : "text-gray-700 hover:bg-gray-50"
+                                }`}
+                            >
+                                <span className="font-medium">{result.label}</span>
+                                <span className="ml-2 text-xs text-gray-400">{result.path}</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+            <Button type="submit" size="sm" variant="outline">
+                Search
+            </Button>
+        </form>
+    </div>
+);
 
 export default function Navbar() {
     const [searchValue, setSearchValue] = useState("");
+    const [searchResults, setSearchResults] = useState([]);
+    const [showDropdown, setShowDropdown] = useState(false);
+    const [activeIndex, setActiveIndex] = useState(-1);
     const { isAuthenticated, user, logout } = useAuth();
     const navigate = useNavigate();
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+    
     const profileMenuRef = useRef(null);
+    const searchRef = useRef(null);
+
+    useEffect(() => {
+        const results = searchPages(searchValue);
+        setSearchResults(results);
+        setShowDropdown(results.length > 0 && searchValue.trim() !== "");
+        setActiveIndex(-1);
+    }, [searchValue]);
+
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (searchRef.current && !searchRef.current.contains(event.target)) {
+                setShowDropdown(false);
+            }
+            if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+                setIsProfileMenuOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
     const role = (user?.userRole || user?.UserRole || "").trim().toLowerCase();
     const email = (user?.email || user?.Email || "").trim().toLowerCase();
@@ -25,8 +129,34 @@ export default function Navbar() {
 
     const handleSearch = (e) => {
         e.preventDefault();
-        console.log("Search:", searchValue);
-        // TODO: Connect search functionality to backend
+        if (activeIndex >= 0 && searchResults[activeIndex]) {
+            goToPage(searchResults[activeIndex].path);
+        } else if (searchResults.length > 0) {
+            goToPage(searchResults[0].path);
+        }
+    };
+
+    const goToPage = (path) => {
+        navigate(path);
+        setSearchValue("");
+        setShowDropdown(false);
+        setActiveIndex(-1);
+    };
+
+    const handleKeyDown = (e) => {
+        if (!showDropdown) return;
+        if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setActiveIndex((prev) => Math.min(prev + 1, searchResults.length - 1));
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setActiveIndex((prev) => Math.max(prev - 1, 0));
+        } else if (e.key === "Escape") {
+            setShowDropdown(false);
+        } else if (e.key === "Enter" && activeIndex >= 0) {
+            e.preventDefault();
+            goToPage(searchResults[activeIndex].path);
+        }
     };
 
     const handleLogout = () => {
@@ -34,23 +164,13 @@ export default function Navbar() {
         logout();
         navigate("/login");
     };
-    
-    // Profile Dropdown Menu
-    useEffect(() => {
-        function handleClickOutside(event) {
-            if (
-                profileMenuRef.current &&
-                !profileMenuRef.current.contains(event.target)
-            ) {
-                setIsProfileMenuOpen(false);
-            }
-        }
 
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
-    }, []);
+    // Props bundle to keep the return clean
+    const searchProps = {
+        searchValue, setSearchValue, searchResults, 
+        showDropdown, setShowDropdown, activeIndex, 
+        handleKeyDown, handleSearch, goToPage, searchRef
+    };
 
     return (
         <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur">
@@ -97,18 +217,7 @@ export default function Navbar() {
                 </nav>
 
                 <div className="hidden items-center gap-3 lg:flex">
-                    <form onSubmit={handleSearch} className="flex items-center gap-2">
-                        <input
-                            type="text"
-                            value={searchValue}
-                            onChange={(e) => setSearchValue(e.target.value)}
-                            placeholder="Search..."
-                            className="w-64 rounded-xl border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        <Button type="submit" size="sm" variant="outline">
-                            Search
-                        </Button>
-                    </form>
+                    <SearchBox className="w-72" {...searchProps} />
 
                     {isAuthenticated && (
                         <div className="flex items-center gap-3 border-l border-gray-200 pl-3 mr-2">
@@ -125,6 +234,8 @@ export default function Navbar() {
                         </div>
                     )}
 
+                    
+                    
                     {!isAuthenticated ? (
                         <>
                             <NavLink to="/login">
@@ -162,7 +273,7 @@ export default function Navbar() {
                                             {user?.firstName} {user?.lastName}
                                         </p>
                                         <p className="truncate text-xs text-gray-500">
-                                            {user?.email}
+                                            {user?.userRole}
                                         </p>
                                     </div>
 
@@ -225,7 +336,9 @@ export default function Navbar() {
                 </div>
             </div>
 
+            {/* Mobile View */}
             <div className="border-t border-gray-100 px-4 py-3 md:hidden">
+                <SearchBox className="mb-3" {...searchProps} />
                 <div className="mx-auto flex max-w-7xl flex-col gap-3">
                     <nav className="flex items-center justify-around">
                         <NavLink
