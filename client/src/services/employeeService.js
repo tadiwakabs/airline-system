@@ -35,6 +35,13 @@ export async function getCabinCrewEmployees() {
     return response.data;
 }
 
+export async function getCrewCountsForFlights(flightNums) {
+    const response = await api.post("/employee/flight/crew-counts", {
+        flightNums,
+    });
+    return response.data;
+}
+
 export async function assignCrewToFlight(payload) {
     const response = await api.post("/employee/flight/assign-crew", payload);
     return response.data;

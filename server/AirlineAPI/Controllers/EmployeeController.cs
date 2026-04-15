@@ -357,6 +357,34 @@ namespace AirlineAPI.Controllers
             return Ok(crew);
         }
         
+        [HttpPost("flight/crew-counts")]
+        public async Task<IActionResult> GetCrewCountsForFlights([FromBody] CrewCountsRequestDto request)
+        {
+            var requesterId = GetCurrentUserId();
+            if (string.IsNullOrEmpty(requesterId))
+                return Unauthorized(new { message = "Invalid token." });
+
+            if (!await CanManageCrewAssignmentsAsync())
+                return Forbid();
+
+            if (request.FlightNums == null || request.FlightNums.Count == 0)
+                return Ok(new List<CrewCountDto>());
+
+            var distinctFlightNums = request.FlightNums.Distinct().ToList();
+
+            var counts = await _context.FlightCrewAssignments
+                .Where(a => distinctFlightNums.Contains(a.flightNum))
+                .GroupBy(a => a.flightNum)
+                .Select(g => new CrewCountDto
+                {
+                    FlightNum = g.Key,
+                    Count = g.Count()
+                })
+                .ToListAsync();
+
+            return Ok(counts);
+        }
+        
         [HttpPost("flight/assign-crew")]
         public async Task<IActionResult> AssignCrewToFlight([FromBody] AssignCrewDto request)
         {

@@ -11,6 +11,7 @@ import {
 import {
     getCabinCrewEmployees,
     getCrewForFlight,
+    getCrewCountsForFlights,
     assignCrewToFlight,
     removeCrewFromFlight,
 } from "../../services/employeeService";
@@ -72,20 +73,7 @@ export default function CrewAssignments() {
 
             setFlights(allFlights);
             setEmployees(employeesRes ?? []);
-
-            const counts = {};
-            await Promise.all(
-                allFlights.map(async (flight) => {
-                    try {
-                        const crew = await getCrewForFlight(flight.flightNum);
-                        counts[flight.flightNum] = crew.length;
-                    } catch {
-                        counts[flight.flightNum] = 0;
-                    }
-                })
-            );
-
-            setCrewCounts(counts);
+            
         } catch (err) {
             setError(err?.response?.data?.message || "Failed to load crew assignment data.");
         } finally {
@@ -239,6 +227,54 @@ export default function CrewAssignments() {
         (emp) => !flightCrew.some((crew) => crew.employeeId === emp.employeeId)
     );
 
+    useEffect(() => {
+        let isCancelled = false;
+
+        const loadCrewCounts = async () => {
+            // Use pagedFlights as the source, but don't put the array itself 
+            // in the dependency bracket below.
+            if (pagedFlights.length === 0) {
+                setCrewCounts({});
+                return;
+            }
+
+            try {
+                const flightNums = pagedFlights.map((f) => f.flightNum);
+                const results = await getCrewCountsForFlights(flightNums);
+
+                const countsMap = {};
+                results.forEach(item => {
+                    countsMap[item.flightNum] = item.count;
+                });
+
+                // Ensure every flight in the current view has at least a '0' count
+                pagedFlights.forEach(flight => {
+                    if (!(flight.flightNum in countsMap)) {
+                        countsMap[flight.flightNum] = 0;
+                    }
+                });
+
+                if (!isCancelled) {
+                    setCrewCounts(countsMap);
+                }
+            } catch (err) {
+                if (!isCancelled) {
+                    console.error("Failed to load crew counts", err);
+                }
+            }
+        };
+
+        loadCrewCounts();
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [flights, page, searchTerm, statusFilter, sortBy, sortDirection]);
+
+    useEffect(() => {
+        setCrewCounts({});
+    }, [searchTerm, statusFilter, sortBy, sortDirection]);
+
     const formatDisplayDateTime = (value) => {
         if (!value) return "";
         const d = new Date(value);
@@ -331,7 +367,7 @@ export default function CrewAssignments() {
                                     </td>
                                     <td className="px-3 py-3">{flight.status}</td>
                                     <td className="px-3 py-3">
-                                        {crewCounts[flight.flightNum] ?? 0}
+                                        {crewCounts[flight.flightNum] ?? "—"}
                                     </td>
                                     <td className="px-3 py-3">
                                         <Button

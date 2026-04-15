@@ -44,4 +44,15 @@ namespace AirlineAPI.DTOs.Employee
         public string? TicketClass { get; set; }
         public string? TicketStatus { get; set; }
     }
+    
+    public class CrewCountsRequestDto
+    {
+        public List<int> FlightNums { get; set; } = new();
+    }
+
+    public class CrewCountDto
+    {
+        public int FlightNum { get; set; }
+        public int Count { get; set; }
+    }
 }
