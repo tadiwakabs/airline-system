@@ -164,15 +164,17 @@ namespace AirlineAPI.Controllers
         public async Task<ActionResult> GetMyBookings()
         {
             var currentUserId = User.FindFirst("sub")?.Value
-                    ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            
+                                ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    
             var bookings = await _context.Bookings
-                .Include(b=>b.Tickets)
-                    .ThenInclude(t=>t.Flight)
+                .Include(b => b.Tickets)
+                .ThenInclude(t => t.Flight)
+                .Include(b => b.Tickets)
+                .ThenInclude(t => t.Passenger)
                 .Where(b => b.userId == currentUserId)
-                .OrderByDescending(b=>b.Tickets
-                .Select(t=>t.Flight!= null? t.Flight.departTime: DateTime.MinValue)
-                .FirstOrDefault())
+                .OrderByDescending(b => b.Tickets
+                    .Select(t => t.Flight != null ? t.Flight.departTime : DateTime.MinValue)
+                    .FirstOrDefault())
                 .ToListAsync();
 
             return Ok(bookings);
