@@ -25,6 +25,8 @@ import Confirmation from './pages/booking/BookingConfirmation'
 import Employees from "./pages/admin/Employees.jsx";
 import PassengerList from "./pages/employee/PassengerList.jsx";
 import ManageBooking from './pages/manage.jsx';
+import CrewAssignments from "./pages/admin/CrewAssignments.jsx";
+import MyFlights from "./pages/employee/MyFlights.jsx";
 
 
 // Dashboards
@@ -104,11 +106,20 @@ function App() {
                         element={<RoleProtectedRoute allowedRoles={["Employee", "Administrator"]}>
                             <Flights />
                         </RoleProtectedRoute>} />
-
                     <Route
                         path='/passenger-list'
                         element={<RoleProtectedRoute allowedRoles={["Employee", "Administrator"]}>
                             <PassengerList />
+                        </RoleProtectedRoute>} />
+                    <Route
+                        path='/cabin-crew/my-flights'
+                        element={<RoleProtectedRoute allowedRoles={["Employee", "Administrator"]}>
+                            <MyFlights />
+                        </RoleProtectedRoute>} />
+                    <Route
+                        path='/flight-ops/crew-assignment'
+                        element={<RoleProtectedRoute allowedRoles={["Employee", "Administrator"]}>
+                            <CrewAssignments />
                         </RoleProtectedRoute>} />
                     
                     {/* Administrator-Authenticated Routes */}

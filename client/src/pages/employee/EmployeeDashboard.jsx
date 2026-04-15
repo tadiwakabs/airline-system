@@ -10,7 +10,7 @@ function Employee() {
             icon: "✈️", 
             path: "/flights", 
             color: "bg-red-400",
-            description: "Check schedules and status" 
+            description: "View your assigned flights" 
         },
         { 
             label: "Passenger List", 

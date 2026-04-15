@@ -34,6 +34,13 @@ function Admin() {
             description: "Manage existing employees"
         },
         {
+            label: "Crew Assignments",
+            icon: "🧑‍✈️",
+            path: "/flight-ops/crew-assignment",
+            color: "bg-cyan-500",
+            description: "Assign cabin crew to flights"
+        },
+        {
             label: "Reports",
             icon: "📊",
             path: "/reports",
