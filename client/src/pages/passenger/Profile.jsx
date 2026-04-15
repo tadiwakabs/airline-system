@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+﻿import React, { useState, useEffect } from "react";
 import Card from "../../components/common/Card";
 import TextInput from "../../components/common/TextInput";
 import Button from "../../components/common/Button";
@@ -10,15 +10,10 @@ import {
     changeMyPassword,
 } from "../../services/authService";
 import {
-    getPassengerByUserId,
-    updatePassenger,
-    getCountries,
-    getStates,
-    getSavedPassengers,
-    createSavedPassenger,
-    updateSavedPassenger,
-    deleteSavedPassenger,
-} from "../../services/passengerService";
+    getMyNotifications,
+    getMyStandbyOffers,
+    acceptStandbyOffer,
+} from "../../services/notificationService";
 
 const titleOptions = [
     { label: "Select title", value: "" },
@@ -40,65 +35,16 @@ const genderOptions = [
     { label: "Other", value: "Other" },
 ];
 
-const passengerTypeOptions = [
-    { label: "Adult", value: "Adult" },
-    { label: "Child", value: "Child" },
-    { label: "Infant", value: "Infant" },
-];
-
 export default function Profile() {
     const [activeTab, setActiveTab] = useState("profile");
     const [profile, setProfile] = useState(null);
-    const [passenger, setPassenger] = useState(null);
     const [loading, setLoading] = useState(true);
-
-    const [countries, setCountries] = useState([]);
-    const [states, setStates] = useState([]);
 
     const [editableData, setEditableData] = useState({
         email: "",
         title: "",
         gender: "",
-        firstName: "",
-        lastName: "",
-        dateOfBirth: "",
     });
-
-    const [passengerData, setPassengerData] = useState({
-        passengerId: "",
-        phoneNumber: "",
-        passportNumber: "",
-        passportCountryCode: "",
-        passportExpirationDate: "",
-        placeOfBirth: "",
-        nationality: "",
-        dlNumber: "",
-        dlState: "",
-    });
-
-    const emptySavedPassengerForm = {
-        passengerId: "",
-        title: "",
-        firstName: "",
-        lastName: "",
-        dateOfBirth: "",
-        gender: "",
-        passengerType: "Adult",
-        email: "",
-        phoneNumber: "",
-        passportNumber: "",
-        passportCountryCode: "",
-        passportExpirationDate: "",
-        placeOfBirth: "",
-        nationality: "",
-        dlNumber: "",
-        dlState: "",
-    };
-
-    const [savedPassengers, setSavedPassengers] = useState([]);
-    const [savedPassengerForm, setSavedPassengerForm] = useState(emptySavedPassengerForm);
-    const [editingSavedPassengerId, setEditingSavedPassengerId] = useState(null);
-    const [savedPassengersMessage, setSavedPassengersMessage] = useState("");
 
     const [passwordData, setPasswordData] = useState({
         currentPassword: "",
@@ -107,87 +53,30 @@ export default function Profile() {
     });
 
     const [profileMessage, setProfileMessage] = useState("");
-    const [passengerMessage, setPassengerMessage] = useState("");
     const [passwordMessage, setPasswordMessage] = useState("");
     const [error, setError] = useState("");
 
-    const countryOptions = countries.map((c) => ({
-        label: c.name,
-        value: c.code,
-    }));
-
-    const stateOptions = states.map((s) => ({
-        label: `${s.name} (${s.code})`,
-        value: s.code,
-    }));
+    // Added state for notifications and standby
+    const [notifications, setNotifications] = useState([]);
+    const [standbyOffers, setStandbyOffers] = useState([]);
+    const [notificationLoading, setNotificationLoading] = useState(false);
+    const [standbyLoading, setStandbyLoading] = useState(false);
+    const [notificationMessage, setNotificationMessage] = useState("");
 
     useEffect(() => {
-        loadProfileAndPassenger();
-        loadLookups();
-        loadSavedPassengers();
+        loadProfile();
     }, []);
 
-    const loadLookups = async () => {
-        try {
-            const [countriesRes, statesRes] = await Promise.all([
-                getCountries(),
-                getStates(),
-            ]);
-            setCountries(countriesRes.data || []);
-            setStates(statesRes.data || []);
-        } catch (err) {
-            console.error("Failed to load lookup data:", err);
-        }
-    };
-
-    const loadProfileAndPassenger = async () => {
+    const loadProfile = async () => {
         try {
             setLoading(true);
-            setError("");
-
-            const profileData = await getMyProfile();
-            setProfile(profileData);
-
+            const data = await getMyProfile();
+            setProfile(data);
             setEditableData({
-                email: profileData.email || "",
-                title: profileData.title || "",
-                gender: profileData.gender || "",
-                firstName: profileData.firstName || "",
-                lastName: profileData.lastName || "",
-                dateOfBirth: profileData.dateOfBirth?.split("T")[0] || "",
+                email: data.email || "",
+                title: data.title || "",
+                gender: data.gender || "",
             });
-
-            try {
-                const passengerResponse = await getPassengerByUserId(profileData.userId);
-                const passengerDataFromApi = passengerResponse.data;
-
-                setPassenger(passengerDataFromApi);
-                setPassengerData({
-                    passengerId: passengerDataFromApi.passengerId || "",
-                    phoneNumber: passengerDataFromApi.phoneNumber || "",
-                    passportNumber: passengerDataFromApi.passportNumber || "",
-                    passportCountryCode: passengerDataFromApi.passportCountryCode || "",
-                    passportExpirationDate:
-                        passengerDataFromApi.passportExpirationDate?.split("T")[0] || "",
-                    placeOfBirth: passengerDataFromApi.placeOfBirth || "",
-                    nationality: passengerDataFromApi.nationality || "",
-                    dlNumber: passengerDataFromApi.dlNumber ?? "",
-                    dlState: passengerDataFromApi.dlState || "",
-                });
-            } catch {
-                setPassenger(null);
-                setPassengerData({
-                    passengerId: "",
-                    phoneNumber: "",
-                    passportNumber: "",
-                    passportCountryCode: "",
-                    passportExpirationDate: "",
-                    placeOfBirth: "",
-                    nationality: "",
-                    dlNumber: "",
-                    dlState: "",
-                });
-            }
         } catch (err) {
             setError(err?.response?.data?.message || "Failed to load profile.");
         } finally {
@@ -195,12 +84,29 @@ export default function Profile() {
         }
     };
 
-    const loadSavedPassengers = async () => {
+    // Added loader for notifications
+    const loadNotifications = async () => {
         try {
-            const response = await getSavedPassengers();
-            setSavedPassengers(response.data || []);
+            setNotificationLoading(true);
+            const data = await getMyNotifications();
+            setNotifications(data || []);
         } catch (err) {
-            console.error("Failed to load saved passengers:", err);
+            setError(err?.response?.data?.message || "Failed to load notifications.");
+        } finally {
+            setNotificationLoading(false);
+        }
+    };
+
+    // Added loader for standby offers
+    const loadStandbyOffers = async () => {
+        try {
+            setStandbyLoading(true);
+            const data = await getMyStandbyOffers();
+            setStandbyOffers(data || []);
+        } catch (err) {
+            setError(err?.response?.data?.message || "Failed to load standby offers.");
+        } finally {
+            setStandbyLoading(false);
         }
     };
 
@@ -211,25 +117,6 @@ export default function Profile() {
             [name]: value,
         }));
         setProfileMessage("");
-        setError("");
-    };
-
-    const handlePassengerChange = (e) => {
-        const { name, value } = e.target;
-        setPassengerData((prev) => ({
-            ...prev,
-            [name]: value,
-        }));
-        setPassengerMessage("");
-        setError("");
-    };
-
-    const handlePassengerDropdownChange = (name, value) => {
-        setPassengerData((prev) => ({
-            ...prev,
-            [name]: value,
-        }));
-        setPassengerMessage("");
         setError("");
     };
 
@@ -251,152 +138,11 @@ export default function Profile() {
         try {
             const response = await updateMyProfile(editableData);
             setProfileMessage(response.message || "Profile updated.");
-            await loadProfileAndPassenger();
+            await loadProfile();
         } catch (err) {
             setError(err?.response?.data?.message || "Failed to update profile.");
         }
     };
-
-    const handlePassengerSubmit = async (e) => {
-        e.preventDefault();
-        setError("");
-        setPassengerMessage("");
-
-        if (!passenger?.passengerId) {
-            setError("Passenger profile not found.");
-            return;
-        }
-
-        try {
-            const payload = {
-                phoneNumber: passengerData.phoneNumber || null,
-                passportNumber: passengerData.passportNumber || null,
-                passportCountryCode: passengerData.passportCountryCode || null,
-                passportExpirationDate: passengerData.passportExpirationDate || null,
-                placeOfBirth: passengerData.placeOfBirth || null,
-                nationality: passengerData.nationality || null,
-                dlNumber: passengerData.dlNumber === "" ? null : Number(passengerData.dlNumber),
-                dlState: passengerData.dlState || null,
-            };
-
-            const response = await updatePassenger(passenger.passengerId, payload);
-            setPassengerMessage(response?.data?.message || "Passenger info updated.");
-            await loadProfileAndPassenger();
-        } catch (err) {
-            setError(err?.response?.data?.message || "Failed to update passenger info.");
-        }
-    };
-
-    const handleSavedPassengerChange = (e) => {
-        const { name, value } = e.target;
-        setSavedPassengerForm((prev) => ({
-            ...prev,
-            [name]: value,
-        }));
-        setSavedPassengersMessage("");
-        setError("");
-    };
-
-    const handleSavedPassengerDropdownChange = (name, value) => {
-        setSavedPassengerForm((prev) => ({
-            ...prev,
-            [name]: value,
-        }));
-        setSavedPassengersMessage("");
-        setError("");
-    };
-
-    const resetSavedPassengerForm = () => {
-        setSavedPassengerForm(emptySavedPassengerForm);
-        setEditingSavedPassengerId(null);
-    };
-
-    const handleEditSavedPassenger = (p) => {
-        setEditingSavedPassengerId(p.passengerId);
-        setSavedPassengerForm({
-            passengerId: p.passengerId || "",
-            title: p.title || "",
-            firstName: p.firstName || "",
-            lastName: p.lastName || "",
-            dateOfBirth: p.dateOfBirth?.split("T")[0] || "",
-            gender: p.gender || "",
-            passengerType: p.passengerType || "Adult",
-            email: p.email || "",
-            phoneNumber: p.phoneNumber || "",
-            passportNumber: p.passportNumber || "",
-            passportCountryCode: p.passportCountryCode || "",
-            passportExpirationDate: p.passportExpirationDate?.split("T")[0] || "",
-            placeOfBirth: p.placeOfBirth || "",
-            nationality: p.nationality || "",
-            dlNumber: p.dlNumber ?? "",
-            dlState: p.dlState || "",
-        });
-        setActiveTab("savedPassengers");
-    };
-
-    const handleSavedPassengerSubmit = async (e) => {
-        e.preventDefault();
-        setError("");
-        setSavedPassengersMessage("");
-
-        try {
-            const payload = {
-                title: savedPassengerForm.title || null,
-                firstName: savedPassengerForm.firstName.trim(),
-                lastName: savedPassengerForm.lastName.trim(),
-                dateOfBirth: savedPassengerForm.dateOfBirth,
-                gender: savedPassengerForm.gender || null,
-                passengerType: savedPassengerForm.passengerType,
-                email:
-                    savedPassengerForm.passengerType === "Adult"
-                        ? savedPassengerForm.email || null
-                        : null,
-                phoneNumber:
-                    savedPassengerForm.passengerType === "Adult"
-                        ? savedPassengerForm.phoneNumber || null
-                        : null,
-                passportNumber: savedPassengerForm.passportNumber || null,
-                passportCountryCode: savedPassengerForm.passportCountryCode || null,
-                passportExpirationDate: savedPassengerForm.passportExpirationDate || null,
-                placeOfBirth: savedPassengerForm.placeOfBirth || null,
-                nationality: savedPassengerForm.nationality || null,
-                dlNumber:
-                    savedPassengerForm.dlNumber === ""
-                        ? null
-                        : Number(savedPassengerForm.dlNumber),
-                dlState: savedPassengerForm.dlState || null,
-            };
-
-            if (editingSavedPassengerId) {
-                await updateSavedPassenger(editingSavedPassengerId, payload);
-                setSavedPassengersMessage("Saved passenger updated.");
-            } else {
-                await createSavedPassenger(payload);
-                setSavedPassengersMessage("Saved passenger created.");
-            }
-
-            resetSavedPassengerForm();
-            await loadSavedPassengers();
-        } catch (err) {
-            setError(err?.response?.data?.message || "Failed to save passenger.");
-        }
-    };
-
-    const handleDeleteSavedPassenger = async (passengerId) => {
-        try {
-            setError("");
-            setSavedPassengersMessage("");
-            await deleteSavedPassenger(passengerId);
-            setSavedPassengersMessage("Saved passenger deleted.");
-            if (editingSavedPassengerId === passengerId) {
-                resetSavedPassengerForm();
-            }
-            await loadSavedPassengers();
-        } catch (err) {
-            setError(err?.response?.data?.message || "Failed to delete passenger.");
-        }
-    };
-    
 
     const handlePasswordSubmit = async (e) => {
         e.preventDefault();
@@ -425,6 +171,21 @@ export default function Profile() {
         }
     };
 
+    // Added handler for standby acceptance
+    const handleAcceptStandbyOffer = async (standbyId) => {
+        try {
+            setError("");
+            setNotificationMessage("");
+
+            const response = await acceptStandbyOffer(standbyId);
+            setNotificationMessage(response.message || "Standby offer accepted.");
+            await loadStandbyOffers();
+            await loadNotifications();
+        } catch (err) {
+            setError(err?.response?.data?.message || "Failed to accept standby offer.");
+        }
+    };
+
     if (loading) {
         return (
             <div className="mx-auto max-w-6xl px-4 py-10">
@@ -444,6 +205,7 @@ export default function Profile() {
     return (
         <div className="mx-auto max-w-6xl px-4 py-10">
             <div className="grid gap-6 md:grid-cols-[240px_minmax(0,1fr)]">
+                {/* Left sidebar */}
                 <Card className="h-fit p-3">
                     <div className="space-y-2">
                         <button
@@ -460,30 +222,6 @@ export default function Profile() {
 
                         <button
                             type="button"
-                            onClick={() => setActiveTab("passenger")}
-                            className={`w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
-                                activeTab === "passenger"
-                                    ? "bg-blue-600 text-white"
-                                    : "text-gray-700 hover:bg-gray-100 cursor-pointer"
-                            }`}
-                        >
-                            Passenger Info
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => setActiveTab("savedPassengers")}
-                            className={`w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
-                                activeTab === "savedPassengers"
-                                    ? "bg-blue-600 text-white"
-                                    : "text-gray-700 hover:bg-gray-100 cursor-pointer"
-                            }`}
-                        >
-                            Saved Passengers
-                        </button>
-                        
-                        <button
-                            type="button"
                             onClick={() => setActiveTab("password")}
                             className={`w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
                                 activeTab === "password"
@@ -493,9 +231,36 @@ export default function Profile() {
                         >
                             Change Password
                         </button>
+
+                        {/* Added Notifications tab button */}
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab("notifications")}
+                            className={`w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
+                                activeTab === "notifications"
+                                    ? "bg-blue-600 text-white"
+                                    : "text-gray-700 hover:bg-gray-100 cursor-pointer"
+                            }`}
+                        >
+                            Notifications
+                        </button>
+
+                        {/* Added Standby Offers tab button */}
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab("standby")}
+                            className={`w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
+                                activeTab === "standby"
+                                    ? "bg-blue-600 text-white"
+                                    : "text-gray-700 hover:bg-gray-100 cursor-pointer"
+                            }`}
+                        >
+                            Standby Offers
+                        </button>
                     </div>
                 </Card>
 
+                {/* Right content */}
                 <Card className="p-6">
                     {activeTab === "profile" && (
                         <>
@@ -503,12 +268,11 @@ export default function Profile() {
                                 My Profile
                             </h1>
                             <p className="mt-1 text-sm text-gray-500">
-                                Update your account details.
+                                View your account details and update allowed fields.
                             </p>
 
-                            <Separator className="mt-6 mb-2" />
+                            <Separator className="my-6" />
 
-                            <h1 className="text-lg font-semibold">Account Details</h1>
                             <div className="grid gap-4 md:grid-cols-2">
                                 <TextInput
                                     label="User ID"
@@ -523,6 +287,24 @@ export default function Profile() {
                                     className="bg-gray-50"
                                 />
                                 <TextInput
+                                    label="First Name"
+                                    value={profile.firstName}
+                                    disabled
+                                    className="bg-gray-50"
+                                />
+                                <TextInput
+                                    label="Last Name"
+                                    value={profile.lastName}
+                                    disabled
+                                    className="bg-gray-50"
+                                />
+                                <TextInput
+                                    label="Date of Birth"
+                                    value={profile.dateOfBirth?.split("T")[0] || ""}
+                                    disabled
+                                    className="bg-gray-50"
+                                />
+                                <TextInput
                                     label="Role"
                                     value={profile.userRole}
                                     disabled
@@ -530,45 +312,30 @@ export default function Profile() {
                                 />
                                 <TextInput
                                     label="Account Creation Date"
-                                    value={profile.createdAt ? new Date(profile.createdAt).toLocaleString() : ""}
+                                    value={
+                                        profile.createdAt
+                                            ? new Date(profile.createdAt).toLocaleString()
+                                            : ""
+                                    }
                                     disabled
                                     className="bg-gray-50"
                                 />
                                 <TextInput
                                     label="Last Updated"
-                                    value={profile.updatedAt ? new Date(profile.updatedAt).toLocaleString() : ""}
+                                    value={
+                                        profile.updatedAt
+                                            ? new Date(profile.updatedAt).toLocaleString()
+                                            : ""
+                                    }
                                     disabled
                                     className="bg-gray-50"
                                 />
                             </div>
 
-                            <Separator className="mt-6 mb-4" />
+                            <Separator className="my-6" />
 
-                            <h1 className="text-lg font-semibold">Editable Details</h1>
                             <form onSubmit={handleProfileSubmit} className="space-y-4">
                                 <div className="grid gap-4 md:grid-cols-2">
-                                    <TextInput
-                                        label="First Name"
-                                        name="firstName"
-                                        value={editableData.firstName}
-                                        onChange={handleEditableChange}
-                                    />
-
-                                    <TextInput
-                                        label="Last Name"
-                                        name="lastName"
-                                        value={editableData.lastName}
-                                        onChange={handleEditableChange}
-                                    />
-
-                                    <TextInput
-                                        label="Date of Birth"
-                                        name="dateOfBirth"
-                                        type="date"
-                                        value={editableData.dateOfBirth}
-                                        onChange={handleEditableChange}
-                                    />
-
                                     <TextInput
                                         label="Email"
                                         name="email"
@@ -579,19 +346,17 @@ export default function Profile() {
 
                                     <Dropdown
                                         label="Title"
+                                        name="title"
                                         value={editableData.title}
-                                        onChange={(val) =>
-                                            setEditableData((prev) => ({ ...prev, title: val }))
-                                        }
+                                        onChange={handleEditableChange}
                                         options={titleOptions}
                                     />
 
                                     <Dropdown
                                         label="Gender"
+                                        name="gender"
                                         value={editableData.gender}
-                                        onChange={(val) =>
-                                            setEditableData((prev) => ({ ...prev, gender: val }))
-                                        }
+                                        onChange={handleEditableChange}
                                         options={genderOptions}
                                     />
                                 </div>
@@ -600,342 +365,12 @@ export default function Profile() {
                                     <p className="text-sm text-green-600">{profileMessage}</p>
                                 )}
 
-                                {error && activeTab === "profile" && (
+                                {error && (
                                     <p className="text-sm text-red-600">{error}</p>
                                 )}
 
                                 <Button type="submit">Save Changes</Button>
                             </form>
-                        </>
-                    )}
-
-                    {activeTab === "passenger" && (
-                        <>
-                            <h1 className="text-2xl font-semibold text-gray-900">
-                                Passenger Info
-                            </h1>
-                            <p className="mt-1 text-sm text-gray-500">
-                                Update passenger-specific details.
-                            </p>
-
-                            <Separator className="my-6" />
-
-                            <form onSubmit={handlePassengerSubmit} className="space-y-4">
-                                <div className="grid gap-4 md:grid-cols-2">
-                                    <TextInput
-                                        label="Passenger ID"
-                                        value={passenger?.passengerId || ""}
-                                        disabled
-                                        className="bg-gray-50"
-                                    />
-                                    <TextInput
-                                        label="First Name"
-                                        value={profile.firstName || ""}
-                                        disabled
-                                        className="bg-gray-50"
-                                    />
-                                    <TextInput
-                                        label="Last Name"
-                                        value={profile.lastName || ""}
-                                        disabled
-                                        className="bg-gray-50"
-                                    />
-                                    <TextInput
-                                        label="Email"
-                                        value={profile.email || ""}
-                                        disabled
-                                        className="bg-gray-50"
-                                    />
-                                    <TextInput
-                                        label="Date of Birth"
-                                        value={profile.dateOfBirth?.split("T")[0] || ""}
-                                        disabled
-                                        className="bg-gray-50"
-                                    />
-                                    <TextInput
-                                        label="Gender"
-                                        value={profile.gender || ""}
-                                        disabled
-                                        className="bg-gray-50"
-                                    />
-                                    <TextInput
-                                        label="Phone Number"
-                                        name="phoneNumber"
-                                        value={passengerData.phoneNumber}
-                                        onChange={handlePassengerChange}
-                                    />
-                                </div>
-                                
-                                <Separator className="my-6" />
-                                
-                                <h1 className="text-lg font-semibold">Domestic Details</h1>
-                                <div className="grid gap-4 md:grid-cols-2">
-                                    <TextInput
-                                        label="DL Number"
-                                        name="dlNumber"
-                                        value={passengerData.dlNumber}
-                                        onChange={handlePassengerChange}
-                                    />
-                                    <Dropdown
-                                        label="DL State"
-                                        value={passengerData.dlState}
-                                        onChange={(val) =>
-                                            handlePassengerDropdownChange("dlState", val)
-                                        }
-                                        options={stateOptions}
-                                    />
-                                </div>
-                                
-                                <Separator className="my-6" />
-                                
-                                <h1 className="text-lg font-semibold">International Details</h1>
-                                <div className="grid gap-4 md:grid-cols-2">
-                                    <TextInput
-                                        label="Passport Number"
-                                        name="passportNumber"
-                                        value={passengerData.passportNumber}
-                                        onChange={handlePassengerChange}
-                                    />
-                                    <Dropdown
-                                        label="Passport Country"
-                                        value={passengerData.passportCountryCode}
-                                        onChange={(val) =>
-                                            handlePassengerDropdownChange("passportCountryCode", val)
-                                        }
-                                        options={countryOptions}
-                                    />
-                                    <TextInput
-                                        label="Passport Expiration"
-                                        name="passportExpirationDate"
-                                        type="date"
-                                        value={passengerData.passportExpirationDate}
-                                        onChange={handlePassengerChange}
-                                    />
-                                    <TextInput
-                                        label="Place of Birth"
-                                        name="placeOfBirth"
-                                        value={passengerData.placeOfBirth}
-                                        onChange={handlePassengerChange}
-                                    />
-                                    <Dropdown
-                                        label="Nationality"
-                                        value={passengerData.nationality}
-                                        onChange={(val) =>
-                                            handlePassengerDropdownChange("nationality", val)
-                                        }
-                                        options={countryOptions}
-                                    />
-                                </div>
-                                
-
-                                {passengerMessage && (
-                                    <p className="text-sm text-green-600">{passengerMessage}</p>
-                                )}
-
-                                {error && activeTab === "passenger" && (
-                                    <p className="text-sm text-red-600">{error}</p>
-                                )}
-
-                                <Button type="submit">Save Passenger Info</Button>
-                            </form>
-                        </>
-                    )}
-
-                    {activeTab === "savedPassengers" && (
-                        <>
-                            <h1 className="text-2xl font-semibold text-gray-900">
-                                Saved Passengers
-                            </h1>
-                            <p className="mt-1 text-sm text-gray-500">
-                                Save additional travelers to reuse them during booking.
-                            </p>
-
-                            <Separator className="my-6" />
-
-                            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-                                <div className="space-y-3">
-                                    {savedPassengers.length === 0 ? (
-                                        <p className="text-sm text-gray-500">No saved passengers yet.</p>
-                                    ) : (
-                                        savedPassengers.map((p) => (
-                                            <div
-                                                key={p.passengerId}
-                                                className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3"
-                                            >
-                                                <div className="flex items-start justify-between gap-3">
-                                                    <div>
-                                                        <p className="text-sm font-semibold text-gray-900">
-                                                            {p.firstName} {p.lastName}
-                                                        </p>
-                                                        <p className="mt-1 text-xs text-gray-500">
-                                                            {p.passengerType} · DOB {p.dateOfBirth?.split("T")[0]}
-                                                        </p>
-                                                        <p className="mt-1 text-xs text-gray-500">
-                                                            {p.email || "No email"} {p.phoneNumber ? `· ${p.phoneNumber}` : ""}
-                                                        </p>
-                                                    </div>
-
-                                                    <div className="flex gap-2">
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            onClick={() => handleEditSavedPassenger(p)}
-                                                        >
-                                                            Edit
-                                                        </Button>
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            onClick={() => handleDeleteSavedPassenger(p.passengerId)}
-                                                        >
-                                                            Delete
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
-
-                                <div className="rounded-xl border border-gray-200 p-4">
-                                    <div className="flex items-center justify-between">
-                                        <h2 className="text-lg font-semibold">
-                                            {editingSavedPassengerId ? "Edit Passenger" : "Add Passenger"}
-                                        </h2>
-                                        {editingSavedPassengerId && (
-                                            <Button type="button" variant="outline" onClick={resetSavedPassengerForm}>
-                                                Cancel
-                                            </Button>
-                                        )}
-                                    </div>
-
-                                    <form onSubmit={handleSavedPassengerSubmit} className="mt-4 space-y-4">
-                                        <div className="grid gap-4 md:grid-cols-2">
-                                            <Dropdown
-                                                label="Title"
-                                                value={savedPassengerForm.title}
-                                                onChange={(val) => handleSavedPassengerDropdownChange("title", val)}
-                                                options={titleOptions}
-                                            />
-
-                                            <Dropdown
-                                                label="Passenger Type"
-                                                value={savedPassengerForm.passengerType}
-                                                onChange={(val) => handleSavedPassengerDropdownChange("passengerType", val)}
-                                                options={passengerTypeOptions}
-                                            />
-
-                                            <TextInput
-                                                label="First Name"
-                                                name="firstName"
-                                                value={savedPassengerForm.firstName}
-                                                onChange={handleSavedPassengerChange}
-                                            />
-
-                                            <TextInput
-                                                label="Last Name"
-                                                name="lastName"
-                                                value={savedPassengerForm.lastName}
-                                                onChange={handleSavedPassengerChange}
-                                            />
-
-                                            <TextInput
-                                                label="Date of Birth"
-                                                name="dateOfBirth"
-                                                type="date"
-                                                value={savedPassengerForm.dateOfBirth}
-                                                onChange={handleSavedPassengerChange}
-                                            />
-
-                                            <Dropdown
-                                                label="Gender"
-                                                value={savedPassengerForm.gender}
-                                                onChange={(val) => handleSavedPassengerDropdownChange("gender", val)}
-                                                options={genderOptions}
-                                            />
-
-                                            {savedPassengerForm.passengerType === "Adult" && (
-                                                <>
-                                                    <TextInput
-                                                        label="Email"
-                                                        name="email"
-                                                        value={savedPassengerForm.email}
-                                                        onChange={handleSavedPassengerChange}
-                                                    />
-                                                    <TextInput
-                                                        label="Phone Number"
-                                                        name="phoneNumber"
-                                                        value={savedPassengerForm.phoneNumber}
-                                                        onChange={handleSavedPassengerChange}
-                                                    />
-                                                </>
-                                            )}
-
-                                            <TextInput
-                                                label="DL Number"
-                                                name="dlNumber"
-                                                value={savedPassengerForm.dlNumber}
-                                                onChange={handleSavedPassengerChange}
-                                            />
-
-                                            <Dropdown
-                                                label="DL State"
-                                                value={savedPassengerForm.dlState}
-                                                onChange={(val) => handleSavedPassengerDropdownChange("dlState", val)}
-                                                options={stateOptions}
-                                            />
-
-                                            <TextInput
-                                                label="Passport Number"
-                                                name="passportNumber"
-                                                value={savedPassengerForm.passportNumber}
-                                                onChange={handleSavedPassengerChange}
-                                            />
-
-                                            <Dropdown
-                                                label="Passport Country"
-                                                value={savedPassengerForm.passportCountryCode}
-                                                onChange={(val) => handleSavedPassengerDropdownChange("passportCountryCode", val)}
-                                                options={countryOptions}
-                                            />
-
-                                            <TextInput
-                                                label="Passport Expiration"
-                                                name="passportExpirationDate"
-                                                type="date"
-                                                value={savedPassengerForm.passportExpirationDate}
-                                                onChange={handleSavedPassengerChange}
-                                            />
-
-                                            <TextInput
-                                                label="Place of Birth"
-                                                name="placeOfBirth"
-                                                value={savedPassengerForm.placeOfBirth}
-                                                onChange={handleSavedPassengerChange}
-                                            />
-
-                                            <Dropdown
-                                                label="Nationality"
-                                                value={savedPassengerForm.nationality}
-                                                onChange={(val) => handleSavedPassengerDropdownChange("nationality", val)}
-                                                options={countryOptions}
-                                            />
-                                        </div>
-
-                                        {savedPassengersMessage && (
-                                            <p className="text-sm text-green-600">{savedPassengersMessage}</p>
-                                        )}
-
-                                        {error && activeTab === "savedPassengers" && (
-                                            <p className="text-sm text-red-600">{error}</p>
-                                        )}
-
-                                        <Button type="submit">
-                                            {editingSavedPassengerId ? "Save Passenger" : "Add Passenger"}
-                                        </Button>
-                                    </form>
-                                </div>
-                            </div>
                         </>
                     )}
 
@@ -979,12 +414,127 @@ export default function Profile() {
                                     <p className="text-sm text-green-600">{passwordMessage}</p>
                                 )}
 
-                                {error && activeTab === "password" && (
+                                {error && (
                                     <p className="text-sm text-red-600">{error}</p>
                                 )}
 
                                 <Button type="submit">Change Password</Button>
                             </form>
+                        </>
+                    )}
+
+                    {/* Added Notifications tab content */}
+                    {activeTab === "notifications" && (
+                        <>
+                            <h1 className="text-2xl font-semibold text-gray-900">
+                                Notifications
+                            </h1>
+                            <p className="mt-1 text-sm text-gray-500">
+                                View important account and flight updates.
+                            </p>
+
+                            <Separator className="my-6" />
+
+                            {notificationLoading ? (
+                                <p>Loading notifications...</p>
+                            ) : notifications.length === 0 ? (
+                                <p className="text-sm text-gray-500">No notifications found.</p>
+                            ) : (
+                                <div className="space-y-4">
+                                    {notifications.map((notification) => (
+                                        <Card
+                                            key={notification.notificationId}
+                                            className="p-4"
+                                        >
+                                            <p className="text-sm font-medium text-gray-900">
+                                                {notification.message}
+                                            </p>
+                                            <p className="mt-2 text-xs text-gray-500">
+                                                Flight: {notification.flightNum}
+                                            </p>
+                                            <p className="text-xs text-gray-500">
+                                                Created:{" "}
+                                                {notification.createdAt
+                                                    ? new Date(
+                                                          notification.createdAt
+                                                      ).toLocaleString()
+                                                    : "N/A"}
+                                            </p>
+                                            <p className="text-xs text-gray-500">
+                                                Status: {notification.notificationStatus}
+                                            </p>
+                                        </Card>
+                                    ))}
+                                </div>
+                            )}
+                        </>
+                    )}
+
+                    {/* Added Standby Offers tab content */}
+                    {activeTab === "standby" && (
+                        <>
+                            <h1 className="text-2xl font-semibold text-gray-900">
+                                Standby Offers
+                            </h1>
+                            <p className="mt-1 text-sm text-gray-500">
+                                View and respond to your standby flight offers.
+                            </p>
+
+                            <Separator className="my-6" />
+
+                            {notificationMessage && (
+                                <p className="mb-4 text-sm text-green-600">
+                                    {notificationMessage}
+                                </p>
+                            )}
+
+                            {error && (
+                                <p className="mb-4 text-sm text-red-600">{error}</p>
+                            )}
+
+                            {standbyLoading ? (
+                                <p>Loading standby offers...</p>
+                            ) : standbyOffers.length === 0 ? (
+                                <p className="text-sm text-gray-500">
+                                    No standby offers found.
+                                </p>
+                            ) : (
+                                <div className="space-y-4">
+                                    {standbyOffers.map((offer) => (
+                                        <Card key={offer.standbyId} className="p-4">
+                                            <p className="text-sm font-medium text-gray-900">
+                                                Flight {offer.flightNum}
+                                            </p>
+                                            <p className="mt-1 text-xs text-gray-500">
+                                                Status: {offer.standbyStatus}
+                                            </p>
+                                            <p className="text-xs text-gray-500">
+                                                Expires:{" "}
+                                                {offer.offerExpiresAt
+                                                    ? new Date(
+                                                          offer.offerExpiresAt
+                                                      ).toLocaleString()
+                                                    : "N/A"}
+                                            </p>
+
+                                            {offer.standbyStatus === "Offered" && (
+                                                <div className="mt-4">
+                                                    <Button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            handleAcceptStandbyOffer(
+                                                                offer.standbyId
+                                                            )
+                                                        }
+                                                    >
+                                                        Accept Offer
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </Card>
+                                    ))}
+                                </div>
+                            )}
                         </>
                     )}
                 </Card>

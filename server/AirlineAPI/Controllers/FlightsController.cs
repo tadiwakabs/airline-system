@@ -314,6 +314,28 @@ namespace AirlineAPI.Controllers
             return Ok(new { message = "Flight successfully updated!" });
         }
 
+        [HttpPut("{id}/cancel")]
+public async Task<IActionResult> CancelFlight(int id)
+{
+    var flight = await _context.Flights.FindAsync(id);
+
+    if (flight == null)
+    {
+        return NotFound(new { message = "Flight not found." });
+    }
+
+    if (flight.status == "Cancelled")
+    {
+        return BadRequest(new { message = "Flight is already cancelled." });
+    }
+
+    flight.status = "Cancelled";
+
+    await _context.SaveChangesAsync();
+
+    return Ok(new { message = "Flight cancelled successfully." });
+}
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteFlight(int id)
         {
