@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace AirlineAPI.Models
 {
-    public enum TicketStatus { Booked, Cancelled, Pending }
+    public enum TicketStatus { Booked, Cancelled, Pending, Boarded }
     public enum TicketClass  { Economy, Business, First }
 
     [Table("Ticket")]

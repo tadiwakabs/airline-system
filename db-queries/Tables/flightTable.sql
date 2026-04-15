@@ -20,6 +20,5 @@ CREATE TABLE `Flight` (
       CONSTRAINT `fk_flight_depart_airport` FOREIGN KEY (`departingPort`) REFERENCES `Airport` (`airportCode`) ON DELETE RESTRICT ON UPDATE CASCADE,
       CONSTRAINT `fk_flight_schedule` FOREIGN KEY (`recurringScheduleId`) REFERENCES `RecurringSchedule` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
       CONSTRAINT `Flight_ibfk_1` FOREIGN KEY (`aircraftUsed`) REFERENCES `Aircraft` (`tailNumber`) ON DELETE RESTRICT ON UPDATE CASCADE,
-      CONSTRAINT `Flight_chk_1` CHECK ((`flightNum` between 0 and 9999))
+      CONSTRAINT `Flight_chk_1` CHECK ((`flightNum` between 0 and 99999))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-
