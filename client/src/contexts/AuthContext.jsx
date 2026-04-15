@@ -3,9 +3,27 @@ import { loginUser } from "../services/authService";
 
 const AuthContext = createContext(null);
 
+function parseJwt(token) {
+    try {
+        return JSON.parse(atob(token.split(".")[1]));
+    } catch {
+        return null;
+    }
+}
+
+function isTokenExpired(token) {
+    const payload = parseJwt(token);
+    return !payload?.exp || payload.exp * 1000 < Date.now();
+}
+
 export function AuthProvider({ children }) {
     const savedUser = localStorage.getItem("user");
     const savedToken = localStorage.getItem("token");
+
+    if (savedToken && isTokenExpired(savedToken)) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+    }
 
     const [user, setUser] = useState(savedUser ? JSON.parse(savedUser) : null);
     const [token, setToken] = useState(savedToken);

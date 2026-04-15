@@ -163,7 +163,8 @@ namespace AirlineAPI.Controllers
         [HttpGet("myBooking")]
         public async Task<ActionResult> GetMyBookings()
         {
-            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var currentUserId = User.FindFirst("sub")?.Value
+                    ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             
             var bookings = await _context.Bookings
                 .Where(b => b.userId == currentUserId)
@@ -202,7 +203,8 @@ namespace AirlineAPI.Controllers
     {           return BadRequest("Cannot change seats on a cancelled booking.");
     }
 
-            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var currentUserId = User.FindFirst("sub")?.Value
+                    ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (booking.userId != currentUserId && !User.IsInRole("Admin"))
             {
                 return Forbid();
@@ -244,7 +246,8 @@ namespace AirlineAPI.Controllers
             if (booking == null) return NotFound("Booking not found");
 
 
-            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var currentUserId = User.FindFirst("sub")?.Value
+                    ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (booking.userId != currentUserId && !User.IsInRole("Admin")) return Forbid();
 
             
