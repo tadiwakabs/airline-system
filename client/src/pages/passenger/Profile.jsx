@@ -491,7 +491,7 @@ export default function Profile() {
                                     : "text-gray-700 hover:bg-gray-100 cursor-pointer"
                             }`}
                         >
-                            Saved Passengers
+                            Additional Passengers
                         </button>
 
                         <button
@@ -757,7 +757,7 @@ export default function Profile() {
                     {activeTab === "savedPassengers" && (
                         <>
                             <h1 className="text-2xl font-semibold text-gray-900">
-                                Saved Passengers
+                                Additional Passengers
                             </h1>
                             <p className="mt-1 text-sm text-gray-500">
                                 Save additional travelers to reuse them during booking.
