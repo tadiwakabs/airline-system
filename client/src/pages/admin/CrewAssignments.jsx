@@ -9,7 +9,7 @@ import {
     getAllFlights,
 } from "../../services/flightService";
 import {
-    getAllEmployees,
+    getCabinCrewEmployees,
     getCrewForFlight,
     assignCrewToFlight,
     removeCrewFromFlight,
@@ -65,16 +65,13 @@ export default function CrewAssignments() {
 
             const [flightsRes, employeesRes] = await Promise.all([
                 getAllFlights(),
-                getAllEmployees(),
+                getCabinCrewEmployees(),
             ]);
 
             const allFlights = flightsRes.data ?? [];
-            const cabinCrewEmployees = (employeesRes ?? []).filter(
-                (e) => e.department === "Cabin Crew" && e.status === "Active"
-            );
 
             setFlights(allFlights);
-            setEmployees(cabinCrewEmployees);
+            setEmployees(employeesRes ?? []);
 
             const counts = {};
             await Promise.all(

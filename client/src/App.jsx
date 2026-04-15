@@ -95,6 +95,7 @@ function App() {
                             <ManageBooking />
                         </ProtectedRoute>} />
 
+                    
                     {/* Employee-Authenticated Routes */}
                     <Route 
                         path='/employee/dashboard' 
@@ -103,36 +104,37 @@ function App() {
                                 </RoleProtectedRoute>} />
                     <Route
                         path='/flights'
-                        element={<RoleProtectedRoute allowedRoles={["Employee", "Administrator"]}>
+                        element={<RoleProtectedRoute allowedRoles={["Employee", "Administrator"]} allowedDepartments={["FlightOps"]}>
                             <Flights />
                         </RoleProtectedRoute>} />
                     <Route
                         path='/passenger-list'
-                        element={<RoleProtectedRoute allowedRoles={["Employee", "Administrator"]}>
+                        element={<RoleProtectedRoute allowedRoles={["Employee", "Administrator"]} allowedDepartments={["CabinCrew"]}>
                             <PassengerList />
                         </RoleProtectedRoute>} />
                     <Route
                         path='/cabin-crew/my-flights'
-                        element={<RoleProtectedRoute allowedRoles={["Employee", "Administrator"]}>
+                        element={<RoleProtectedRoute allowedRoles={["Employee", "Administrator"]} allowedDepartments={["CabinCrew"]}>
                             <MyFlights />
                         </RoleProtectedRoute>} />
                     <Route
                         path='/flight-ops/crew-assignment'
-                        element={<RoleProtectedRoute allowedRoles={["Employee", "Administrator"]}>
+                        element={<RoleProtectedRoute allowedRoles={["Employee", "Administrator"]} allowedDepartments={["FlightOps"]}>
                             <CrewAssignments />
                         </RoleProtectedRoute>} />
-                    
-                    {/* Administrator-Authenticated Routes */}
                     <Route
                         path='/aircraft'
-                        element={<RoleProtectedRoute allowedRoles={["Administrator"]}>
+                        element={<RoleProtectedRoute allowedRoles={["Employee", "Administrator"]} allowedDepartments={["FlightOps"]}>
                             <Aircraft />
                         </RoleProtectedRoute>} />
                     <Route
                         path='/airports'
-                        element={<RoleProtectedRoute allowedRoles={["Administrator"]}>
+                        element={<RoleProtectedRoute allowedRoles={["Employee", "Administrator"]} allowedDepartments={["FlightOps"]}>
                             <Airport />
-                        </RoleProtectedRoute>} />
+                        </RoleProtectedRoute>} />                    
+                    
+                    {/* Administrator-Authenticated Routes */}
+
                     <Route
                         path='/admin/dashboard'
                         element={<RoleProtectedRoute allowedRoles={["Administrator"]}>

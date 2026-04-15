@@ -25,6 +25,7 @@ export function AuthProvider({ children }) {
                 firstName: data.firstName,
                 lastName: data.lastName,
                 userRole: data.userRole,
+                department: data.department || null,
             };
 
             localStorage.setItem("token", data.token);
@@ -54,6 +55,7 @@ export function AuthProvider({ children }) {
             firstName: data.firstName,
             lastName: data.lastName,
             userRole: data.userRole,
+            department: data.department || null,
         };
 
         localStorage.setItem("token", data.token);
