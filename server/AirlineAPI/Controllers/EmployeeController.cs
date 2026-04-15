@@ -443,10 +443,14 @@ namespace AirlineAPI.Controllers
 
             var passengers = await _context.Ticket
                 .Include(t => t.Passenger)
-                .Where(t => t.flightCode == flightNum && t.status == TicketStatus.Booked)
+                .Where(t =>
+                    t.flightCode == flightNum &&
+                    (t.status == TicketStatus.Booked || t.status == TicketStatus.Boarded)
+                )
                 .OrderBy(t => t.seatNumber)
                 .Select(t => new CrewFlightPassengerDto
                 {
+                    TicketCode = t.ticketCode,
                     PassengerId = t.passengerId,
                     FirstName = t.Passenger != null ? t.Passenger.FirstName : null,
                     LastName = t.Passenger != null ? t.Passenger.LastName : null,
@@ -457,6 +461,38 @@ namespace AirlineAPI.Controllers
                 .ToListAsync();
 
             return Ok(passengers);
+        }
+        
+        [HttpPut("my-flights/{flightNum}/board/{ticketCode}")]
+        public async Task<IActionResult> MarkPassengerBoarded(int flightNum, string ticketCode)
+        {
+            var employee = await GetCurrentEmployeeAsync();
+
+            if (employee == null)
+                return Unauthorized(new { message = "Invalid token." });
+
+            if (!IsCabinCrew(employee) && !employee.IsAdmin)
+                return Forbid();
+
+            var isAssigned = await _context.FlightCrewAssignments
+                .AnyAsync(a => a.flightNum == flightNum && a.employeeId == employee.employeeId);
+
+            if (!isAssigned && !employee.IsAdmin)
+                return Forbid();
+
+            var ticket = await _context.Ticket
+                .FirstOrDefaultAsync(t => t.ticketCode == ticketCode && t.flightCode == flightNum);
+
+            if (ticket == null)
+                return NotFound(new { message = "Ticket not found." });
+
+            if (ticket.status == TicketStatus.Boarded)
+                return BadRequest(new { message = "Passenger already boarded." });
+
+            ticket.status = TicketStatus.Boarded;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Passenger marked as boarded." });
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────

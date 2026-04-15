@@ -36,6 +36,7 @@ namespace AirlineAPI.DTOs.Employee
 
     public class CrewFlightPassengerDto
     {
+        public string TicketCode { get; set; }
         public string PassengerId { get; set; } = string.Empty;
         public string? FirstName { get; set; }
         public string? LastName { get; set; }

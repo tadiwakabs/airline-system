@@ -8,7 +8,7 @@ CREATE TABLE `Ticket` (
       `boardingTime` varchar(30) DEFAULT NULL,
       `seatNumber` char(3) NOT NULL,
       `flightCode` int NOT NULL,
-      `status` enum('Booked','Cancelled','Pending') DEFAULT NULL,
+      `status` enum('Booked','Cancelled','Boarded','Pending') NOT NULL,
       `specialRequest` tinyint(1) DEFAULT NULL,
       `requestType` varchar(100) DEFAULT NULL,
       `ticketClass` enum('Economy','Business','First') DEFAULT NULL,

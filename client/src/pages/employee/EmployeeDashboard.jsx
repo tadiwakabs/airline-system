@@ -8,7 +8,7 @@ function Employee() {
         { 
             label: "View Flights", 
             icon: "✈️", 
-            path: "/flights", 
+            path: "/cabin-crew/my-flights", 
             color: "bg-red-400",
             description: "View your assigned flights" 
         },
@@ -17,7 +17,7 @@ function Employee() {
             icon: "👥", 
             path: "/passenger-list", 
             color: "bg-blue-400",
-            description: "View traveler info" 
+            description: "View traveler info for any flight" 
         },
         { 
             label: "My Profile", 

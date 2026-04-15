@@ -7,6 +7,7 @@ import Dropdown from "../../components/common/Dropdown";
 import {
     getMyUpcomingFlights,
     getPassengersForMyFlight,
+    markPassengerBoarded,
 } from "../../services/employeeService";
 import { getSeatsForFlight } from "../../services/passengerService";
 
@@ -207,6 +208,17 @@ export default function MyFlights() {
         }
     };
 
+    async function handleBoardPassenger(p) {
+        try {
+            await markPassengerBoarded(selectedFlight.flightNum, p.ticketCode);
+
+            const updated = await getPassengersForMyFlight(selectedFlight.flightNum);
+            setPassengers(updated);
+        } catch (err) {
+            setError(err?.response?.data?.message || "Failed to update passenger.");
+        }
+    }
+
     const filteredFlights = useMemo(() => {
         const term = flightSearchTerm.trim().toLowerCase();
         let result = [...flights];
@@ -253,6 +265,14 @@ export default function MyFlights() {
         }
 
         result.sort((a, b) => {
+            const aBoarded = a.ticketStatus === "Boarded";
+            const bBoarded = b.ticketStatus === "Boarded";
+
+            // Non-boarded passengers first, boarded passengers last
+            if (aBoarded !== bBoarded) {
+                return aBoarded ? 1 : -1;
+            }
+
             switch (passengerSortBy) {
                 case "lastName":
                     return (a.lastName || "").localeCompare(b.lastName || "");
@@ -282,8 +302,10 @@ export default function MyFlights() {
         const occupied = seats.filter((s) => s.seatStatus === "Occupied").length;
         const reserved = seats.filter((s) => s.seatStatus === "Reserved").length;
         const available = seats.filter((s) => s.seatStatus === "Available").length;
-        return { total, occupied, reserved, available };
-    }, [seats]);
+        const boarded = passengers.filter((p) => p.ticketStatus === "Boarded").length;
+
+        return { total, occupied, reserved, available, boarded };
+    }, [seats, passengers]);
 
     const formatDisplayDateTime = (value) => {
         if (!value) return "";
@@ -369,11 +391,12 @@ export default function MyFlights() {
 
                 <div className="space-y-6">
                     {selectedFlight && (
-                        <div className="grid grid-cols-4 gap-4">
+                        <div className="grid grid-cols-5 gap-4">
                             {[
                                 { label: "Total seats", value: stats.total, color: "text-gray-900" },
                                 { label: "Booked", value: stats.occupied, color: "text-red-600" },
                                 { label: "Reserved", value: stats.reserved, color: "text-amber-600" },
+                                { label: "Boarded", value: stats.boarded, color: "text-green-700" },
                                 { label: "Available", value: stats.available, color: "text-green-600" },
                             ].map((s) => (
                                 <div key={s.label} className="rounded-lg bg-gray-50 p-4 text-center">
@@ -435,16 +458,19 @@ export default function MyFlights() {
                                                     className={`flex items-center gap-4 rounded-xl border px-4 py-3 transition-colors cursor-default ${
                                                         isHighlighted
                                                             ? "border-blue-300 bg-blue-50"
-                                                            : "border-gray-100 bg-gray-50 hover:bg-gray-100"
+                                                            : p.ticketStatus === "Boarded"
+                                                                ? "border-green-100 bg-green-50/60"
+                                                                : "border-gray-100 bg-gray-50 hover:bg-gray-100"
                                                     }`}
                                                     onMouseEnter={() => setHighlightedSeat(p.seatNumber)}
                                                     onMouseLeave={() => setHighlightedSeat(null)}
                                                 >
-                                                    <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-sm font-bold text-gray-800">
+                                                    <div className="shrink-0 w-12 h-12 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-sm font-bold text-gray-800">
                                                         {p.seatNumber || "—"}
                                                     </div>
 
                                                     <div className="flex-1 min-w-0">
+                                                        
                                                         <p className="text-sm font-medium text-gray-900 truncate">
                                                             {p.firstName} {p.lastName}
                                                         </p>
@@ -455,11 +481,25 @@ export default function MyFlights() {
                                                                 </span>
                                                             )}
                                                             {p.ticketStatus && (
-                                                                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600">
+                                                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                                                    p.ticketStatus === "Boarded"
+                                                                        ? "bg-green-100 text-green-700"
+                                                                        : "bg-gray-100 text-gray-600"
+                                                                }`}>
                                                                     {p.ticketStatus}
                                                                 </span>
                                                             )}
                                                         </div>
+                                                    </div>
+                                                    <div className="flex-shrink-0">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            disabled={p.ticketStatus === "Boarded"}
+                                                            onClick={() => handleBoardPassenger(p)}
+                                                        >
+                                                            {p.ticketStatus === "Boarded" ? "Boarded" : "Mark Boarded"}
+                                                        </Button>
                                                     </div>
                                                 </div>
                                             );

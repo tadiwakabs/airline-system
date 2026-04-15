@@ -49,3 +49,8 @@ export async function getPassengersForMyFlight(flightNum) {
     const response = await api.get(`/employee/my-flights/${flightNum}/passengers`);
     return response.data;
 }
+
+export async function markPassengerBoarded(flightNum, ticketCode) {
+    const response = await api.put(`/employee/my-flights/${flightNum}/board/${ticketCode}`);
+    return response.data;
+}
