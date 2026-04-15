@@ -124,7 +124,7 @@ export default function Navbar() {
     const role = (user?.userRole || user?.UserRole || "").trim().toLowerCase();
 
     const isAdmin = role === "administrator";
-    const isEmployee = isAdmin || role === "employee";
+    const isEmployee = role === "employee";
 
     const handleSearch = (e) => {
         e.preventDefault();

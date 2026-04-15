@@ -1,38 +1,86 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
 
 function Employee() {
     const navigate = useNavigate();
+    const { user } = useAuth();
 
-    const menuItems = [
-        { 
-            label: "View Flights", 
-            icon: "✈️", 
-            path: "/flights", 
-            color: "bg-red-400",
-            description: "Check schedules and status" 
-        },
-        { 
-            label: "Passenger List", 
-            icon: "👥", 
-            path: "/passenger-list", 
-            color: "bg-blue-400",
-            description: "View traveler info" 
-        },
-        { 
-            label: "My Profile", 
-            icon: "👤", 
-            path: "/profile", 
+    const commonItems = [
+        {
+            label: "My Profile",
+            icon: "👤",
+            path: "/profile",
             color: "bg-yellow-400",
-            description: "Manage your account information" 
-        }
+            description: "Manage your account information",
+        },
     ];
+
+    const cabinCrewItems = [
+        {
+            label: "My Flights",
+            icon: "✈️",
+            path: "/cabin-crew/my-flights",
+            color: "bg-red-400",
+            description: "View your assigned flights",
+        },
+        {
+            label: "Passenger List",
+            icon: "👥",
+            path: "/passenger-list",
+            color: "bg-blue-400",
+            description: "View passenger details for assigned flights",
+        },
+    ];
+
+    const flightOpsItems = [
+        {
+            label: "Flights",
+            icon: "🛫",
+            path: "/flights",
+            color: "bg-red-400",
+            description: "Manage flights and schedules",
+        },
+        {
+            label: "Crew Assignments",
+            icon: "🧑‍✈️",
+            path: "/flight-ops/crew-assignment",
+            color: "bg-cyan-500",
+            description: "Assign crew to flights",
+        },
+        {
+            label: "Aircraft",
+            icon: "🛩️",
+            path: "/aircraft",
+            color: "bg-indigo-400",
+            description: "View aircraft availability",
+        },
+        {
+            label: "Airports",
+            icon: "📍",
+            path: "/airports",
+            color: "bg-green-400",
+            description: "View airport information",
+        },
+    ];
+
+    let menuItems = [...commonItems];
+
+    if (user?.department === "CabinCrew") {
+        menuItems = [...cabinCrewItems, ...commonItems];
+    } else if (user?.department === "FlightOps") {
+        menuItems = [...flightOpsItems, ...commonItems];
+    } else {
+        menuItems = [...commonItems];
+    }
 
     return (
         <div className="max-w-6xl mx-auto px-4 py-10">
             <header className="mb-8">
                 <h1 className="text-3xl font-bold text-black-900">Employee Dashboard</h1>
-                <p className="font-bold text-gray-500 mt-2">Welcome back. Select an operation below to get started.</p>
+                <p className="font-bold text-gray-500 mt-2">
+                    Welcome back. Select an operation below to get started.
+                </p>
             </header>
 
             <div className="flex flex-wrap justify-center gap-6">
