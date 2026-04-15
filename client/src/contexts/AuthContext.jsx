@@ -17,17 +17,21 @@ function isTokenExpired(token) {
 }
 
 export function AuthProvider({ children }) {
-    const savedUser = localStorage.getItem("user");
-    const savedToken = localStorage.getItem("token");
+    const rawUser = localStorage.getItem("user");
+    const rawToken = localStorage.getItem("token");
 
-    if (savedToken && isTokenExpired(savedToken)) {
+    const tokenValid = rawToken && !isTokenExpired(rawToken);
+
+    if (!tokenValid) {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
     }
 
-    const [user, setUser] = useState(savedUser ? JSON.parse(savedUser) : null);
-    const [token, setToken] = useState(savedToken);
-    const [isAuthenticated, setIsAuthenticated] = useState(!!savedToken);
+    const [user, setUser] = useState(
+        tokenValid && rawUser ? JSON.parse(rawUser) : null
+    );
+    const [token, setToken] = useState(tokenValid ? rawToken : null);
+    const [isAuthenticated, setIsAuthenticated] = useState(!!tokenValid);
     const [loading, setLoading] = useState(false);
 
     const login = async ({ username, password }) => {
