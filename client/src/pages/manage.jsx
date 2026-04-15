@@ -17,7 +17,7 @@ function groupSeatsForRender(seats) {
     const rows = new Map();
     for (const seat of seats) {
         const match = String(seat.seatNumber).match(/^(\d+)([A-Z])$/i);
-        if (!match) return;
+        if (!match) continue;
         const rowNumber = Number(match[1]);
         const letter = match[2].toUpperCase();
         if (!rows.has(rowNumber)) rows.set(rowNumber, []);
@@ -28,6 +28,177 @@ function groupSeatsForRender(seats) {
             rowNumber,
             seats: rowSeats.sort((a, b) => a.letter.localeCompare(b.letter)),
         }));
+}
+
+function seatClassMatches(seatClass, cabinClass) {
+    return String(seatClass || "").toLowerCase() === String(cabinClass || "").toLowerCase();
+}
+
+function getSeatVisualState(seat, allowedClass, selectedPassengerId, selectedSeatNumber) {
+    const seatClass = seat.seatclass;
+    const status = seat.seatStatus;
+
+    if (!seatClassMatches(seatClass, allowedClass)) return "wrong-class";
+    if (status === "Occupied") return "occupied";
+    if (status === "Reserved" && seat.passengerId !== selectedPassengerId) return "reserved";
+    if (seat.seatNumber === selectedSeatNumber) return "selected";
+    return "available";
+}
+
+function seatButtonClass(state) {
+    const base =
+        "w-11 h-11 rounded-lg border text-sm font-semibold transition-colors";
+
+    switch (state) {
+        case "selected":
+            return `${base} bg-blue-600 text-white border-blue-600`;
+        case "occupied":
+            return `${base} bg-red-100 text-red-600 border-red-200 cursor-not-allowed`;
+        case "reserved":
+            return `${base} bg-amber-100 text-amber-700 border-amber-200 cursor-not-allowed`;
+        case "wrong-class":
+            return `${base} bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed`;
+        default:
+            return `${base} bg-green-50 text-green-700 border-green-200 hover:bg-green-100`;
+    }
+}
+
+function getCabinSection(rowNumber) {
+    if (rowNumber >= 1 && rowNumber <= 4) return "First Class";
+    if (rowNumber >= 5 && rowNumber <= 10) return "Business Class";
+    return "Economy Class";
+}
+
+function shouldShowSectionDivider(currentRow, previousRow) {
+    if (previousRow == null) return true;
+    return getCabinSection(currentRow) !== getCabinSection(previousRow);
+}
+
+function PlaneLegend() {
+    return (
+        <div className="flex flex-wrap gap-3 text-xs text-gray-600">
+            <div className="flex items-center gap-2">
+                <span className="w-4 h-4 rounded bg-green-50 border border-green-200 inline-block" />
+                Available
+            </div>
+            <div className="flex items-center gap-2">
+                <span className="w-4 h-4 rounded bg-blue-600 inline-block" />
+                Selected
+            </div>
+            <div className="flex items-center gap-2">
+                <span className="w-4 h-4 rounded bg-red-100 border border-red-200 inline-block" />
+                Occupied
+            </div>
+            <div className="flex items-center gap-2">
+                <span className="w-4 h-4 rounded bg-amber-100 border border-amber-200 inline-block" />
+                Reserved
+            </div>
+            <div className="flex items-center gap-2">
+                <span className="w-4 h-4 rounded bg-gray-100 border border-gray-200 inline-block" />
+                Unavailable
+            </div>
+        </div>
+    );
+}
+
+function SeatMap({
+                     seats,
+                     allowedClass,
+                     selectedPassengerId,
+                     selectedSeatNumber,
+                     onSelectSeat,
+                 }) {
+    const rows = useMemo(() => groupSeatsForRender(seats), [seats]);
+
+    return (
+        <div className="rounded-2xl border border-gray-200 bg-white p-4">
+            <div className="mx-auto mb-6 w-40 rounded-t-full border border-gray-200 bg-gray-50 py-2 text-center text-xs font-medium text-gray-500">
+                Front of aircraft
+            </div>
+
+            <div className="space-y-2">
+                {rows.map((row, index) => {
+                    const previousRowNumber = index > 0 ? rows[index - 1].rowNumber : null;
+                    const showDivider = shouldShowSectionDivider(row.rowNumber, previousRowNumber);
+
+                    const seatLetters = row.seats.map((s) => s.letter);
+                    const left = row.seats.filter((s) => ["A", "B", "C"].includes(s.letter));
+                    const right = row.seats.filter((s) => ["D", "E", "F"].includes(s.letter));
+                    const compact = !seatLetters.includes("E") && !seatLetters.includes("F");
+
+                    return (
+                        <div key={row.rowNumber} className="space-y-2">
+                            {showDivider && (
+                                <div className="flex items-center gap-3 py-2">
+                                    <div className="h-px flex-1 bg-gray-200" />
+                                    <div className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600">
+                                        {getCabinSection(row.rowNumber)}
+                                    </div>
+                                    <div className="h-px flex-1 bg-gray-200" />
+                                </div>
+                            )}
+
+                            <div className="flex items-center justify-center gap-3">
+                                <div className="w-8 text-right text-xs font-medium text-gray-400">
+                                    {row.rowNumber}
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    {(compact ? row.seats.slice(0, 2) : left).map((seat) => {
+                                        const state = getSeatVisualState(
+                                            seat,
+                                            allowedClass,
+                                            selectedPassengerId,
+                                            selectedSeatNumber
+                                        );
+
+                                        return (
+                                            <button
+                                                key={seat.seatNumber}
+                                                type="button"
+                                                className={seatButtonClass(state)}
+                                                disabled={state !== "available" && state !== "selected"}
+                                                onClick={() => onSelectSeat(seat)}
+                                            >
+                                                {seat.letter}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                <div className="w-8 text-center text-[10px] uppercase tracking-wide text-gray-300">
+                                    aisle
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    {(compact ? row.seats.slice(2) : right).map((seat) => {
+                                        const state = getSeatVisualState(
+                                            seat,
+                                            allowedClass,
+                                            selectedPassengerId,
+                                            selectedSeatNumber
+                                        );
+
+                                        return (
+                                            <button
+                                                key={seat.seatNumber}
+                                                type="button"
+                                                className={seatButtonClass(state)}
+                                                disabled={state !== "available" && state !== "selected"}
+                                                onClick={() => onSelectSeat(seat)}
+                                            >
+                                                {seat.letter}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
 }
 
 
@@ -280,41 +451,32 @@ const ManageBooking = () => {
                     ) : (
                         <div className="space-y-8">
                             {/* Visual Seat Map Container */}
-                            <div className="flex justify-center bg-gray-50 p-8 rounded-3xl border border-gray-100">
-                                <div className="grid grid-cols-1 gap-4">
-                                    <p className="text-center text-[10px] text-gray-400 uppercase tracking-[0.3em] mb-4 font-black">Front of Aircraft</p>
-                                    <div className="space-y-3">
-                                        {groupSeatsForRender(availableSeats).map(row => (
-                                            <div key={row.rowNumber} className="flex gap-3 items-center justify-center">
-                                                <span className="w-6 text-[10px] font-black text-gray-300">{row.rowNumber}</span>
-                                                {row.seats.map(seat => {
-                                                    const isWrongClass = seat.seatclass?.toLowerCase() !== allowedClass;
-                                                    const isOccupied = seat.seatStatus === "Occupied";
-                                                    const isSelected = newSeatNumber === seat.seatNumber;
+                            <div className="space-y-4">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div>
+                                        <p className="text-sm text-gray-500">Passenger</p>
+                                        <p className="font-medium text-gray-900">
+                                            {selectedTicket?.passenger?.firstName} {selectedTicket?.passenger?.lastName}
+                                        </p>
+                                    </div>
 
-                                                    return (
-                                                        <button
-                                                            key={seat.seatNumber}
-                                                            disabled={isOccupied || isWrongClass}                                                       
-                                                            onClick={() => setNewSeatNumber(seat.seatNumber)}
-                                                            className={`w-11 h-11 rounded-xl text-xs font-black border-2 transition-all ${
-                                                                isSelected 
-                                                                ? "bg-blue-600 text-white border-blue-700 shadow-md scale-110" 
-                                                                : isOccupied 
-                                                                ? "bg-red-50 text-red-300 cursor-not-allowed border-red-100" 
-                                                                : isWrongClass
-                                                                ? "bg-gray-100 text-gray-300 cursor-not-allowed border-gray-100"
-                                                                : "bg-white text-green-600 border-green-100 hover:border-green-400 hover:bg-green-50"
-                                                            }`}
-                                                        >
-                                                            {seat.letter}
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        ))}
+                                    <div className="text-right">
+                                        <p className="text-sm text-gray-500">Selected seat</p>
+                                        <p className="font-medium text-gray-900">
+                                            {newSeatNumber || selectedTicket?.seatNumber || "None"}
+                                        </p>
                                     </div>
                                 </div>
+
+                                <PlaneLegend />
+
+                                <SeatMap
+                                    seats={availableSeats}
+                                    allowedClass={allowedClass}
+                                    selectedPassengerId={selectedTicket?.passengerId}
+                                    selectedSeatNumber={newSeatNumber || selectedTicket?.seatNumber}
+                                    onSelectSeat={(seat) => setNewSeatNumber(seat.seatNumber)}
+                                />
                             </div>
 
                             {/* Selection Summary Footer */}
