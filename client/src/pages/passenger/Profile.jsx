@@ -450,7 +450,7 @@ export default function Profile() {
     if (!profile) {
         return (
             <div className="mx-auto max-w-6xl px-4 py-10">
-                <p className="text-red-600">"Profile not found."</p>
+                <p className="text-red-600">Profile not found.</p>
             </div>
         );
     }
