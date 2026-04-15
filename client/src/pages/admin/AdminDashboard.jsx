@@ -41,6 +41,13 @@ function Admin() {
             description: "Assign cabin crew to flights"
         },
         {
+            label: "Passenger List",
+            icon: "👥",
+            path: "/passenger-list",
+            color: "bg-blue-400",
+            description: "View passenger details for assigned flights",
+        },
+        {
             label: "Reports",
             icon: "📊",
             path: "/reports",

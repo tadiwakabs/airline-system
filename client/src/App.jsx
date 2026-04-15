@@ -99,7 +99,7 @@ function App() {
                     {/* Employee-Authenticated Routes */}
                     <Route 
                         path='/employee/dashboard' 
-                        element={<RoleProtectedRoute allowedRoles={["Employee", "Administrator"]}>
+                        element={<RoleProtectedRoute allowedRoles={["Employee"]}>
                                     <Employee />
                                 </RoleProtectedRoute>} />
                     <Route
