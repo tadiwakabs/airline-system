@@ -80,8 +80,8 @@ const formStatusOptions = [
 
 const sortOptions = [
     { label: "Flight Number",  value: "flightNum" },
-    { label: "Departure Time", value: "departTime" },
-    { label: "Arrival Time",   value: "arrivalTime" },
+    { label: "Departure Time", value: "scheduledDepartLocal" },
+    { label: "Arrival Time",   value: "scheduledArrivalLocal" },
     { label: "Distance",       value: "distance" },
     { label: "Status",         value: "status" },
 ];
@@ -344,8 +344,8 @@ export default function Flights() {
         setEditingFlightId(flight.flightNum);
         setFormData({
             flightNum:         flight.flightNum ?? "",
-            departTime:        formatForDateTimeLocal(flight.departTime),
-            arrivalTime:       formatForDateTimeLocal(flight.arrivalTime),
+            departTime:        formatForDateTimeLocal(flight.scheduledDepartLocal ?? flight.departTime),
+            arrivalTime:       formatForDateTimeLocal(flight.scheduledArrivalLocal ?? flight.arrivalTime),
             aircraftUsed:      flight.aircraftUsed ?? "",
             status:            flight.status ?? "",
             departingPortCode: flight.departingPortCode ?? flight.departingPort ?? "",
@@ -392,16 +392,16 @@ export default function Flights() {
         setError("");
         setSuccessMessage("");
         const payload = {
-            flightNum:         Number(formData.flightNum),
-            departTime:        formData.departTime,
-            arrivalTime:       formData.arrivalTime,
-            aircraftUsed:      formData.aircraftUsed,
-            status:            formData.status,
-            departingPortCode: formData.departingPortCode,
-            arrivingPortCode:  formData.arrivingPortCode,
-            isDomestic:        formData.isDomestic,
-            distance:          Number(formData.distance),
-            flightChange:      formData.flightChange,
+            flightNum:             Number(formData.flightNum),
+            scheduledDepartLocal:  formData.departTime,
+            scheduledArrivalLocal: formData.arrivalTime,
+            aircraftUsed:          formData.aircraftUsed,
+            status:                formData.status,
+            departingPortCode:     formData.departingPortCode,
+            arrivingPortCode:      formData.arrivingPortCode,
+            isDomestic:            formData.isDomestic,
+            distance:              Number(formData.distance),
+            flightChange:          formData.flightChange,
         };
         try {
             if (editingFlightId !== null) {
@@ -604,7 +604,7 @@ export default function Flights() {
         result.sort((a, b) => {
             let aVal = a[sortBy];
             let bVal = b[sortBy];
-            if (sortBy === "departTime" || sortBy === "arrivalTime") {
+            if (sortBy === "scheduledDepartLocal" || sortBy === "scheduledArrivalLocal") {
                 aVal = new Date(aVal).getTime();
                 bVal = new Date(bVal).getTime();
             } else {
@@ -814,8 +814,12 @@ export default function Flights() {
                                 {pagedFlights.map((flight) => (
                                     <tr key={flight.flightNum} className="rounded-xl bg-gray-50 text-sm">
                                         <td className="px-3 py-3 font-medium text-gray-900">{flight.flightNum}</td>
-                                        <td className="px-3 py-3">{formatDisplayDateTime(flight.departTime)}</td>
-                                        <td className="px-3 py-3">{formatDisplayDateTime(flight.arrivalTime)}</td>
+                                        <td className="px-3 py-3">
+                                            {formatDisplayDateTime(flight.scheduledDepartLocal ?? flight.departTime)}
+                                        </td>
+                                        <td className="px-3 py-3">
+                                            {formatDisplayDateTime(flight.scheduledArrivalLocal ?? flight.arrivalTime)}
+                                        </td>
                                         <td className="px-3 py-3">{flight.aircraftUsed}</td>
                                         <td className="px-3 py-3">
                                             {flight.departingPortCode ?? flight.departingPort} →{" "}
@@ -979,8 +983,8 @@ export default function Flights() {
                             disabled={editingFlightId !== null}
                         />
                         <div className="grid grid-cols-2 gap-4">
-                            <TextInput label={<>Departure Time <span className="text-red-500">*</span></>} name="departTime"  type="datetime-local" value={formData.departTime}  onChange={handleFormChange} />
-                            <TextInput label={<>Arrival Time <span className="text-red-500">*</span></>}   name="arrivalTime" type="datetime-local" value={formData.arrivalTime} onChange={handleFormChange} />
+                            <TextInput label={<>Departure Time (Local) <span className="text-red-500">*</span></>} name="departTime"  type="datetime-local" value={formData.departTime}  onChange={handleFormChange} />
+                            <TextInput label={<>Arrival Time (Local) <span className="text-red-500">*</span></>}   name="arrivalTime" type="datetime-local" value={formData.arrivalTime} onChange={handleFormChange} />
                         </div>
                         {renderAircraftAndStatus(formData, setFormData)}
                         <div className="grid grid-cols-2 gap-4">
@@ -1038,8 +1042,8 @@ export default function Flights() {
                             <TextInput label={<>End Date <span className="text-red-500">*</span></>}   name="endDate"   type="date" value={recurringData.endDate}   onChange={handleRecurringChange} />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                            <TextInput label={<>Departure Time <span className="text-red-500">*</span></>} name="departureTimeOfDay" type="time" value={recurringData.departureTimeOfDay} onChange={handleRecurringChange} />
-                            <TextInput label={<>Arrival Time <span className="text-red-500">*</span></>}   name="arrivalTimeOfDay"   type="time" value={recurringData.arrivalTimeOfDay}   onChange={handleRecurringChange} />
+                            <TextInput label={<>Departure Time (Local) <span className="text-red-500">*</span></>} name="departureTimeOfDay" type="time" value={recurringData.departureTimeOfDay} onChange={handleRecurringChange} />
+                            <TextInput label={<>Arrival Time (Local) <span className="text-red-500">*</span></>}   name="arrivalTimeOfDay"   type="time" value={recurringData.arrivalTimeOfDay}   onChange={handleRecurringChange} />
                         </div>
                         {renderAircraftAndStatus(recurringData, setRecurringData)}
                         <div className="grid grid-cols-2 gap-4">
@@ -1204,7 +1208,7 @@ export default function Flights() {
                             </p>
                             <p>
                                 <span className="font-medium">Departure:</span>{" "}
-                                {formatDisplayDateTime(flightToDelete.departTime)}
+                                {formatDisplayDateTime(flightToDelete.scheduledDepartLocal ?? flightToDelete.departTime)}
                             </p>
                         </div>
                     )}

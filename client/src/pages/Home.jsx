@@ -28,8 +28,18 @@ function getStatusBadgeClass(status) {
 
 function formatDateTime(value) {
     if (!value) return "—";
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return value;
+
+    const raw = String(value).trim();
+    const [datePart, timePart = ""] = raw.split("T");
+    if (!datePart) return value;
+
+    const [year, month, day] = datePart.split("-").map(Number);
+    const [hour = 0, minute = 0] = timePart.split(":").map(Number);
+
+    if (!year || !month || !day) return value;
+
+    const d = new Date(year, month - 1, day, hour, minute);
+
     return d.toLocaleString([], {
         month: "short",
         day: "numeric",
@@ -139,6 +149,9 @@ export default function Home() {
                                             <p className="mt-1 text-sm text-gray-600">
                                                 {statusResult.departingPort} → {statusResult.arrivingPort}
                                             </p>
+                                            <p className="text-xs text-gray-500">
+                                                {statusResult.departingCity || "—"} → {statusResult.arrivingCity || "—"}
+                                            </p>
                                         </div>
 
                                         <span
@@ -200,6 +213,9 @@ export default function Home() {
                                                     <h3 className="text-xl font-semibold text-gray-900">{flight.flightNum}</h3>
                                                     <p className="mt-1 text-sm text-gray-600">
                                                         {getAirportCode(flight, "depart")} → {getAirportCode(flight, "arrive")}
+                                                    </p>
+                                                    <p className="text-xs text-gray-500">
+                                                        {flight.departingCity || "—"} → {flight.arrivingCity || "—"}
                                                     </p>
                                                 </div>
                                                 <span className={`inline-flex w-fit rounded-full px-3 py-1 text-sm font-semibold ${getStatusBadgeClass(flight.status)}`}>

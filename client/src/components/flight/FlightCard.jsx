@@ -3,22 +3,46 @@ import Card from "../common/Card";
 import Button from "../common/Button";
 import Separator from "../common/Separator";
 
-function formatTime(dateStr) {
-    return new Date(dateStr).toLocaleTimeString([], {
+function parseLocalDateTime(value) {
+    if (!value) return null;
+
+    const raw = String(value).trim();
+    const [datePart, timePart = ""] = raw.split("T");
+    if (!datePart) return null;
+
+    const [year, month, day] = datePart.split("-").map(Number);
+    const [hour = 0, minute = 0] = timePart.split(":").map(Number);
+
+    if (!year || !month || !day) return null;
+
+    return new Date(year, month - 1, day, hour, minute);
+}
+
+function formatTime(value) {
+    const d = parseLocalDateTime(value);
+    if (!d) return "—";
+
+    return d.toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
     });
 }
 
-function formatDuration(start, end) {
-    const diff = (new Date(end) - new Date(start)) / 1000 / 60;
+function formatDuration(startUtc, endUtc) {
+    if (!startUtc || !endUtc) return "—";
+
+    const diff = Math.max(0, (new Date(endUtc) - new Date(startUtc)) / 1000 / 60);
     const hours = Math.floor(diff / 60);
-    const mins = diff % 60;
+    const mins = Math.round(diff % 60);
+
     return `${hours}h ${mins}m`;
 }
 
-function formatDate(dateStr) {
-    return new Date(dateStr).toLocaleDateString([], {
+function formatDate(value) {
+    const d = parseLocalDateTime(value);
+    if (!d) return "—";
+
+    return d.toLocaleDateString([], {
         weekday: "short",
         month: "short",
         day: "numeric",
@@ -74,7 +98,7 @@ export default function FlightCard({
     const first = flights[0];
     const last = flights[flights.length - 1];
 
-    const totalDuration = formatDuration(first.departTime, last.arrivalTime);
+    const totalDuration = formatDuration(first.departTimeUtc, last.arrivalTimeUtc);
 
     const basePrice = getBasePrice(pricing, cabinClass || "economy");
     const selectedQuote = getSelectedQuote(quote, cabinClass);

@@ -28,6 +28,31 @@ function formatCabinClass(cabinClass) {
     return cabinClass.charAt(0).toUpperCase() + cabinClass.slice(1);
 }
 
+function parseLocalDateTime(value) {
+    if (!value) return null;
+
+    const raw = String(value).trim();
+    const [datePart, timePart = ""] = raw.split("T");
+    if (!datePart) return null;
+
+    const [year, month, day] = datePart.split("-").map(Number);
+    const [hour = 0, minute = 0] = timePart.split(":").map(Number);
+
+    if (!year || !month || !day) return null;
+
+    return new Date(year, month - 1, day, hour, minute);
+}
+
+function formatLocalTime(value) {
+    const d = parseLocalDateTime(value);
+    if (!d) return "—";
+
+    return d.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+    });
+}
+
 function useFlightSearch(from, to, date, passengers, enabled) {
     const [results, setResults]   = useState([]);
     const [loading, setLoading]   = useState(false);
@@ -58,6 +83,8 @@ function useFlightSearch(from, to, date, passengers, enabled) {
                         arrivingPort:   f.arrivingPortCode,
                         departTime:     f.departTime,
                         arrivalTime:    f.arrivalTime,
+                        departTimeUtc:  f.departTimeUtc,
+                        arrivalTimeUtc: f.arrivalTimeUtc,
                         status:         f.status,
                         aircraftUsed:   f.aircraftUsed,
                         distance:       f.distance,
@@ -254,9 +281,7 @@ export default function FlightSearch() {
                             {selectedOutbound.flights[0].departingPort} →{" "}
                             {selectedOutbound.flights[selectedOutbound.flights.length - 1].arrivingPort}
                             {" · "}
-                            {new Date(selectedOutbound.flights[0].departTime).toLocaleTimeString([], {
-                                hour: "2-digit", minute: "2-digit"
-                            })}
+                            {formatLocalTime(selectedOutbound.flights[0].departTime)}
                         </p>
                     </Card>
                 )}
