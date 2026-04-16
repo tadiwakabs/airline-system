@@ -296,7 +296,7 @@ export default function Navbar() {
                                         )}
 
                                         <Link
-                                            to="/bookings"
+                                            to="/manage"
                                             onClick={() => setIsProfileMenuOpen(false)}
                                             className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
                                         >

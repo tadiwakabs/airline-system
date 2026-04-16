@@ -164,8 +164,8 @@ namespace AirlineAPI.Controllers
         public async Task<ActionResult> GetMyBookings()
         {
             var currentUserId = User.FindFirst("sub")?.Value
-                                ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-    
+                    ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            
             var bookings = await _context.Bookings
                 .Include(b => b.Tickets)
                 .ThenInclude(t => t.Flight)
