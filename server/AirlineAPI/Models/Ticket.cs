@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace AirlineAPI.Models
 {
@@ -16,6 +17,7 @@ namespace AirlineAPI.Models
         public string bookingId { get; set; } = string.Empty;
 
         [ForeignKey("bookingId")]
+        [JsonIgnore]
         public Booking? Booking { get; set; }
 
         [Required]
