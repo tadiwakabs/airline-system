@@ -1,6 +1,8 @@
 import React, { useState, useEffect,useMemo } from 'react';
 import api from '../services/api'; 
 import { getSeatsForFlight } from "../services/seatingService"; 
+import { useNavigate } from "react-router-dom";
+
 
 function formatDateTime(dateStr) {
     if (!dateStr) return "—";
@@ -212,6 +214,8 @@ const ManageBooking = () => {
     const [loadingSeats, setLoadingSeats] = useState(false);
     const [allowedClass, setAllowedClass] = useState("economy");
     const [targetFlight, setTargetFlight] = useState(null);
+    const navigate = useNavigate();
+
     
     useEffect(() => {
         fetchBookings();
@@ -309,9 +313,27 @@ const ManageBooking = () => {
             <p className="text-gray-500 mt-2 font-medium">Manage your seats and flight details</p>
         </header>
 
-        {/* BOOKING CARDS LIST */}
+        {/*--Empty State---*/}
+        {groupedBookings.length === 0 ? (
+            <div className="bg-white rounded-3xl border-2 border-dashed border-gray-200 p-20 text-center">
+                <div className="bg-blue-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <svg className="w-10 h-10 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                </div>
+                <h2 className="text-2xl font-black text-gray-900">No trips found</h2>
+                <p className="text-gray-500 mt-2 max-w-sm mx-auto font-medium">
+                    It looks like you haven't booked any flights yet. Ready to start your next adventure?
+                </p>
+                <button 
+                    onClick={() => navigate('/')} 
+                    className="mt-8 px-8 py-3 bg-blue-600 text-white font-black rounded-xl shadow-lg shadow-blue-100 hover:scale-105 transition-all"
+                >
+                    Book a Flight
+                </button>
+            </div>
+        ):(
         <div className="space-y-6">
-            {/* Classy Makeover: groupedBookings.map */}
             {groupedBookings.map((b) => {
                 const isCancelled = b.bookingStatus === "Cancelled" || b.bookingStatus === 2;
                 const statusColor = isCancelled ? 'bg-red-500' : 'bg-green-500';
@@ -432,7 +454,8 @@ const ManageBooking = () => {
                     </div>
                 );
             })}           
-        </div>
+        </div>)
+        }
 
         {/* SEAT SELECTION MODAL */}
         {selectedTicket && (
