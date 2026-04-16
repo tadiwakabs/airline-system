@@ -317,7 +317,7 @@ export default function Aircraft() {
                             className="border px-3 py-2 rounded"
                         />
                         <input
-                            placeholder="Num Seats (90-140)"
+                            placeholder="Num Seats (90 – 140)"
                             type="number"
                             value={form.numSeats}
                             onChange={(e) => setForm({ ...form, numSeats: parseInt(e.target.value) })}
@@ -330,7 +330,7 @@ export default function Aircraft() {
                             className="border px-3 py-2 rounded"
                         />
                         <input
-                            placeholder="Flight Range (9000–11000)"
+                            placeholder="Flight Range (9000 – 11000)"
                             type="number"
                             value={form.flightRange}
                             onChange={(e) => setForm({ ...form, flightRange: parseInt(e.target.value) })}

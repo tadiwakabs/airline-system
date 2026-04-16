@@ -24,6 +24,7 @@ namespace AirlineAPI.Data
         public DbSet<Booking> Bookings { get; set; }
         public DbSet<Employee> Employees { get; set; }
         public DbSet<Ticket> Ticket { get; set; }
+        public DbSet<FlightCrewAssignment> FlightCrewAssignments { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -336,7 +337,11 @@ namespace AirlineAPI.Data
 
                 entity.Property(e => e.department)
                     .HasColumnName("department")
-                    .HasMaxLength(50);
+                    .HasConversion(
+                        v => ConvertDepartmentToDb(v),
+                        v => ConvertDepartmentFromDb(v)
+                    )
+                    .IsRequired();
 
                 entity.Property(e => e.hire_date)
                     .HasColumnName("hire_date")
@@ -368,6 +373,35 @@ namespace AirlineAPI.Data
                     .WithMany()
                     .HasForeignKey(e => e.workLocation)
                     .OnDelete(DeleteBehavior.Restrict);
+            });
+            
+            modelBuilder.Entity<FlightCrewAssignment>(entity =>
+            {
+                entity.ToTable("FlightCrewAssignment");
+
+                entity.HasKey(x => new { x.flightNum, x.employeeId });
+
+                entity.Property(x => x.flightNum)
+                    .HasColumnName("flightNum")
+                    .IsRequired();
+
+                entity.Property(x => x.employeeId)
+                    .HasColumnName("employeeId")
+                    .HasMaxLength(50)
+                    .IsRequired();
+
+                entity.Property(x => x.assignedAt)
+                    .HasColumnName("assignedAt");
+
+                entity.HasOne(x => x.Flight)
+                    .WithMany()
+                    .HasForeignKey(x => x.flightNum)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.Employee)
+                    .WithMany()
+                    .HasForeignKey(x => x.employeeId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
             
         }
@@ -478,6 +512,24 @@ namespace AirlineAPI.Data
                 "On Leave"   => WorkStatus.OnLeave,
                 "Terminated" => WorkStatus.Terminated,
                 _            => WorkStatus.Active,
+            };
+        
+        private static string ConvertDepartmentToDb(EmployeeDepartment department) =>
+            department switch
+            {
+                EmployeeDepartment.CabinCrew => "Cabin Crew",
+                EmployeeDepartment.FlightOps => "Flight Ops",
+                EmployeeDepartment.Administrative => "Administrative",
+                _ => "Administrative",
+            };
+
+        private static EmployeeDepartment ConvertDepartmentFromDb(string? department) =>
+            department switch
+            {
+                "Cabin Crew" => EmployeeDepartment.CabinCrew,
+                "Flight Ops" => EmployeeDepartment.FlightOps,
+                "Administrative" => EmployeeDepartment.Administrative,
+                _ => EmployeeDepartment.Administrative,
             };
     }
 }

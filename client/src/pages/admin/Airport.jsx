@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useAuth } from "../../contexts/AuthContext";
 import {
     getAllAirports,
     createAirport,
@@ -31,7 +32,11 @@ export default function Airports() {
     const [filterText, setFilterText] = useState("");
     const [sortField, setSortField] = useState("airportCode");
     const [sortDir, setSortDir] = useState("asc");
-    const [states, setStates] = useState([]);
+    const [states, setStates] = useState([]); // New state for the dropdown
+    const { user } = useAuth();
+
+    const canManageAirports = user?.userRole === "Administrator";
+    const isReadOnly = !canManageAirports;
   
     useEffect(() => {
         fetchAirports();
@@ -175,12 +180,14 @@ export default function Airports() {
         <div className="p-6">
             <div className="flex items-center justify-between mb-4">
                 <h1 className="text-2xl font-bold">Airports</h1>
-                <button
-                    onClick={() => { setShowForm(true); setEditingCode(null); setForm(emptyForm); }}
-                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-                >
-                    + Add Airport
-                </button>
+                {canManageAirports && (
+                    <button
+                        onClick={() => { setShowForm(true); setEditingCode(null); setForm(emptyForm); }}
+                        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                    >
+                        + Add Airport
+                    </button>
+                )}
             </div>
 
             <FormError errors={serverErrors}/>
@@ -192,7 +199,7 @@ export default function Airports() {
                 className="border px-3 py-2 rounded w-full mb-4 focus:ring-2 focus:ring-blue-400 outline-none"
             />
 
-            {showForm && (
+            {canManageAirports && showForm && (
                 <div className="border rounded p-4 mb-6 bg-gray-50 shadow-inner">
                     <h2 className="font-semibold mb-3">{editingCode ? "Edit Airport" : "Add Airport"}</h2>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -302,13 +309,15 @@ export default function Airports() {
                                     {label}{sortArrow(field)}
                                 </th>
                             ))}
-                            <th className="px-4 py-2 border-b">Actions</th>
+                            {canManageAirports && <th className="px-4 py-2 border-b">Actions</th>}
                         </tr>
                     </thead>
                     <tbody>
                         {filtered.length === 0 ? (
                             <tr>
-                                <td colSpan={7} className="text-center py-6 text-gray-400">No airports found.</td>
+                                <td colSpan={canManageAirports ? 7 : 6} className="text-center py-6 text-gray-400">
+                                    No airports found.
+                                </td>
                             </tr>
                         ) : (
                             filtered.map((a) => (
@@ -319,10 +328,12 @@ export default function Airports() {
                                     <td className="px-4 py-2">{a.state ?? "—"}</td>
                                     <td className="px-4 py-2">{a.country}</td>
                                     <td className="px-4 py-2">{a.timezone ?? "—"}</td>
-                                    <td className="px-4 py-2 flex gap-3">
-                                        <button onClick={() => handleEdit(a)} className="text-blue-600 hover:underline">Edit</button>
-                                        <button onClick={() => handleDelete(a.airportCode)} className="text-red-500 hover:underline">Delete</button>
-                                    </td>
+                                    {canManageAirports && (
+                                        <td className="px-4 py-2 flex gap-3">
+                                            <button onClick={() => handleEdit(a)} className="text-blue-600 hover:underline">Edit</button>
+                                            <button onClick={() => handleDelete(a.airportCode)} className="text-red-500 hover:underline">Delete</button>
+                                        </td>
+                                    )}
                                 </tr>
                             ))
                         )}
