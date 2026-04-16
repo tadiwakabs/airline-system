@@ -66,6 +66,13 @@ namespace AirlineAPI.Controllers
 
                 if (dto.DaysOfWeek == null || dto.DaysOfWeek.Count == 0)
                 { errors.Add(new { index, message = "At least one day of week must be selected." }); continue; }
+                
+                var airports = await GetFlightAirportsAsync(dto.DepartingPortCode, dto.ArrivingPortCode);
+                if (airports == null)
+                {
+                    errors.Add(new { index, message = "One or both airports are invalid, or missing timezone data." });
+                    continue;
+                }
 
                 // Create the schedule record
                 var schedule = new RecurringSchedule
@@ -92,29 +99,37 @@ namespace AirlineAPI.Controllers
                 // Generate flights
                 var selectedDays   = dto.DaysOfWeek.Distinct().ToHashSet();
                 var flightsCreated = new List<Flight>();
-                var now            = DateTime.Now;
+                var now = DateTime.UtcNow;
 
                 for (var date = dto.StartDate.Date; date <= dto.EndDate.Date; date = date.AddDays(1))
                 {
                     if (!selectedDays.Contains((int)date.DayOfWeek)) continue;
 
-                    var depart  = date.Add(dto.DepartureTimeOfDay);
-                    var arrival = date.Add(dto.ArrivalTimeOfDay);
-                    if (arrival <= depart) arrival = arrival.AddDays(1);
-                    if (depart  < now)    continue;
+                    var scheduledDepartLocal = date.Add(dto.DepartureTimeOfDay);
+                    var scheduledArrivalLocal = date.Add(dto.ArrivalTimeOfDay);
+
+                    if (scheduledArrivalLocal <= scheduledDepartLocal)
+                        scheduledArrivalLocal = scheduledArrivalLocal.AddDays(1);
+
+                    var departUtc = ConvertLocalToUtc(scheduledDepartLocal, airports.Value.dep.timezone!);
+                    var arrivalUtc = ConvertLocalToUtc(scheduledArrivalLocal, airports.Value.arr.timezone!);
+
+                    if (departUtc < now) continue;
 
                     flightsCreated.Add(new Flight
                     {
-                        flightNum           = nextFlightNum++,
-                        departTime          = depart,
-                        arrivalTime         = arrival,
-                        aircraftUsed        = dto.AircraftUsed,
-                        status              = dto.Status,
-                        departingPort       = dto.DepartingPortCode,
-                        arrivingPort        = dto.ArrivingPortCode,
-                        isDomestic          = dto.IsDomestic,
-                        distance            = dto.Distance,
-                        flightChange        = dto.FlightChange,
+                        flightNum = nextFlightNum++,
+                        departTime = departUtc,
+                        arrivalTime = arrivalUtc,
+                        scheduledDepartLocal = scheduledDepartLocal,
+                        scheduledArrivalLocal = scheduledArrivalLocal,
+                        aircraftUsed = dto.AircraftUsed,
+                        status = dto.Status,
+                        departingPort = dto.DepartingPortCode,
+                        arrivingPort = dto.ArrivingPortCode,
+                        isDomestic = dto.IsDomestic,
+                        distance = dto.Distance,
+                        flightChange = dto.FlightChange,
                         recurringScheduleId = schedule.Id,
                     });
                 }
@@ -162,6 +177,10 @@ namespace AirlineAPI.Controllers
 
             if (dto.DaysOfWeek == null || dto.DaysOfWeek.Count == 0)
                 return BadRequest(new { message = "At least one day of week must be selected." });
+            
+            var airports = await GetFlightAirportsAsync(dto.DepartingPortCode, dto.ArrivingPortCode);
+            if (airports == null)
+                return BadRequest(new { message = "One or both airports are invalid, or missing timezone data." });
 
             schedule.DepartingPort = dto.DepartingPortCode;
             schedule.ArrivingPort = dto.ArrivingPortCode;
@@ -179,7 +198,7 @@ namespace AirlineAPI.Controllers
             await _context.SaveChangesAsync();
             
             // Regenerate future flights
-            var now = DateTime.Now;
+            var now = DateTime.UtcNow;
 
             // Delete future flights tied to this schedule
             var futureFlights = await _context.Flights
@@ -200,21 +219,25 @@ namespace AirlineAPI.Controllers
                 if (!selectedDays.Contains(dayNum))
                     continue;
 
-                var departDateTime = date.Add(dto.DepartureTimeOfDay);
-                var arrivalDateTime = date.Add(dto.ArrivalTimeOfDay);
+                var scheduledDepartLocal = date.Add(dto.DepartureTimeOfDay);
+                var scheduledArrivalLocal = date.Add(dto.ArrivalTimeOfDay);
 
-                if (arrivalDateTime <= departDateTime)
-                    arrivalDateTime = arrivalDateTime.AddDays(1);
+                if (scheduledArrivalLocal <= scheduledDepartLocal)
+                    scheduledArrivalLocal = scheduledArrivalLocal.AddDays(1);
 
-                // optional: skip already-past departures
-                if (departDateTime < now)
+                var departUtc = ConvertLocalToUtc(scheduledDepartLocal, airports.Value.dep.timezone!);
+                var arrivalUtc = ConvertLocalToUtc(scheduledArrivalLocal, airports.Value.arr.timezone!);
+
+                if (departUtc < now)
                     continue;
 
                 flightsToCreate.Add(new Flight
                 {
                     flightNum = nextFlightNum++,
-                    departTime = departDateTime,
-                    arrivalTime = arrivalDateTime,
+                    departTime = departUtc,
+                    arrivalTime = arrivalUtc,
+                    scheduledDepartLocal = scheduledDepartLocal,
+                    scheduledArrivalLocal = scheduledArrivalLocal,
                     aircraftUsed = dto.AircraftUsed,
                     status = dto.Status,
                     departingPort = dto.DepartingPortCode,
@@ -260,7 +283,7 @@ namespace AirlineAPI.Controllers
             if (schedule == null)
                 return NotFound(new { message = "Recurring schedule not found." });
 
-            var now = DateTime.Now;
+            var now = DateTime.UtcNow;
 
             if (deleteFlights)
             {
@@ -407,6 +430,32 @@ namespace AirlineAPI.Controllers
             }
 
             return seats;
+        }
+        
+        private async Task<(Airport dep, Airport arr)?> GetFlightAirportsAsync(string departingPortCode, string arrivingPortCode)
+        {
+            var dep = await _context.Airports.FindAsync(departingPortCode);
+            var arr = await _context.Airports.FindAsync(arrivingPortCode);
+
+            if (dep == null || arr == null)
+                return null;
+
+            if (string.IsNullOrWhiteSpace(dep.timezone) || string.IsNullOrWhiteSpace(arr.timezone))
+                return null;
+
+            return (dep, arr);
+        }
+
+        private static TimeZoneInfo ResolveTimeZone(string tz)
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById(tz);
+        }
+
+        private static DateTime ConvertLocalToUtc(DateTime localDateTime, string timeZoneId)
+        {
+            var tz = ResolveTimeZone(timeZoneId);
+            var unspecified = DateTime.SpecifyKind(localDateTime, DateTimeKind.Unspecified);
+            return TimeZoneInfo.ConvertTimeToUtc(unspecified, tz);
         }
     }
 }

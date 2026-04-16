@@ -5,14 +5,14 @@ namespace AirlineAPI.DTOs.Flight
     public class CreateFlightDto
     {
         [Required]
-        [Range(0, 9999)]
+        [Range(0, 99999)]
         public int FlightNum { get; set; }
 
         [Required]
-        public DateTime DepartTime { get; set; }
+        public DateTime ScheduledDepartLocal { get; set; }
 
         [Required]
-        public DateTime ArrivalTime { get; set; }
+        public DateTime ScheduledArrivalLocal { get; set; }
 
         [Required]
         public string AircraftUsed { get; set; } = string.Empty;
@@ -34,10 +34,10 @@ namespace AirlineAPI.DTOs.Flight
     public class UpdateFlightDto
     {
         [Required]
-        public DateTime DepartTime { get; set; }
+        public DateTime ScheduledDepartLocal { get; set; }
 
         [Required]
-        public DateTime ArrivalTime { get; set; }
+        public DateTime ScheduledArrivalLocal { get; set; }
 
         [Required]
         public string AircraftUsed { get; set; } = string.Empty;
@@ -59,8 +59,12 @@ namespace AirlineAPI.DTOs.Flight
     public class FlightResponseDto
     {
         public int FlightNum { get; set; }
-        public DateTime DepartTime { get; set; }
-        public DateTime ArrivalTime { get; set; }
+
+        public DateTime DepartTime { get; set; }                 // UTC
+        public DateTime ArrivalTime { get; set; }                // UTC
+        public DateTime ScheduledDepartLocal { get; set; }       // display/edit
+        public DateTime ScheduledArrivalLocal { get; set; }      // display/edit
+
         public string AircraftUsed { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         public string DepartingPortCode { get; set; } = string.Empty;
