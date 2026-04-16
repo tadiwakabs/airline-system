@@ -9,11 +9,12 @@ import {
     updateMyProfile,
     changeMyPassword,
 } from "../../services/authService";
+import { getMyNotifications } from "../../services/notificationService";
 import {
-    getMyNotifications,
     getMyStandbyOffers,
     acceptStandbyOffer,
-} from "../../services/notificationService";
+    rejectStandbyOffer
+} from "../../services/standbyService";
 
 const titleOptions = [
     { label: "Select title", value: "" },
@@ -184,6 +185,18 @@ export default function Profile() {
         } catch (err) {
             setError(err?.response?.data?.message || "Failed to accept standby offer.");
         }
+    };
+
+    const handleRejectStandbyOffer = async (standbyId) => {
+    try {
+        const res = await rejectStandbyOffer(standbyId);
+        alert(res.message || "Standby rejected");
+
+        loadStandbyOffers();
+        loadNotifications();
+    } catch (err) {
+        alert("Failed to reject standby");
+    }
     };
 
     if (loading) {
@@ -518,19 +531,27 @@ export default function Profile() {
                                             </p>
 
                                             {offer.standbyStatus === "Offered" && (
-                                                <div className="mt-4">
-                                                    <Button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            handleAcceptStandbyOffer(
-                                                                offer.standbyId
-                                                            )
-                                                        }
-                                                    >
-                                                        Accept Offer
-                                                    </Button>
-                                                </div>
-                                            )}
+    <div className="mt-4 flex gap-2">
+        <Button
+            type="button"
+            onClick={() =>
+                handleAcceptStandbyOffer(offer.standbyId)
+            }
+        >
+            Accept Offer
+        </Button>
+
+        <Button
+            type="button"
+            variant="outline"
+            onClick={() =>
+                handleRejectStandbyOffer(offer.standbyId)
+            }
+        >
+            Reject
+        </Button>
+    </div>
+)}
                                         </Card>
                                     ))}
                                 </div>

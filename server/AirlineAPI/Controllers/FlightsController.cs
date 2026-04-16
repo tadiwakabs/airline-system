@@ -3,6 +3,7 @@ using AirlineAPI.DTOs.Flight;
 using AirlineAPI.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Linq;
 
 namespace AirlineAPI.Controllers
 {
@@ -413,7 +414,10 @@ public async Task<IActionResult> CancelFlight(int id)
                                 Status = f.status,
                                 AircraftUsed = f.aircraftUsed,
                                 Distance = f.distance,
-                                IsDomestic = f.isDomestic
+                                IsDomestic = f.isDomestic,
+                                IsFull = !_context.Seating.Any(s =>
+                                s.flightNum == f.flightNum &&
+                                s.seatStatus == SeatStatus.Available)
                             }
                         },
                         Pricing = new FlightSearchPricingDto
@@ -507,7 +511,10 @@ public async Task<IActionResult> CancelFlight(int id)
                                 ArrivingPortCode = x.leg1.arrivingPort, DepartTime = x.leg1.departTime,
                                 ArrivalTime = x.leg1.arrivalTime, Status = x.leg1.status,
                                 AircraftUsed = x.leg1.aircraftUsed, Distance = x.leg1.distance,
-                                IsDomestic = x.leg1.isDomestic
+                                IsDomestic = x.leg1.isDomestic,
+                                IsFull = !_context.Seating.Any(s =>
+                                s.flightNum == x.leg1.flightNum &&
+                                s.seatStatus == SeatStatus.Available)
                             },
                             new FlightLegDto
                             {
@@ -515,7 +522,10 @@ public async Task<IActionResult> CancelFlight(int id)
                                 ArrivingPortCode = x.leg2.arrivingPort, DepartTime = x.leg2.departTime,
                                 ArrivalTime = x.leg2.arrivalTime, Status = x.leg2.status,
                                 AircraftUsed = x.leg2.aircraftUsed, Distance = x.leg2.distance,
-                                IsDomestic = x.leg2.isDomestic
+                                IsDomestic = x.leg2.isDomestic,
+                                IsFull = !_context.Seating.Any(s =>
+                                s.flightNum == x.leg2.flightNum &&
+                                s.seatStatus == SeatStatus.Available)
                             }
                         },
                         Pricing = new FlightSearchPricingDto

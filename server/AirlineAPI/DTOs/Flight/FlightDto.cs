@@ -91,6 +91,7 @@ namespace AirlineAPI.DTOs.Flight
         public string AircraftUsed { get; set; } = "";
         public int Distance { get; set; }
         public bool IsDomestic { get; set; }
+        public bool IsFull { get; set; }
     }
 
     public class FlightSearchPricingDto

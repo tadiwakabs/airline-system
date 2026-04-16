@@ -111,5 +111,63 @@ namespace AirlineAPI.Controllers
 
             return Ok(new { message = "Standby offer accepted successfully.", standby });
         }
+        [HttpPut("{id}/reject")]
+public async Task<IActionResult> RejectStandbyOffer(int id)
+{
+    var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+    if (string.IsNullOrEmpty(currentUserId))
+        return Unauthorized("User not authenticated.");
+
+    var passenger = await _context.Passenger
+        .FirstOrDefaultAsync(p => p.UserId == currentUserId);
+
+    if (passenger == null)
+        return NotFound("Passenger record not found.");
+
+    var standby = await _context.Standby
+        .FirstOrDefaultAsync(s => s.standbyId == id);
+
+    if (standby == null)
+        return NotFound("Standby offer not found.");
+
+    if (standby.passengerId != passenger.PassengerId)
+        return Forbid();
+
+    if (standby.standbyStatus != "Offered")
+        return BadRequest("This standby offer is not available to reject.");
+
+    standby.standbyStatus = "Rejected";
+
+    var nextStandby = await _context.Standby
+        .Where(s => s.flightNum == standby.flightNum && s.standbyStatus == "Waiting")
+        .OrderBy(s => s.requestTime)
+        .FirstOrDefaultAsync();
+
+    if (nextStandby != null)
+    {
+        nextStandby.standbyStatus = "Offered";
+        nextStandby.offerExpiresAt = DateTime.UtcNow.AddMinutes(30);
+
+        var nextPassenger = await _context.Passenger
+            .FirstOrDefaultAsync(p => p.PassengerId == nextStandby.passengerId);
+
+        if (nextPassenger != null)
+        {
+            _context.Notification.Add(new Notification
+            {
+                userId = nextPassenger.UserId,
+                flightNum = nextStandby.flightNum,
+                message = $"A seat is now available on flight {nextStandby.flightNum}. Please accept within 30 minutes.",
+                createdAt = DateTime.UtcNow,
+                notificationStatus = "Unread"
+            });
+        }
+    }
+
+    await _context.SaveChangesAsync();
+
+    return Ok(new { message = "Standby offer rejected successfully." });
+}
     }
 }
