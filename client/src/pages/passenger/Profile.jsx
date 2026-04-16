@@ -970,6 +970,7 @@ export default function Profile() {
                                 contentClassName="!max-h-[78vh]"
                             >
                                 <form onSubmit={handleSavedPassengerSubmit} className="space-y-4">
+                                    <p className="font-semibold text-lg">Basic Details</p>
                                     <div className="grid gap-4 md:grid-cols-2">
                                         <div>
                                             <FieldLabel>Title</FieldLabel>
@@ -1034,25 +1035,29 @@ export default function Profile() {
                                                     value={savedPassengerForm.phoneNumber}
                                                     onChange={handleSavedPassengerChange}
                                                 />
+                                                <p className="font-semibold text-lg">Domestic Details</p>
+                                                <div></div>
+                                                <TextInput
+                                                    label="DL Number"
+                                                    name="dlNumber"
+                                                    value={savedPassengerForm.dlNumber}
+                                                    onChange={handleSavedPassengerChange}
+                                                />
+
+                                                <div>
+                                                    <FieldLabel>DL State</FieldLabel>
+                                                    <Dropdown
+                                                        value={savedPassengerForm.dlState}
+                                                        onChange={(val) => handleSavedPassengerDropdownChange("dlState", val)}
+                                                        options={stateOptions}
+                                                    />
+                                                </div>
                                             </>
                                         )}
-
-                                        <TextInput
-                                            label="DL Number"
-                                            name="dlNumber"
-                                            value={savedPassengerForm.dlNumber}
-                                            onChange={handleSavedPassengerChange}
-                                        />
-
-                                        <div>
-                                            <FieldLabel>DL State</FieldLabel>
-                                            <Dropdown
-                                                value={savedPassengerForm.dlState}
-                                                onChange={(val) => handleSavedPassengerDropdownChange("dlState", val)}
-                                                options={stateOptions}
-                                            />
-                                        </div>
-
+                                    </div>
+                                    
+                                    <p className="font-semibold text-lg">International Details</p>
+                                    <div className="grid gap-4 md:grid-cols-2">
                                         <TextInput
                                             label="Passport Number"
                                             name="passportNumber"
