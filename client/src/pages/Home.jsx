@@ -49,6 +49,34 @@ function formatDateTime(value) {
     });
 }
 
+function parseLocalDateTime(value) {
+    if (!value) return null;
+
+    const raw = String(value).trim();
+    const [datePart, timePart = ""] = raw.split("T");
+    if (!datePart) return null;
+
+    const [year, month, day] = datePart.split("-").map(Number);
+    const [hour = 0, minute = 0] = timePart.split(":").map(Number);
+
+    if (!year || !month || !day) return null;
+
+    return new Date(year, month - 1, day, hour, minute);
+}
+
+function arrivesNextDay(departValue, arrivalValue) {
+    const depart = parseLocalDateTime(departValue);
+    const arrival = parseLocalDateTime(arrivalValue);
+
+    if (!depart || !arrival) return false;
+
+    return (
+        arrival.getFullYear() > depart.getFullYear() ||
+        arrival.getMonth() > depart.getMonth() ||
+        arrival.getDate() > depart.getDate()
+    );
+}
+
 function getAirportCode(flight, type) {
     if (type === "depart") {
         return (
@@ -179,6 +207,9 @@ export default function Home() {
                                             </p>
                                             <p className="text-sm font-semibold text-gray-900">
                                                 {formatDateTime(statusResult.arrivalTime)}
+                                                {arrivesNextDay(statusResult.departTime, statusResult.arrivalTime) && (
+                                                    <span className="ml-2 text-xs font-semibold text-blue-600">+1</span>
+                                                )}
                                             </p>
                                         </div>
 
@@ -219,8 +250,8 @@ export default function Home() {
                                                     </p>
                                                 </div>
                                                 <span className={`inline-flex w-fit rounded-full px-3 py-1 text-sm font-semibold ${getStatusBadgeClass(flight.status)}`}>
-                        {flight.status || "Unknown"}
-                    </span>
+                                                    {flight.status || "Unknown"}
+                                                </span>
                                             </div>
                                             <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                                                 <div>

@@ -18,6 +18,19 @@ function parseLocalDateTime(value) {
     return new Date(year, month - 1, day, hour, minute);
 }
 
+function arrivesNextDay(departValue, arrivalValue) {
+    const depart = parseLocalDateTime(departValue);
+    const arrival = parseLocalDateTime(arrivalValue);
+
+    if (!depart || !arrival) return false;
+
+    return (
+        arrival.getFullYear() > depart.getFullYear() ||
+        arrival.getMonth() > depart.getMonth() ||
+        arrival.getDate() > depart.getDate()
+    );
+}
+
 function formatTime(value) {
     const d = parseLocalDateTime(value);
     if (!d) return "—";
@@ -97,6 +110,7 @@ export default function FlightCard({
 
     const first = flights[0];
     const last = flights[flights.length - 1];
+    const arrivalNextDay = arrivesNextDay(first.departTime, last.arrivalTime);
 
     const totalDuration = formatDuration(first.departTimeUtc, last.arrivalTimeUtc);
 
@@ -137,7 +151,12 @@ export default function FlightCard({
                 </div>
 
                 <div className="text-right">
-                    <p className="font-medium">{formatTime(last.arrivalTime)}</p>
+                    <p className="font-medium">
+                        {formatTime(last.arrivalTime)}
+                        {arrivalNextDay && (
+                            <span className="ml-2 text-xs font-semibold text-blue-600 align-middle">+1</span>
+                        )}
+                    </p>
                     <p className="text-gray-500">{last.arrivingPort}</p>
                 </div>
             </div>
@@ -202,7 +221,10 @@ export default function FlightCard({
                                     {f.departingPort} → {f.arrivingPort}
                                 </p>
                                 <p className="text-gray-500">
-                                    {formatDate(f.departTime)} • {formatTime(f.departTime)} - {formatTime(f.arrivalTime)}
+                                    {formatDate(f.departTime)} • {formatTime(f.departTime)} - {formatDate(f.arrivalTime)} • {formatTime(f.arrivalTime)}
+                                    {arrivesNextDay(f.departTime, f.arrivalTime) && (
+                                        <span className="ml-2 text-xs font-semibold text-blue-600">+1</span>
+                                    )}
                                 </p>
                             </div>
                             <p>Flight #{f.flightNum}</p>

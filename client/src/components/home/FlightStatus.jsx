@@ -18,6 +18,19 @@ function parseLocalDateTime(value) {
     return new Date(year, month - 1, day, hour, minute);
 }
 
+function arrivesNextDay(departValue, arrivalValue) {
+    const depart = parseLocalDateTime(departValue);
+    const arrival = parseLocalDateTime(arrivalValue);
+
+    if (!depart || !arrival) return false;
+
+    return (
+        arrival.getFullYear() > depart.getFullYear() ||
+        arrival.getMonth() > depart.getMonth() ||
+        arrival.getDate() > depart.getDate()
+    );
+}
+
 // ─── Flight Route Tracker ────────────────────────────────────────────────────
 function FlightRouteTracker({ flight }) {
     const {
@@ -62,6 +75,7 @@ function FlightRouteTracker({ flight }) {
 
     const departDt = parseLocalDateTime(departTime);
     const arriveDt = parseLocalDateTime(arrivalTime);
+    const arrivalNextDay = arrivesNextDay(departTime, arrivalTime);
 
     const fmtTime = (d) =>
         d ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—";
@@ -143,6 +157,14 @@ function FlightRouteTracker({ flight }) {
                         style={{ color: "#f0f4ff", fontFamily: "'Barlow Condensed', sans-serif" }}
                     >
                         {fmtTime(arriveDt)}
+                        {arrivalNextDay && (
+                            <span
+                                className="ml-2 align-middle text-sm font-bold"
+                                style={{ color: "#60a5fa", fontFamily: "inherit" }}
+                            >
+                                +1
+                            </span>
+                        )}
                     </p>
                 </div>
             </div>
@@ -271,6 +293,7 @@ export default function FlightStatusPanel({ onCheck, result }) {
                     Flight times are shown in local airport time.
                 </p>
             )}
+            
         </div>
     );
 }
