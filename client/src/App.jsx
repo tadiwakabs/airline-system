@@ -5,6 +5,7 @@ import AppLayout from "./components/layout/AppLayout.jsx";
 import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
 import PublicOnlyRoute from "./components/auth/PublicOnlyRoute.jsx";
 import RoleProtectedRoute from "./components/auth/RoleProtectedRoute.jsx";
+import BackgroundSlider from "./components/layout/BackgroundSlider.jsx"
 
 // Route Imports
 import Home from './pages/Home'
@@ -38,6 +39,7 @@ function App() {
     return (
         <AuthProvider>
             <AppLayout>
+                <BackgroundSlider />
                 <Routes>
                     {/* Open Routes */}
                     <Route path="/" element={<Home />} />

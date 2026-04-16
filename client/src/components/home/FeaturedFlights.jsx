@@ -11,7 +11,7 @@ const FEATURED_FLIGHTS = [
         isPromotion: true,
     },
     {
-        image: "https://images.unsplash.com/photo-1534430480872-3498386e7856?w=600&auto=format&fit=crop",
+        image: "https://images.unsplash.com/photo-1542332213-31f87348057f?q=80&w=1920&auto=format&fit=crop",
         origin: "Houston",
         destination: "Los Angeles",
         price: "189",
