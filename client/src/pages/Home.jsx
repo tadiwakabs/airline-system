@@ -7,8 +7,7 @@ import FlightSearchPanel from "../components/home/FlightSearchPanel.jsx";
 import Hero from "../components/home/HeroSection.jsx";
 import FeaturedFlights from "../components/home/FeaturedFlights.jsx";
 import Card from "../components/common/Card.jsx";
-import { getFlightById } from "../services/flightService";
-import { getFlightsByBooking } from "../services/bookingService";
+import { getStatusByBooking } from "../services/bookingService";
 
 function getStatusBadgeClass(status) {
     switch ((status || "").toLowerCase()) {
@@ -85,29 +84,13 @@ export default function Home() {
                 return;
             }
 
-            // Booking IDs are GUIDs, flight nums are numeric
-            const isBookingId = input.includes("-") || isNaN(Number(input));
+            const res = await getStatusByBooking(input);
+            const data = res.data;
 
-            if (isBookingId) {
-                const res = await getFlightsByBooking(input);
-                const flights = res.data;
-                if (!flights?.length) {
-                    setStatusError("No flights found for that booking.");
-                    return;
-                }
-                setStatusResult({ bookingFlights: flights });
+            if (Array.isArray(data)) {
+                setStatusResult({ bookingFlights: data });
             } else {
-                const res = await getFlightById(input);
-                const flight = res.data;
-                setStatusResult({
-                    flightNum: flight.flightNum,
-                    status: flight.status,
-                    departingPort: getAirportCode(flight, "depart"),
-                    arrivingPort: getAirportCode(flight, "arrive"),
-                    departTime: flight.departTime,
-                    arrivalTime: flight.arrivalTime,
-                    aircraftUsed: flight.aircraftUsed,
-                });
+                setStatusResult(data);
             }
         } catch (err) {
             console.error("Error checking status:", err);
@@ -129,7 +112,7 @@ export default function Home() {
                         <FlightSearchPanel onSearch={handleSearch} />
                     ) : (
                         <>
-                            <FlightStatusPanel onCheck={handleStatusCheck} />
+                            <FlightStatusPanel onCheck={handleStatusCheck} result={statusResult} />
 
                             {statusLoading && (
                                 <Card className="p-5">

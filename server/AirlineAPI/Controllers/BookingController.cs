@@ -287,6 +287,102 @@ namespace AirlineAPI.Controllers
         
         }
 
+        /// <summary>
+        /// Look up flight status by a short booking reference (first 8 chars of the UUID)
+        /// or by a plain flight number. No auth required so users can check without logging in.
+        /// GET /api/booking/status?ref=565b2bda
+        /// GET /api/booking/status?ref=1342
+        /// </summary>
+        [AllowAnonymous]
+        [HttpGet("status")]
+        public async Task<IActionResult> GetFlightStatus([FromQuery(Name = "ref")] string reference)
+        {
+            if (string.IsNullOrWhiteSpace(reference))
+                return BadRequest("A booking reference or flight number is required.");
+
+            var query = reference.Trim();
+
+            if (int.TryParse(query, out var flightNum))
+            {
+                var flight = await _context.Flights
+                    .Where(f => f.flightNum == flightNum)
+                    .Join(_context.Airports,
+                        f => f.departingPort,
+                        a => a.airportCode,
+                        (f, dep) => new { f, dep })
+                    .Join(_context.Airports,
+                        x => x.f.arrivingPort,
+                        a => a.airportCode,
+                        (x, arr) => new { x.f, x.dep, arr })
+                    .Select(x => new FlightStatusDto
+                    {
+                        FlightNum = x.f.flightNum,
+                        Status = x.f.status.ToString(),
+                        DepartingPort = x.f.departingPort,
+                        ArrivingPort = x.f.arrivingPort,
+                        DepartingCity = x.dep.city,
+                        ArrivingCity = x.arr.city,
+                        DepartTime = x.f.departTime,
+                        ArrivalTime = x.f.arrivalTime,
+                        AircraftUsed = x.f.aircraftUsed,
+                        BookingId = null,
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (flight == null)
+                    return NotFound("No flight found with that number.");
+
+                return Ok(flight);
+            }
+
+            var normalized = query.Replace("-", "").ToLower();
+            var prefix = normalized[..Math.Min(8, normalized.Length)];
+
+            var booking = await _context.Bookings
+                .Where(b => b.bookingId.Replace("-", "").ToLower().StartsWith(prefix))
+                .Include(b => b.Tickets)
+                    .ThenInclude(t => t.Flight)
+                .OrderByDescending(b => b.bookingDate)
+                .FirstOrDefaultAsync();
+
+            if (booking == null)
+                return NotFound("No booking found matching that reference.");
+
+            var results = booking.Tickets
+                .Where(t => t.Flight != null)
+                .GroupBy(t => t.flightCode)
+                .Select(g =>
+                {
+                    var f = g.First().Flight!;
+                    var depCity = _context.Airports
+                        .Where(a => a.airportCode == f.departingPort)
+                        .Select(a => a.city)
+                        .FirstOrDefault();
+                    var arrCity = _context.Airports
+                        .Where(a => a.airportCode == f.arrivingPort)
+                        .Select(a => a.city)
+                        .FirstOrDefault();
+                    
+                    return new FlightStatusDto
+                    {
+                        FlightNum = f.flightNum,
+                        Status = f.status.ToString(),
+                        DepartingPort = f.departingPort,
+                        ArrivingPort = f.arrivingPort,
+                        DepartTime = f.departTime,
+                        ArrivalTime = f.arrivalTime,
+                        BookingId = booking.bookingId,
+                        AircraftUsed = f.aircraftUsed,
+                        DepartingCity = depCity,
+                        ArrivingCity  = arrCity,
+                    };
+                })
+                .OrderBy(f => f.DepartTime)
+                .ToList();
+
+            return Ok(results);
+        }
+
     }   
 
 }
