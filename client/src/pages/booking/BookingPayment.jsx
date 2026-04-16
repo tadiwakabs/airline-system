@@ -29,6 +29,8 @@ function isValidZip(zip) {
     return /^\d{5}(-\d{4})?$|^[A-Za-z]\d[A-Za-z] \d[A-Za-z]\d$/.test(zip);
 }
 
+const RequiredMark = () => <span className="text-red-500"> *</span>;
+
 const emptyForm = {
     cardNumber: "",
     cardName: "",
@@ -286,7 +288,7 @@ export default function BookingPayment() {
                 </div>
                 <div className="grid gap-3">
                     <Field
-                        label="Card Number"
+                        label={<>Card Number<RequiredMark /></>}
                         field="cardNumber"
                         placeholder="1234 5678 9012 3456"
                         value={form.cardNumber}
@@ -294,7 +296,7 @@ export default function BookingPayment() {
                         error={errors.cardNumber}
                     />
                     <Field
-                        label="Name on Card"
+                        label={<>Name on Card<RequiredMark /></>}
                         field="cardName"
                         placeholder="John Smith"
                         value={form.cardName}
@@ -303,7 +305,7 @@ export default function BookingPayment() {
                     />
                     <div className="grid grid-cols-2 gap-3">
                         <Field
-                            label="Expiry (MM/YY)"
+                            label={<>Expiry (MM/YY)<RequiredMark /></>}
                             field="expiry"
                             placeholder="MM/YY"
                             value={form.expiry}
@@ -311,7 +313,7 @@ export default function BookingPayment() {
                             error={errors.expiry}
                         />
                         <Field
-                            label="CVV"
+                            label={<>CVV<RequiredMark /></>}
                             field="cvv"
                             placeholder="123"
                             value={form.cvv}
@@ -327,7 +329,7 @@ export default function BookingPayment() {
                 <h2 className="font-semibold mb-3">Billing Address</h2>
                 <div className="grid gap-3">
                     <Field
-                        label="Phone Number"
+                        label={<>Phone Number<RequiredMark /></>}
                         field="phone"
                         placeholder="+1 (800) 000-0000"
                         value={form.phone}
@@ -335,7 +337,7 @@ export default function BookingPayment() {
                         error={errors.phone}
                     />
                     <Field
-                        label="Address"
+                        label={<>Address<RequiredMark /></>}
                         field="address"
                         placeholder="123 Main St"
                         value={form.address}
@@ -344,7 +346,7 @@ export default function BookingPayment() {
                     />
                     <div className="grid grid-cols-2 gap-3">
                         <Field
-                            label="City"
+                            label={<>City<RequiredMark /></>}
                             field="city"
                             placeholder="Houston"
                             value={form.city}
@@ -352,7 +354,7 @@ export default function BookingPayment() {
                             error={errors.city}
                         />
                         <Field
-                            label="State"
+                            label={<>State<RequiredMark /></>}
                             field="state"
                             placeholder="TX"
                             value={form.state}
@@ -362,7 +364,7 @@ export default function BookingPayment() {
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                         <Field
-                            label="Zip / Postal Code"
+                            label={<>Zip / Postal Code<RequiredMark /></>}
                             field="zip"
                             placeholder="77001"
                             value={form.zip}
@@ -370,7 +372,7 @@ export default function BookingPayment() {
                             error={errors.zip}
                         />
                         <Field
-                            label="Country"
+                            label={<>Country<RequiredMark /></>}
                             field="country"
                             placeholder="USA"
                             value={form.country}

@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Card from "../../components/common/Card.jsx";
 import Button from "../../components/common/Button.jsx";
 import Dropdown from "../../components/common/Dropdown.jsx";
+import Combobox from "../../components/common/Combobox.jsx";
 import {
     getCountries,
     getPassengerByUserId,
@@ -173,6 +174,8 @@ function validatePassenger(passenger, isDomesticItinerary) {
     return "";
 }
 
+const RequiredMark = () => <span className="text-red-500"> *</span>;
+
 export default function BookingPassengers() {
     const { state } = useLocation();
     const navigate = useNavigate();
@@ -202,6 +205,13 @@ export default function BookingPassengers() {
         label: `${s.name} (${s.code})`,
         value: s.code
     }));
+
+    const genderOptions = [
+        { label: "Male", value: "Male" },
+        { label: "Female", value: "Female" },
+        { label: "Non-Binary", value: "Non-Binary" },
+        { label: "Other", value: "Other" },
+    ];
 
     useEffect(() => {
         if (!selectedItinerary || !searchParams) {
@@ -462,7 +472,7 @@ export default function BookingPassengers() {
                                 .filter((p) => p.passengerType === passenger.passengerType).length - 1;
 
                         return (
-                            <Card key={index} className="p-5 space-y-4">
+                            <Card key={index} className="p-5 space-y-4 overflow-visible">
                                 <div className="flex items-center justify-between">
                                     <h2 className="text-lg font-semibold">
                                         {buildPassengerLabel(passenger.passengerType, sameTypeIndex)}
@@ -499,7 +509,7 @@ export default function BookingPassengers() {
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm text-gray-600 mb-1">First Name</label>
+                                        <label className="block text-sm text-gray-600 mb-1">First Name<RequiredMark /></label>
                                         <input
                                             className="w-full border rounded-lg px-3 py-2"
                                             value={passenger.firstName}
@@ -510,7 +520,7 @@ export default function BookingPassengers() {
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm text-gray-600 mb-1">Last Name</label>
+                                        <label className="block text-sm text-gray-600 mb-1">Last Name<RequiredMark /></label>
                                         <input
                                             className="w-full border rounded-lg px-3 py-2"
                                             value={passenger.lastName}
@@ -547,7 +557,7 @@ export default function BookingPassengers() {
                                     )}
 
                                     <div>
-                                        <label className="block text-sm text-gray-600 mb-1">Date of Birth</label>
+                                        <label className="block text-sm text-gray-600 mb-1">Date of Birth<RequiredMark /></label>
                                         <input
                                             type="date"
                                             className="w-full border rounded-lg px-3 py-2"
@@ -559,13 +569,14 @@ export default function BookingPassengers() {
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm text-gray-600 mb-1">Gender</label>
-                                        <input
-                                            className="w-full border rounded-lg px-3 py-2"
+                                        <Dropdown
+                                            label="Gender"
                                             value={passenger.gender}
-                                            onChange={(e) =>
-                                                handlePassengerChange(index, "gender", e.target.value)
+                                            onChange={(val) =>
+                                                handlePassengerChange(index, "gender", val)
                                             }
+                                            options={genderOptions}
+                                            defaultValue="Select gender"
                                         />
                                     </div>
                                 </div>
@@ -574,7 +585,7 @@ export default function BookingPassengers() {
                                     {passenger.passengerType === "Adult" && isDomesticItinerary && (
                                         <>
                                             <div>
-                                                <label className="block text-sm text-gray-600 mb-1">DL / ID Number</label>
+                                                <label className="block text-sm text-gray-600 mb-1">DL / ID Number<RequiredMark /></label>
                                                 <input
                                                     className="w-full border rounded-lg px-3 py-2"
                                                     value={passenger.dlNumber}
@@ -585,13 +596,15 @@ export default function BookingPassengers() {
                                             </div>
 
                                             <div>
-                                                <Dropdown
-                                                    label="DL / ID State"
+                                                <Combobox
+                                                    label={<>DL / ID State<RequiredMark /></>}
                                                     value={passenger.dlState}
                                                     onChange={(val) =>
                                                         handlePassengerChange(index, "dlState", val)
                                                     }
                                                     options={stateOptions}
+                                                    placeholder="Search state..."
+                                                    emptyMessage="No states found"
                                                 />
                                             </div>
                                         </>
@@ -600,7 +613,7 @@ export default function BookingPassengers() {
                                     {!isDomesticItinerary && (
                                         <>
                                             <div>
-                                                <label className="block text-sm text-gray-600 mb-1">Passport Number</label>
+                                                <label className="block text-sm text-gray-600 mb-1">Passport Number<RequiredMark /></label>
                                                 <input
                                                     className="w-full border rounded-lg px-3 py-2"
                                                     value={passenger.passportNumber}
@@ -611,18 +624,20 @@ export default function BookingPassengers() {
                                             </div>
 
                                             <div>
-                                                <Dropdown
-                                                    label="Passport Country"
+                                                <Combobox
+                                                    label={<>Passport Country<RequiredMark /></>}
                                                     value={passenger.passportCountryCode}
                                                     onChange={(val) =>
                                                         handlePassengerChange(index, "passportCountryCode", val)
                                                     }
                                                     options={countryOptions}
+                                                    placeholder="Search country..."
+                                                    emptyMessage="No countries found"
                                                 />
                                             </div>
 
                                             <div>
-                                                <label className="block text-sm text-gray-600 mb-1">Passport Expiration Date</label>
+                                                <label className="block text-sm text-gray-600 mb-1">Passport Expiration Date<RequiredMark /></label>
                                                 <input
                                                     type="date"
                                                     className="w-full border rounded-lg px-3 py-2"
@@ -643,15 +658,17 @@ export default function BookingPassengers() {
                                                     }
                                                 />
                                             </div>
-                                            
+
                                             <div>
-                                                <Dropdown
+                                                <Combobox
                                                     label="Nationality"
                                                     value={passenger.nationality}
                                                     onChange={(val) =>
                                                         handlePassengerChange(index, "nationality", val)
                                                     }
                                                     options={countryOptions}
+                                                    placeholder="Search nationality..."
+                                                    emptyMessage="No countries found"
                                                 />
                                             </div>
                                         </>
