@@ -81,7 +81,7 @@ export default function Combobox({
                     setIsOpen(true);
                     onSearch?.(newValue);
                 }}
-                className="w-full rounded-xl border border-gray-700 px-4 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-xl border border-gray-300 px-4 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
 
             {isOpen && (

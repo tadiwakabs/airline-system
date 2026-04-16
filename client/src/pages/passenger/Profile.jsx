@@ -1,6 +1,8 @@
 ﻿import { act, useEffect, useState } from "react";
 import Card from "../../components/common/Card";
 import TextInput from "../../components/common/TextInput";
+import Modal from "../../components/common/Modal";
+import FieldLabel from "../../components/common/FieldLabel";
 import Button from "../../components/common/Button";
 import Dropdown from "../../components/common/Dropdown";
 import Separator from "../../components/common/Separator";
@@ -56,6 +58,7 @@ export default function Profile() {
 
     const [countries, setCountries] = useState([]);
     const [states, setStates] = useState([]);
+    const [isSavedPassengerModalOpen, setIsSavedPassengerModalOpen] = useState(false);
 
     const [editableData, setEditableData] = useState({
         email: "",
@@ -122,6 +125,18 @@ export default function Profile() {
         label: c.name,
         value: c.code,
     }));
+
+    const adultSavedPassengers = savedPassengers.filter(
+        (p) => (p.passengerType || "").toLowerCase() === "adult"
+    );
+
+    const childSavedPassengers = savedPassengers.filter(
+        (p) => (p.passengerType || "").toLowerCase() === "child"
+    );
+
+    const infantSavedPassengers = savedPassengers.filter(
+        (p) => (p.passengerType || "").toLowerCase() === "infant"
+    );
 
     const stateOptions = states.map((s) => ({
         label: `${s.name} (${s.code})`,
@@ -320,6 +335,15 @@ export default function Profile() {
     const resetSavedPassengerForm = () => {
         setSavedPassengerForm(emptySavedPassengerForm);
         setEditingSavedPassengerId(null);
+        setIsSavedPassengerModalOpen(false);
+    };
+
+    const handleOpenNewSavedPassengerModal = () => {
+        setSavedPassengersMessage("");
+        setError("");
+        setSavedPassengerForm(emptySavedPassengerForm);
+        setEditingSavedPassengerId(null);
+        setIsSavedPassengerModalOpen(true);
     };
 
     const handleEditSavedPassenger = (p) => {
@@ -342,7 +366,9 @@ export default function Profile() {
             dlNumber: p.dlNumber ?? "",
             dlState: p.dlState || "",
         });
-        setActiveTab("savedPassengers");
+        setSavedPassengersMessage("");
+        setError("");
+        setIsSavedPassengerModalOpen(true);
     };
 
     const handleSavedPassengerSubmit = async (e) => {
@@ -756,199 +782,332 @@ export default function Profile() {
 
                     {activeTab === "savedPassengers" && (
                         <>
-                            <h1 className="text-2xl font-semibold text-gray-900">
-                                Additional Passengers
-                            </h1>
-                            <p className="mt-1 text-sm text-gray-500">
-                                Save additional travelers to reuse them during booking.
-                            </p>
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <h1 className="text-2xl font-semibold text-gray-900">
+                                        Additional Passengers
+                                    </h1>
+                                    <p className="mt-1 text-sm text-gray-500">
+                                        Save additional travelers to reuse them during booking.
+                                    </p>
+                                </div>
+
+                                <Button type="button" onClick={handleOpenNewSavedPassengerModal}>
+                                    Add Passenger
+                                </Button>
+                            </div>
 
                             <Separator className="my-6" />
 
-                            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-                                <div className="space-y-3">
-                                    {savedPassengers.length === 0 ? (
-                                        <p className="text-sm text-gray-500">No saved passengers yet.</p>
-                                    ) : (
-                                        savedPassengers.map((p) => (
-                                            <div
-                                                key={p.passengerId}
-                                                className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3"
-                                            >
-                                                <div className="flex items-start justify-between gap-3">
-                                                    <div>
-                                                        <p className="text-sm font-semibold text-gray-900">
-                                                            {p.firstName} {p.lastName}
-                                                        </p>
-                                                        <p className="mt-1 text-xs text-gray-500">
-                                                            {p.passengerType} · DOB {p.dateOfBirth?.split("T")[0]}
-                                                        </p>
-                                                        <p className="mt-1 text-xs text-gray-500">
-                                                            {p.email || "No email"} {p.phoneNumber ? `· ${p.phoneNumber}` : ""}
-                                                        </p>
-                                                    </div>
+                            {savedPassengersMessage && (
+                                <p className="mb-4 text-sm text-green-600">{savedPassengersMessage}</p>
+                            )}
 
-                                                    <div className="flex gap-2">
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            onClick={() => handleEditSavedPassenger(p)}
-                                                        >
-                                                            Edit
-                                                        </Button>
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            onClick={() => handleDeleteSavedPassenger(p.passengerId)}
-                                                        >
-                                                            Delete
-                                                        </Button>
+                            {error && activeTab === "savedPassengers" && (
+                                <p className="mb-4 text-sm text-red-600">{error}</p>
+                            )}
+
+                            <div className="space-y-8">
+
+                                {/* Adults */}
+                                <div className="space-y-3">
+                                    <h2 className="text-lg font-semibold text-gray-900">Adults</h2>
+
+                                    {adultSavedPassengers.length === 0 ? (
+                                        <p className="text-sm text-gray-500">No adults to display.</p>
+                                    ) : (
+                                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                            {adultSavedPassengers.map((p) => (
+                                                <div
+                                                    key={p.passengerId}
+                                                    className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3"
+                                                >
+                                                    <div className="space-y-2">
+                                                        <div>
+                                                            <p className="text-sm font-semibold text-gray-900">
+                                                                {p.firstName} {p.lastName}
+                                                            </p>
+                                                            <p className="mt-1 text-xs text-gray-500">
+                                                                Adult · DOB {p.dateOfBirth?.split("T")[0]}
+                                                            </p>
+                                                            <p className="mt-1 text-xs text-gray-500">
+                                                                {p.email || "No email"} {p.phoneNumber ? `· ${p.phoneNumber}` : ""}
+                                                            </p>
+                                                        </div>
+
+                                                        <div className="flex gap-2">
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                onClick={() => handleEditSavedPassenger(p)}
+                                                            >
+                                                                Edit
+                                                            </Button>
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                onClick={() => handleDeleteSavedPassenger(p.passengerId)}
+                                                            >
+                                                                Delete
+                                                            </Button>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        ))
+                                            ))}
+                                        </div>
                                     )}
                                 </div>
 
-                                <div className="rounded-xl border border-gray-200 p-4">
-                                    <div className="flex items-center justify-between">
-                                        <h2 className="text-lg font-semibold">
-                                            {editingSavedPassengerId ? "Edit Passenger" : "Add Passenger"}
-                                        </h2>
-                                        {editingSavedPassengerId && (
-                                            <Button type="button" variant="outline" onClick={resetSavedPassengerForm}>
-                                                Cancel
-                                            </Button>
-                                        )}
-                                    </div>
+                                {/* Children */}
+                                <div className="space-y-3">
+                                    <h2 className="text-lg font-semibold text-gray-900">Children</h2>
 
-                                    <form onSubmit={handleSavedPassengerSubmit} className="mt-4 space-y-4">
-                                        <div className="grid gap-4 md:grid-cols-2">
+                                    {childSavedPassengers.length === 0 ? (
+                                        <p className="text-sm text-gray-500">No children to display.</p>
+                                    ) : (
+                                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                            {childSavedPassengers.map((p) => (
+                                                <div
+                                                    key={p.passengerId}
+                                                    className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3"
+                                                >
+                                                    <div className="space-y-2">
+                                                        <div>
+                                                            <p className="text-sm font-semibold text-gray-900">
+                                                                {p.firstName} {p.lastName}
+                                                            </p>
+                                                            <p className="mt-1 text-xs text-gray-500">
+                                                                Child · DOB {p.dateOfBirth?.split("T")[0]}
+                                                            </p>
+                                                            <p className="mt-1 text-xs text-gray-500">
+                                                                {p.email || "No email"} {p.phoneNumber ? `· ${p.phoneNumber}` : ""}
+                                                            </p>
+                                                        </div>
+
+                                                        <div className="flex gap-2">
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                onClick={() => handleEditSavedPassenger(p)}
+                                                            >
+                                                                Edit
+                                                            </Button>
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                onClick={() => handleDeleteSavedPassenger(p.passengerId)}
+                                                            >
+                                                                Delete
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Infants */}
+                                <div className="space-y-3">
+                                    <h2 className="text-lg font-semibold text-gray-900">Infants</h2>
+
+                                    {infantSavedPassengers.length === 0 ? (
+                                        <p className="text-sm text-gray-500">No infants to display.</p>
+                                    ) : (
+                                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                            {infantSavedPassengers.map((p) => (
+                                                <div
+                                                    key={p.passengerId}
+                                                    className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3"
+                                                >
+                                                    <div className="space-y-2">
+                                                        <div>
+                                                            <p className="text-sm font-semibold text-gray-900">
+                                                                {p.firstName} {p.lastName}
+                                                            </p>
+                                                            <p className="mt-1 text-xs text-gray-500">
+                                                                Infant · DOB {p.dateOfBirth?.split("T")[0]}
+                                                            </p>
+                                                            <p className="mt-1 text-xs text-gray-500">
+                                                                {p.email || "No email"} {p.phoneNumber ? `· ${p.phoneNumber}` : ""}
+                                                            </p>
+                                                        </div>
+
+                                                        <div className="flex gap-2">
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                onClick={() => handleEditSavedPassenger(p)}
+                                                            >
+                                                                Edit
+                                                            </Button>
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                onClick={() => handleDeleteSavedPassenger(p.passengerId)}
+                                                            >
+                                                                Delete
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                            </div>
+
+                            <Modal
+                                isOpen={isSavedPassengerModalOpen}
+                                onClose={resetSavedPassengerForm}
+                                title={editingSavedPassengerId ? "Edit Passenger" : "Add Passenger"}
+                                className="max-w-3xl!"
+                                contentClassName="!max-h-[78vh]"
+                            >
+                                <form onSubmit={handleSavedPassengerSubmit} className="space-y-4">
+                                    <div className="grid gap-4 md:grid-cols-2">
+                                        <div>
+                                            <FieldLabel>Title</FieldLabel>
                                             <Dropdown
-                                                label="Title"
                                                 value={savedPassengerForm.title}
                                                 onChange={(val) => handleSavedPassengerDropdownChange("title", val)}
                                                 options={titleOptions}
                                             />
+                                        </div>
 
+                                        <div>
+                                            <FieldLabel required>Passenger Type</FieldLabel>
                                             <Dropdown
-                                                label="Passenger Type"
                                                 value={savedPassengerForm.passengerType}
                                                 onChange={(val) => handleSavedPassengerDropdownChange("passengerType", val)}
                                                 options={passengerTypeOptions}
                                             />
+                                        </div>
 
-                                            <TextInput
-                                                label="First Name"
-                                                name="firstName"
-                                                value={savedPassengerForm.firstName}
-                                                onChange={handleSavedPassengerChange}
-                                            />
+                                        <TextInput
+                                            label={<>First Name <span className="text-red-500">*</span></>}
+                                            name="firstName"
+                                            value={savedPassengerForm.firstName}
+                                            onChange={handleSavedPassengerChange}
+                                        />
 
-                                            <TextInput
-                                                label="Last Name"
-                                                name="lastName"
-                                                value={savedPassengerForm.lastName}
-                                                onChange={handleSavedPassengerChange}
-                                            />
+                                        <TextInput
+                                            label={<>Last Name <span className="text-red-500">*</span></>}
+                                            name="lastName"
+                                            value={savedPassengerForm.lastName}
+                                            onChange={handleSavedPassengerChange}
+                                        />
 
-                                            <TextInput
-                                                label="Date of Birth"
-                                                name="dateOfBirth"
-                                                type="date"
-                                                value={savedPassengerForm.dateOfBirth}
-                                                onChange={handleSavedPassengerChange}
-                                            />
+                                        <TextInput
+                                            label={<>Date of Birth <span className="text-red-500">*</span></>}
+                                            name="dateOfBirth"
+                                            type="date"
+                                            value={savedPassengerForm.dateOfBirth}
+                                            onChange={handleSavedPassengerChange}
+                                        />
 
+                                        <div>
+                                            <FieldLabel>Gender</FieldLabel>
                                             <Dropdown
-                                                label="Gender"
                                                 value={savedPassengerForm.gender}
                                                 onChange={(val) => handleSavedPassengerDropdownChange("gender", val)}
                                                 options={genderOptions}
                                             />
+                                        </div>
 
-                                            {savedPassengerForm.passengerType === "Adult" && (
-                                                <>
-                                                    <TextInput
-                                                        label="Email"
-                                                        name="email"
-                                                        value={savedPassengerForm.email}
-                                                        onChange={handleSavedPassengerChange}
-                                                    />
-                                                    <TextInput
-                                                        label="Phone Number"
-                                                        name="phoneNumber"
-                                                        value={savedPassengerForm.phoneNumber}
-                                                        onChange={handleSavedPassengerChange}
-                                                    />
-                                                </>
-                                            )}
+                                        {savedPassengerForm.passengerType === "Adult" && (
+                                            <>
+                                                <TextInput
+                                                    label="Email"
+                                                    name="email"
+                                                    value={savedPassengerForm.email}
+                                                    onChange={handleSavedPassengerChange}
+                                                />
+                                                <TextInput
+                                                    label="Phone Number"
+                                                    name="phoneNumber"
+                                                    value={savedPassengerForm.phoneNumber}
+                                                    onChange={handleSavedPassengerChange}
+                                                />
+                                            </>
+                                        )}
 
-                                            <TextInput
-                                                label="DL Number"
-                                                name="dlNumber"
-                                                value={savedPassengerForm.dlNumber}
-                                                onChange={handleSavedPassengerChange}
-                                            />
+                                        <TextInput
+                                            label="DL Number"
+                                            name="dlNumber"
+                                            value={savedPassengerForm.dlNumber}
+                                            onChange={handleSavedPassengerChange}
+                                        />
 
+                                        <div>
+                                            <FieldLabel>DL State</FieldLabel>
                                             <Dropdown
-                                                label="DL State"
                                                 value={savedPassengerForm.dlState}
                                                 onChange={(val) => handleSavedPassengerDropdownChange("dlState", val)}
                                                 options={stateOptions}
                                             />
+                                        </div>
 
-                                            <TextInput
-                                                label="Passport Number"
-                                                name="passportNumber"
-                                                value={savedPassengerForm.passportNumber}
-                                                onChange={handleSavedPassengerChange}
-                                            />
+                                        <TextInput
+                                            label="Passport Number"
+                                            name="passportNumber"
+                                            value={savedPassengerForm.passportNumber}
+                                            onChange={handleSavedPassengerChange}
+                                        />
 
+                                        <div>
+                                            <FieldLabel>Passport Country</FieldLabel>
                                             <Dropdown
-                                                label="Passport Country"
                                                 value={savedPassengerForm.passportCountryCode}
                                                 onChange={(val) => handleSavedPassengerDropdownChange("passportCountryCode", val)}
                                                 options={countryOptions}
                                             />
+                                        </div>
 
-                                            <TextInput
-                                                label="Passport Expiration"
-                                                name="passportExpirationDate"
-                                                type="date"
-                                                value={savedPassengerForm.passportExpirationDate}
-                                                onChange={handleSavedPassengerChange}
-                                            />
+                                        <TextInput
+                                            label="Passport Expiration"
+                                            name="passportExpirationDate"
+                                            type="date"
+                                            value={savedPassengerForm.passportExpirationDate}
+                                            onChange={handleSavedPassengerChange}
+                                        />
 
-                                            <TextInput
-                                                label="Place of Birth"
-                                                name="placeOfBirth"
-                                                value={savedPassengerForm.placeOfBirth}
-                                                onChange={handleSavedPassengerChange}
-                                            />
+                                        <TextInput
+                                            label="Place of Birth"
+                                            name="placeOfBirth"
+                                            value={savedPassengerForm.placeOfBirth}
+                                            onChange={handleSavedPassengerChange}
+                                        />
 
+                                        <div>
+                                            <FieldLabel>Nationality</FieldLabel>
                                             <Dropdown
-                                                label="Nationality"
                                                 value={savedPassengerForm.nationality}
                                                 onChange={(val) => handleSavedPassengerDropdownChange("nationality", val)}
                                                 options={countryOptions}
                                             />
                                         </div>
+                                    </div>
 
-                                        {savedPassengersMessage && (
-                                            <p className="text-sm text-green-600">{savedPassengersMessage}</p>
-                                        )}
+                                    {savedPassengersMessage && (
+                                        <p className="text-sm text-green-600">{savedPassengersMessage}</p>
+                                    )}
 
-                                        {error && activeTab === "savedPassengers" && (
-                                            <p className="text-sm text-red-600">{error}</p>
-                                        )}
+                                    {error && activeTab === "savedPassengers" && (
+                                        <p className="text-sm text-red-600">{error}</p>
+                                    )}
 
+                                    <div className="flex gap-3 pt-2">
                                         <Button type="submit">
                                             {editingSavedPassengerId ? "Save Passenger" : "Add Passenger"}
                                         </Button>
-                                    </form>
-                                </div>
-                            </div>
+                                        <Button type="button" variant="outline" onClick={resetSavedPassengerForm}>
+                                            Cancel
+                                        </Button>
+                                    </div>
+                                </form>
+                            </Modal>
                         </>
                     )}
 
