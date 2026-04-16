@@ -2,10 +2,9 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import Button from "../common/Button";
 import { useAuth } from "../../contexts/AuthContext";
-import { LogOut, ChevronDown, User, Ticket, LayoutDashboard } from 'lucide-react';
+import { LogOut, ChevronDown, User, Ticket, LayoutDashboard, Search } from 'lucide-react';
 
-const navLinkBase = "text-sm font-medium text-gray-700 transition-colors hover:text-blue-600";
-const navLinkActive = "text-blue-600";
+const navLinkBase = "text-sm font-semibold transition-all duration-300 drop-shadow-sm";
 
 const SEARCH_PAGES = [
     { label: "Home", path: "/", keywords: ["home", "main", "start"] },
@@ -19,7 +18,6 @@ const SEARCH_PAGES = [
     { label: "Aircraft", path: "/aircraft", keywords: ["aircraft", "planes", "fleet"] },
     { label: "Flights", path: "/flights", keywords: ["flights", "schedule", "manage flights"] },
     { label: "Reports", path: "/reports", keywords: ["reports", "analytics", "demand", "revenue"] },
-    { label: "Payment", path: "/booking/payment", keywords: ["payment", "pay", "checkout"] },
 ];
 
 function searchPages(query) {
@@ -32,21 +30,8 @@ function searchPages(query) {
     );
 }
 
-// FIX 1: Define SearchBox OUTSIDE the Navbar component
-const SearchBox = ({
-                       className,
-                       searchValue,
-                       setSearchValue,
-                       searchResults,
-                       showDropdown,
-                       setShowDropdown,
-                       activeIndex,
-                       handleKeyDown,
-                       handleSearch,
-                       goToPage,
-                       searchRef
-                   }) => (
-    <div ref={searchRef} className={`relative ${className}`}>
+const SearchBox = ({ isScrolled, searchValue, setSearchValue, searchResults, showDropdown, setShowDropdown, activeIndex, handleKeyDown, handleSearch, goToPage, searchRef }) => (
+    <div ref={searchRef} className="relative w-64 lg:w-72">
         <form onSubmit={handleSearch} className="flex items-center gap-2">
             <div className="relative flex-1">
                 <input
@@ -56,40 +41,33 @@ const SearchBox = ({
                     onKeyDown={handleKeyDown}
                     onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
                     placeholder="Search pages..."
-                    className="w-full rounded-xl border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={`w-full rounded-full border px-4 py-1.5 text-sm outline-none transition-all ${
+                        isScrolled 
+                        ? "bg-gray-100 border-gray-200 focus:bg-white focus:ring-2 focus:ring-blue-500" 
+                        : "bg-white/10 border-white/20 text-white placeholder-white/60 focus:bg-white/20"
+                    }`}
                 />
                 {showDropdown && (
-                    <div className="absolute top-full left-0 mt-1 w-full rounded-xl border border-gray-200 bg-white shadow-lg z-50 overflow-hidden">
+                    <div className="absolute top-full left-0 mt-2 w-full rounded-2xl border border-gray-200 bg-white shadow-2xl z-[100] overflow-hidden">
                         {searchResults.map((result, i) => (
                             <button
                                 key={result.path + result.label}
                                 type="button"
-                                // FIX 2: Use onMouseDown instead of onClick to prevent focus-loss issues
-                                onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    goToPage(result.path);
-                                }}
-                                className={`w-full text-left px-4 py-3 text-sm transition-colors ${
-                                    i === activeIndex
-                                        ? "bg-blue-50 text-blue-700"
-                                        : "text-gray-700 hover:bg-gray-50"
-                                }`}
+                                onMouseDown={(e) => { e.preventDefault(); goToPage(result.path); }}
+                                className={`w-full text-left px-4 py-3 text-sm transition-colors ${i === activeIndex ? "bg-blue-50 text-blue-700" : "text-gray-700 hover:bg-gray-50"}`}
                             >
-                                <span className="font-medium">{result.label}</span>
-                                <span className="ml-2 text-xs text-gray-400">{result.path}</span>
+                                <span className="font-semibold">{result.label}</span>
                             </button>
                         ))}
                     </div>
                 )}
             </div>
-            <Button type="submit" size="sm" variant="outline">
-                Search
-            </Button>
         </form>
     </div>
 );
 
 export default function Navbar() {
+    const [isScrolled, setIsScrolled] = useState(false);
     const [searchValue, setSearchValue] = useState("");
     const [searchResults, setSearchResults] = useState([]);
     const [showDropdown, setShowDropdown] = useState(false);
@@ -102,298 +80,98 @@ export default function Navbar() {
     const searchRef = useRef(null);
 
     useEffect(() => {
+        const handleScroll = () => setIsScrolled(window.scrollY > 30);
+        window.addEventListener("scroll", handleScroll);
+        return () => window.removeEventListener("scroll", handleScroll);
+    }, []);
+
+    useEffect(() => {
         const results = searchPages(searchValue);
         setSearchResults(results);
         setShowDropdown(results.length > 0 && searchValue.trim() !== "");
-        setActiveIndex(-1);
     }, [searchValue]);
 
     useEffect(() => {
         function handleClickOutside(event) {
-            if (searchRef.current && !searchRef.current.contains(event.target)) {
-                setShowDropdown(false);
-            }
-            if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
-                setIsProfileMenuOpen(false);
-            }
+            if (searchRef.current && !searchRef.current.contains(event.target)) setShowDropdown(false);
+            if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) setIsProfileMenuOpen(false);
         }
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    const role = (user?.userRole || user?.UserRole || "").trim().toLowerCase();
-
-    const isAdmin = role === "administrator";
-    const isEmployee = isAdmin || role === "employee";
+    const goToPage = (path) => { navigate(path); setSearchValue(""); setShowDropdown(false); };
 
     const handleSearch = (e) => {
         e.preventDefault();
-        if (activeIndex >= 0 && searchResults[activeIndex]) {
-            goToPage(searchResults[activeIndex].path);
-        } else if (searchResults.length > 0) {
-            goToPage(searchResults[0].path);
-        }
-    };
-
-    const goToPage = (path) => {
-        navigate(path);
-        setSearchValue("");
-        setShowDropdown(false);
-        setActiveIndex(-1);
+        if (searchResults.length > 0) goToPage(searchResults[0].path);
     };
 
     const handleKeyDown = (e) => {
         if (!showDropdown) return;
-        if (e.key === "ArrowDown") {
-            e.preventDefault();
-            setActiveIndex((prev) => Math.min(prev + 1, searchResults.length - 1));
-        } else if (e.key === "ArrowUp") {
-            e.preventDefault();
-            setActiveIndex((prev) => Math.max(prev - 1, 0));
-        } else if (e.key === "Escape") {
-            setShowDropdown(false);
-        } else if (e.key === "Enter" && activeIndex >= 0) {
-            e.preventDefault();
-            goToPage(searchResults[activeIndex].path);
-        }
+        if (e.key === "ArrowDown") setActiveIndex(p => Math.min(p + 1, searchResults.length - 1));
+        if (e.key === "ArrowUp") setActiveIndex(p => Math.max(p - 1, 0));
+        if (e.key === "Enter" && activeIndex >= 0) goToPage(searchResults[activeIndex].path);
     };
 
-    const handleLogout = () => {
-        setIsProfileMenuOpen(false);
-        logout();
-        navigate("/login");
-    };
-
-    // Props bundle to keep the return clean
-    const searchProps = {
-        searchValue, setSearchValue, searchResults,
-        showDropdown, setShowDropdown, activeIndex,
-        handleKeyDown, handleSearch, goToPage, searchRef
-    };
+    const isEmployee = ["administrator", "employee"].includes((user?.userRole || "").toLowerCase());
 
     return (
-        <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur">
-            <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
-                <Link to="/" className="shrink-0">
-                    <div className="flex items-center gap-2">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white font-bold">
-                            3380
-                        </div>
-                        <div>
-                            <p className="text-lg font-bold text-gray-900">3380 Airlines</p>
-                            <p className="text-xs text-gray-500">Fly smarter</p>
-                        </div>
+        /* The header now transitions between a solid white/90 and a frosted 'Silver Window' white/10 */
+        <header className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-500 ${
+            isScrolled 
+            ? "bg-white/90 backdrop-blur-lg shadow-md py-2 border-b border-gray-200" 
+            : "bg-white/10 backdrop-blur-md py-5 border-b border-white/10"
+        }`}>
+            <div className="mx-auto flex max-w-7xl items-center justify-between px-6">
+                
+                {/* Logo Section */}
+                <Link to="/" className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white font-black shadow-lg">3380</div>
+                    <div className={isScrolled ? "text-slate-900" : "text-white"}>
+                        <p className="text-lg font-black leading-none">3380 Airlines</p>
+                        <p className="text-[10px] opacity-70 italic font-medium">Fly smarter</p>
                     </div>
                 </Link>
 
-                <nav className="hidden items-center gap-6 md:flex">
-                    <NavLink
-                        to="/"
-                        className={({ isActive }) =>
-                            `${navLinkBase} ${isActive ? navLinkActive : ""}`
-                        }
-                    >
-                        Book
-                    </NavLink>
-
-                    <NavLink
-                        to="/manage"
-                        className={({ isActive }) =>
-                            `${navLinkBase} ${isActive ? navLinkActive : ""}`
-                        }
-                    >
-                        Manage
-                    </NavLink>
-
-                    <NavLink
-                        to="/help"
-                        className={({ isActive }) =>
-                            `${navLinkBase} ${isActive ? navLinkActive : ""}`
-                        }
-                    >
-                        Help
-                    </NavLink>
+                {/* Center Links */}
+                <nav className={`hidden md:flex items-center gap-8 ${isScrolled ? "text-slate-600" : "text-white"}`}>
+                    <NavLink to="/" className={({ isActive }) => `${navLinkBase} ${isActive ? "text-blue-500" : "hover:text-blue-400"}`}>Book</NavLink>
+                    <NavLink to="/manage" className={({ isActive }) => `${navLinkBase} ${isActive ? "text-blue-500" : "hover:text-blue-400"}`}>Manage</NavLink>
+                    <NavLink to="/help" className={({ isActive }) => `${navLinkBase} ${isActive ? "text-blue-500" : "hover:text-blue-400"}`}>Help</NavLink>
                 </nav>
 
-                <div className="hidden items-center gap-3 lg:flex">
-                    <SearchBox className="w-72" {...searchProps} />
-
-
-
-
+                {/* Right Side */}
+                <div className="flex items-center gap-5">
+                    <SearchBox isScrolled={isScrolled} {...{searchValue, setSearchValue, searchResults, showDropdown, setShowDropdown, activeIndex, handleKeyDown, handleSearch, goToPage, searchRef}} />
 
                     {!isAuthenticated ? (
-                        <>
-                            <NavLink to="/login">
-                                <Button variant="outline" size="sm">
-                                    Login
-                                </Button>
-                            </NavLink>
-
-                            <NavLink to="/register">
-                                <Button size="sm">Register</Button>
-                            </NavLink>
-                        </>
+                        <div className="flex gap-2">
+                            <Link to="/login"><Button variant={isScrolled ? "outline" : "ghost"} size="sm" className={!isScrolled ? "text-white border-white/20 hover:bg-white/10 shadow-sm" : ""}>Login</Button></Link>
+                            <Link to="/register"><Button size="sm" className="shadow-lg shadow-blue-500/20">Register</Button></Link>
+                        </div>
                     ) : (
                         <div className="relative" ref={profileMenuRef}>
-                            <button
-                                type="button"
-                                onClick={() => setIsProfileMenuOpen((prev) => !prev)}
-                                className="flex items-center gap-2 rounded-xl border border-gray-200 px-2 py-1.5 hover:bg-gray-50 transition"
-                            >
-                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-600 text-white">
-                                    <User size={20}/>
-                                </div>
-
-                                <span className="max-w-30 truncate text-sm font-medium text-gray-700">
-                                    {user?.firstName || user?.username}
-                                </span>
-
-                                <ChevronDown size={16} className="text-gray-500" />
+                            <button onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)} className={`flex items-center gap-2 rounded-full border px-2 py-1 transition-all ${isScrolled ? "border-slate-200 bg-slate-50" : "border-white/20 bg-white/10 text-white"}`}>
+                                <div className="h-7 w-7 rounded-full bg-blue-600 flex items-center justify-center text-white"><User size={16}/></div>
+                                <span className="text-sm font-bold">{user?.firstName}</span>
+                                <ChevronDown size={14} />
                             </button>
-
                             {isProfileMenuOpen && (
-                                <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-gray-200 bg-white p-2 shadow-lg">
-                                    <div className="border-b border-gray-100 px-3 py-2">
-                                        <p className="text-sm font-semibold text-gray-900">
-                                            {user?.firstName} {user?.lastName}
-                                        </p>
-                                        <p className="truncate text-xs text-gray-500">
-                                            {user?.userRole}
-                                        </p>
+                                <div className="absolute right-0 mt-3 w-56 rounded-2xl border border-gray-100 bg-white p-2 shadow-2xl">
+                                    <div className="px-3 py-3 border-b border-gray-50">
+                                        <p className="text-sm font-bold text-slate-900">{user?.firstName} {user?.lastName}</p>
+                                        <p className="text-[10px] uppercase font-bold text-slate-400">{user?.userRole}</p>
                                     </div>
-
-                                    <div className="py-2">
-                                        <Link
-                                            to="/profile"
-                                            onClick={() => setIsProfileMenuOpen(false)}
-                                            className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-gray-700 hover:bg-amber-50"
-                                        >
-                                            <User size={16} className="text-amber-600" />
-                                            Profile
-                                        </Link>
-
-                                        {isEmployee && (
-                                            <Link
-                                                to="/employee/dashboard"
-                                                onClick={() => setIsProfileMenuOpen(false)}
-                                                className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm hover:bg-green-50"
-                                            >
-                                                <LayoutDashboard size={16} className="text-green-600" />
-                                                Employee Dashboard
-                                            </Link>
-                                        )}
-
-                                        {isAdmin && (
-                                            <Link
-                                                to="/admin/dashboard"
-                                                onClick={() => setIsProfileMenuOpen(false)}
-                                                className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm hover:bg-blue-50"
-                                            >
-                                                <LayoutDashboard size={16} className="text-blue-600" />
-                                                Admin Dashboard
-                                            </Link>
-                                        )}
-
-                                        <Link
-                                            to="/bookings"
-                                            onClick={() => setIsProfileMenuOpen(false)}
-                                            className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                        >
-                                            <Ticket size={16} className="text-gray-600" />
-                                            Bookings
-                                        </Link>
-                                    </div>
-
-                                    <div className="border-t border-gray-100 pt-2">
-                                        <button
-                                            type="button"
-                                            onClick={handleLogout}
-                                            className="cursor-pointer flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-red-600 hover:bg-red-50"
-                                        >
-                                            <LogOut size={16} />
-                                            Logout
-                                        </button>
+                                    <div className="py-2 space-y-1">
+                                        <Link to="/profile" className="flex items-center gap-3 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg"><User size={16}/> Profile</Link>
+                                        {isEmployee && <Link to="/admin/dashboard" className="flex items-center gap-3 px-3 py-2 text-sm text-slate-600 hover:bg-blue-50 rounded-lg text-blue-600"><LayoutDashboard size={16}/> Admin</Link>}
+                                        <button onClick={logout} className="flex w-full items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg"><LogOut size={16}/> Logout</button>
                                     </div>
                                 </div>
                             )}
                         </div>
                     )}
-                </div>
-            </div>
-
-            {/* Mobile View */}
-            <div className="border-t border-gray-100 px-4 py-3 md:hidden">
-                <SearchBox className="mb-3" {...searchProps} />
-                <div className="mx-auto flex max-w-7xl flex-col gap-3">
-                    <nav className="flex items-center justify-around">
-                        <NavLink
-                            to="/book"
-                            className={({ isActive }) =>
-                                `${navLinkBase} ${isActive ? navLinkActive : ""}`
-                            }
-                        >
-                            Book
-                        </NavLink>
-
-                        <NavLink
-                            to="/manage"
-                            className={({ isActive }) =>
-                                `${navLinkBase} ${isActive ? navLinkActive : ""}`
-                            }
-                        >
-                            Manage
-                        </NavLink>
-
-                        <NavLink
-                            to="/help"
-                            className={({ isActive }) =>
-                                `${navLinkBase} ${isActive ? navLinkActive : ""}`
-                            }
-                        >
-                            Help
-                        </NavLink>
-                    </nav>
-
-                    <form onSubmit={handleSearch} className="flex gap-2">
-                        <input
-                            type="text"
-                            value={searchValue}
-                            onChange={(e) => setSearchValue(e.target.value)}
-                            placeholder="Search..."
-                            className="flex-1 rounded-xl border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        <Button type="submit" size="sm" variant="outline">
-                            Search
-                        </Button>
-                    </form>
-
-                    <div className="flex gap-2">
-                        {!isAuthenticated ? (
-                            <>
-                                <NavLink to="/login" className="flex-1">
-                                    <Button variant="outline" size="sm" className="w-full">
-                                        Login
-                                    </Button>
-                                </NavLink>
-
-                                <NavLink to="/register" className="flex-1">
-                                    <Button size="sm" className="w-full">
-                                        Register
-                                    </Button>
-                                </NavLink>
-                            </>
-                        ) : (
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="w-full"
-                                onClick={logout}
-                            >
-                                Logout
-                            </Button>
-                        )}
-                    </div>
                 </div>
             </div>
         </header>
