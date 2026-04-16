@@ -2,6 +2,9 @@ import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { createBooking } from "../../services/bookingService";
+import { useFormErrors } from "../../utils/useFormErrors";
+
+import FormError from "../../components/common/FormError";
 
 function detectCardType(number) {
     const clean = number.replace(/\s/g, "");
@@ -62,6 +65,8 @@ export default function BookingPayment() {
     const navigate = useNavigate();
     const location = useLocation();
     const { user } = useAuth();
+    const {errors:serverErrors,setErrors:setServerErrors,clearErrors}= useFormErrors();
+
 
     // Read state passed from BookingSeats
     const booking = location.state || {};
@@ -95,7 +100,7 @@ export default function BookingPayment() {
     const seatNumber = seatSelections?.[firstFlightNum]?.[firstPassengerId] ?? "N/A";
 
     const [form, setForm] = useState(emptyForm);
-    const [errors, setErrors] = useState({});
+    const [localErrors,setLocalErrors]=useState({});
     const [submitting, setSubmitting] = useState(false);
 
     const cardType = detectCardType(form.cardNumber);
@@ -114,7 +119,8 @@ export default function BookingPayment() {
             value = value.replace(/\D/g, "").slice(0, cardType === "Amex" ? 4 : 3);
         }
         setForm({ ...form, [field]: value });
-        setErrors({ ...errors, [field]: "" });
+        setLocalErrors({ ...localErrors, [field]: "" });
+        clearErrors();
     };
 
     const validate = () => {
@@ -147,7 +153,7 @@ export default function BookingPayment() {
         if (!form.address.trim()) newErrors.address = "Address is required";
         if (!form.city.trim()) newErrors.city = "City is required";
         if (!form.state.trim()) newErrors.state = "State is required";
-        if (!isValidZip(form.zip)) newErrors.zip = "Invalid zip/postal code";
+        if (!isValidZip(form.zip)) newErrors.zip = "Invalid zip/postal code. Must be 5 digits";
         if (!form.country.trim()) newErrors.country = "Country is required";
 
         return newErrors;
@@ -156,16 +162,16 @@ export default function BookingPayment() {
     const handleSubmit = async () => {
         const validationErrors = validate();
         if (Object.keys(validationErrors).length > 0) {
-            setErrors(validationErrors);
+            setLocalErrors(validationErrors);
             return;
         }
-
+        clearErrors();
         setSubmitting(true);
 
         try {
             const resolvedUserId = user?.UserId || user?.userId || null;
             if (!resolvedUserId) {
-                setErrors({ submit: "You must be logged in before making a payment." });
+                setServerErrors({ response:{ data:"You must be logged in before making a payment." }});
                 setSubmitting(false);
                 return;
             }
@@ -251,13 +257,7 @@ export default function BookingPayment() {
             });
 
         } catch (err) {
-            const data = err?.response?.data;
-            const message =
-                typeof data === "string" ? data :
-                    data?.message || data?.title ||
-                    (data?.errors ? JSON.stringify(data.errors) : null) ||
-                    "Payment failed. Please try again.";
-            setErrors({ submit: message });
+            setServerErrors(err);
         } finally {
             setSubmitting(false);
         }
@@ -266,6 +266,8 @@ export default function BookingPayment() {
     return (
         <div className="max-w-2xl mx-auto p-6">
             <h1 className="text-2xl font-bold mb-2">Payment</h1>
+
+            <FormError errors={serverErrors}/>
 
             {/* Booking Summary */}
             <div className="bg-blue-50 border border-blue-200 rounded p-4 mb-6 text-sm">
@@ -293,7 +295,7 @@ export default function BookingPayment() {
                         placeholder="1234 5678 9012 3456"
                         value={form.cardNumber}
                         onChange={handleChange}
-                        error={errors.cardNumber}
+                        error={localErrors.cardNumber}
                     />
                     <Field
                         label={<>Name on Card<RequiredMark /></>}
@@ -301,7 +303,7 @@ export default function BookingPayment() {
                         placeholder="John Smith"
                         value={form.cardName}
                         onChange={handleChange}
-                        error={errors.cardName}
+                        error={localErrors.cardName}
                     />
                     <div className="grid grid-cols-2 gap-3">
                         <Field
@@ -310,7 +312,7 @@ export default function BookingPayment() {
                             placeholder="MM/YY"
                             value={form.expiry}
                             onChange={handleChange}
-                            error={errors.expiry}
+                            error={localErrors.expiry}
                         />
                         <Field
                             label={<>CVV<RequiredMark /></>}
@@ -318,7 +320,7 @@ export default function BookingPayment() {
                             placeholder="123"
                             value={form.cvv}
                             onChange={handleChange}
-                            error={errors.cvv}
+                            error={localErrors.cvv}
                         />
                     </div>
                 </div>
@@ -334,7 +336,7 @@ export default function BookingPayment() {
                         placeholder="+1 (800) 000-0000"
                         value={form.phone}
                         onChange={handleChange}
-                        error={errors.phone}
+                        error={localErrors.phone}
                     />
                     <Field
                         label={<>Address<RequiredMark /></>}
@@ -342,7 +344,7 @@ export default function BookingPayment() {
                         placeholder="123 Main St"
                         value={form.address}
                         onChange={handleChange}
-                        error={errors.address}
+                        error={localErrors.address}
                     />
                     <div className="grid grid-cols-2 gap-3">
                         <Field
@@ -351,7 +353,7 @@ export default function BookingPayment() {
                             placeholder="Houston"
                             value={form.city}
                             onChange={handleChange}
-                            error={errors.city}
+                            error={localErrors.city}
                         />
                         <Field
                             label={<>State<RequiredMark /></>}
@@ -359,7 +361,7 @@ export default function BookingPayment() {
                             placeholder="TX"
                             value={form.state}
                             onChange={handleChange}
-                            error={errors.state}
+                            error={localErrors.state}
                         />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
@@ -369,7 +371,7 @@ export default function BookingPayment() {
                             placeholder="77001"
                             value={form.zip}
                             onChange={handleChange}
-                            error={errors.zip}
+                            error={localErrors.zip}
                         />
                         <Field
                             label={<>Country<RequiredMark /></>}
@@ -377,14 +379,13 @@ export default function BookingPayment() {
                             placeholder="USA"
                             value={form.country}
                             onChange={handleChange}
-                            error={errors.country}
+                            error={localErrors.country}
                         />
                     </div>
                 </div>
             </div>
 
-            {errors.submit && <p className="text-red-500 mb-3">{errors.submit}</p>}
-
+            
             <button
                 onClick={handleSubmit}
                 disabled={submitting}

@@ -7,6 +7,9 @@ import Button from "../../components/common/Button";
 import Dropdown from "../../components/common/Dropdown";
 import Separator from "../../components/common/Separator";
 import { useNavigate } from "react-router-dom";
+import FormError from "../../components/common/FormError";
+
+import { useFormErrors } from "../../utils/useFormErrors";
 import {
     getMyProfile,
     updateMyProfile,
@@ -55,6 +58,7 @@ export default function Profile() {
     const [passenger, setPassenger] = useState(null);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
+    const { errors: serverErrors, setErrors: setServerErrors, clearErrors } = useFormErrors();
 
     const [countries, setCountries] = useState([]);
     const [states, setStates] = useState([]);
@@ -169,8 +173,7 @@ export default function Profile() {
     const loadProfileAndPassenger = async () => {
         try {
             setLoading(true);
-            setError("");
-
+            clearErrors();
             const profileData = await getMyProfile();
             setProfile(profileData);
 
@@ -215,7 +218,7 @@ export default function Profile() {
                 });
             }
         } catch (err) {
-            setError(err?.response?.data?.message || "Failed to load profile.");
+            setServerErrors(err);
         } finally {
             setLoading(false);
         }
@@ -237,7 +240,7 @@ export default function Profile() {
             [name]: value,
         }));
         setProfileMessage("");
-        setError("");
+        clearErrors();
     };
 
     const handlePassengerChange = (e) => {
@@ -266,12 +269,12 @@ export default function Profile() {
             [name]: value,
         }));
         setPasswordMessage("");
-        setError("");
+        clearErrors();
     };
 
     const handleProfileSubmit = async (e) => {
         e.preventDefault();
-        setError("");
+        clearErrors();
         setProfileMessage("");
 
         try {
@@ -279,7 +282,7 @@ export default function Profile() {
             setProfileMessage(response.message || "Profile updated.");
             await loadProfileAndPassenger();
         } catch (err) {
-            setError(err?.response?.data?.message || "Failed to update profile.");
+            setServerErrors(err);
         }
     };
 
@@ -437,11 +440,11 @@ export default function Profile() {
 
     const handlePasswordSubmit = async (e) => {
         e.preventDefault();
-        setError("");
+        clearErrors();
         setPasswordMessage("");
 
         if (passwordData.newPassword !== passwordData.confirmPassword) {
-            setError("New passwords do not match.");
+            setServerError({response:{data:"New passwords do not match."}});
             return;
         }
 
@@ -458,7 +461,7 @@ export default function Profile() {
                 confirmPassword: "",
             });
         } catch (err) {
-            setError(err?.response?.data?.message || "Failed to change password.");
+            setServerErrors(err);
         }
     };
 
@@ -473,7 +476,7 @@ export default function Profile() {
     if (!profile) {
         return (
             <div className="mx-auto max-w-6xl px-4 py-10">
-                <p className="text-red-600">{error || "Profile not found."}</p>
+                <p className="text-red-600">Profile not found.</p>
             </div>
         );
     }
@@ -536,6 +539,7 @@ export default function Profile() {
 
                 {/* Right content */}
                 <Card className="p-6">
+                    <FormError errors= {serverErrors}/>
                     {activeTab === "profile" && (
                         <>
                             <h1 className="text-2xl font-semibold text-gray-900">

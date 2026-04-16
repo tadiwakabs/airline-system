@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect,useMemo } from 'react';
 import api from '../services/api'; 
 import { getSeatsForFlight } from "../services/seatingService"; 
+import { useNavigate } from "react-router-dom";
+
 
 function formatDateTime(dateStr) {
     if (!dateStr) return "—";
@@ -17,7 +19,7 @@ function groupSeatsForRender(seats) {
     const rows = new Map();
     for (const seat of seats) {
         const match = String(seat.seatNumber).match(/^(\d+)([A-Z])$/i);
-        if (!match) return;
+        if (!match) continue;
         const rowNumber = Number(match[1]);
         const letter = match[2].toUpperCase();
         if (!rows.has(rowNumber)) rows.set(rowNumber, []);
@@ -30,53 +32,226 @@ function groupSeatsForRender(seats) {
         }));
 }
 
+function seatClassMatches(seatClass, cabinClass) {
+    return String(seatClass || "").toLowerCase() === String(cabinClass || "").toLowerCase();
+}
+
+function getSeatVisualState(seat, allowedClass, selectedPassengerId, selectedSeatNumber) {
+    const seatClass = seat.seatclass;
+    const status = seat.seatStatus;
+
+    if (!seatClassMatches(seatClass, allowedClass)) return "wrong-class";
+    if (status === "Occupied") return "occupied";
+    if (status === "Reserved" && seat.passengerId !== selectedPassengerId) return "reserved";
+    if (seat.seatNumber === selectedSeatNumber) return "selected";
+    return "available";
+}
+
+function seatButtonClass(state) {
+    const base =
+        "w-11 h-11 rounded-lg border text-sm font-semibold transition-colors";
+
+    switch (state) {
+        case "selected":
+            return `${base} bg-blue-600 text-white border-blue-600`;
+        case "occupied":
+            return `${base} bg-red-100 text-red-600 border-red-200 cursor-not-allowed`;
+        case "reserved":
+            return `${base} bg-amber-100 text-amber-700 border-amber-200 cursor-not-allowed`;
+        case "wrong-class":
+            return `${base} bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed`;
+        default:
+            return `${base} bg-green-50 text-green-700 border-green-200 hover:bg-green-100`;
+    }
+}
+
+function getCabinSection(rowNumber) {
+    if (rowNumber >= 1 && rowNumber <= 4) return "First Class";
+    if (rowNumber >= 5 && rowNumber <= 10) return "Business Class";
+    return "Economy Class";
+}
+
+function shouldShowSectionDivider(currentRow, previousRow) {
+    if (previousRow == null) return true;
+    return getCabinSection(currentRow) !== getCabinSection(previousRow);
+}
+
+function PlaneLegend() {
+    return (
+        <div className="flex flex-wrap gap-3 text-xs text-gray-600">
+            <div className="flex items-center gap-2">
+                <span className="w-4 h-4 rounded bg-green-50 border border-green-200 inline-block" />
+                Available
+            </div>
+            <div className="flex items-center gap-2">
+                <span className="w-4 h-4 rounded bg-blue-600 inline-block" />
+                Selected
+            </div>
+            <div className="flex items-center gap-2">
+                <span className="w-4 h-4 rounded bg-red-100 border border-red-200 inline-block" />
+                Occupied
+            </div>
+            <div className="flex items-center gap-2">
+                <span className="w-4 h-4 rounded bg-amber-100 border border-amber-200 inline-block" />
+                Reserved
+            </div>
+            <div className="flex items-center gap-2">
+                <span className="w-4 h-4 rounded bg-gray-100 border border-gray-200 inline-block" />
+                Unavailable
+            </div>
+        </div>
+    );
+}
+
+function SeatMap({
+                     seats,
+                     allowedClass,
+                     selectedPassengerId,
+                     selectedSeatNumber,
+                     onSelectSeat,
+                 }) {
+    const rows = useMemo(() => groupSeatsForRender(seats), [seats]);
+
+    return (
+        <div className="rounded-2xl border border-gray-200 bg-white p-4">
+            <div className="mx-auto mb-6 w-40 rounded-t-full border border-gray-200 bg-gray-50 py-2 text-center text-xs font-medium text-gray-500">
+                Front of aircraft
+            </div>
+
+            <div className="space-y-2">
+                {rows.map((row, index) => {
+                    const previousRowNumber = index > 0 ? rows[index - 1].rowNumber : null;
+                    const showDivider = shouldShowSectionDivider(row.rowNumber, previousRowNumber);
+
+                    const seatLetters = row.seats.map((s) => s.letter);
+                    const left = row.seats.filter((s) => ["A", "B", "C"].includes(s.letter));
+                    const right = row.seats.filter((s) => ["D", "E", "F"].includes(s.letter));
+                    const compact = !seatLetters.includes("E") && !seatLetters.includes("F");
+
+                    return (
+                        <div key={row.rowNumber} className="space-y-2">
+                            {showDivider && (
+                                <div className="flex items-center gap-3 py-2">
+                                    <div className="h-px flex-1 bg-gray-200" />
+                                    <div className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600">
+                                        {getCabinSection(row.rowNumber)}
+                                    </div>
+                                    <div className="h-px flex-1 bg-gray-200" />
+                                </div>
+                            )}
+
+                            <div className="flex items-center justify-center gap-3">
+                                <div className="w-8 text-right text-xs font-medium text-gray-400">
+                                    {row.rowNumber}
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    {(compact ? row.seats.slice(0, 2) : left).map((seat) => {
+                                        const state = getSeatVisualState(
+                                            seat,
+                                            allowedClass,
+                                            selectedPassengerId,
+                                            selectedSeatNumber
+                                        );
+
+                                        return (
+                                            <button
+                                                key={seat.seatNumber}
+                                                type="button"
+                                                className={seatButtonClass(state)}
+                                                disabled={state !== "available" && state !== "selected"}
+                                                onClick={() => onSelectSeat(seat)}
+                                            >
+                                                {seat.letter}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                <div className="w-8 text-center text-[10px] uppercase tracking-wide text-gray-300">
+                                    aisle
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    {(compact ? row.seats.slice(2) : right).map((seat) => {
+                                        const state = getSeatVisualState(
+                                            seat,
+                                            allowedClass,
+                                            selectedPassengerId,
+                                            selectedSeatNumber
+                                        );
+
+                                        return (
+                                            <button
+                                                key={seat.seatNumber}
+                                                type="button"
+                                                className={seatButtonClass(state)}
+                                                disabled={state !== "available" && state !== "selected"}
+                                                onClick={() => onSelectSeat(seat)}
+                                            >
+                                                {seat.letter}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
 
 const ManageBooking = () => {
     const [bookings, setBookings] = useState([]);
     const [flightDetails,setFlightDetails] = useState({});
     const [loading, setLoading] = useState(true);
-    const [selectedBooking, setSelectedBooking] = useState(null);
+    const [selectedTicket, setSelectedTicket] = useState(null);
     const [availableSeats, setAvailableSeats] = useState([]);
     const [newSeatNumber, setNewSeatNumber] = useState("");
     const [loadingSeats, setLoadingSeats] = useState(false);
     const [allowedClass, setAllowedClass] = useState("economy");
+    const [targetFlight, setTargetFlight] = useState(null);
+    const navigate = useNavigate();
+
     
     useEffect(() => {
         fetchBookings();
     }, []);
 
     const fetchBookings = async () => {
-        try {
-            setLoading(true);
-            const response = await api.get('/Booking/myBooking');
-            const bookingsData = response.data;
-            setBookings(bookingsData);
+    try {
+        setLoading(true);
+        const response = await api.get('/Booking/myBooking');
+        setBookings(response.data);
+    } catch (err) { 
+        console.error("Fetch failed", err); 
+    } finally { 
+        setLoading(false); 
+    }
+};
 
-            const detailsMap = {};
-            await Promise.all(
-                bookingsData.map(async (b) => {
-                    try {
-                        const ticketRes = await api.get(`/Ticket/by-booking/${b.bookingId}`);
-                        const flightCode = ticketRes.data.flightCode;
-
-                        const flightRes = await api.get(`/Flights/${flightCode}`); 
-                        
-                        detailsMap[b.bookingId] = {
-                            ...flightRes.data,
-                            cabinClass: ticketRes.data.class
+    const groupedBookings = useMemo(() => {
+            return bookings.map(booking => {
+                // Group tickets by flightCode so passengers on the same flight are together
+                const flightMap = booking.tickets.reduce((acc, ticket) => {
+                    const code = ticket.flightCode;
+                    if (!acc[code]) {
+                        acc[code] = { 
+                            flightInfo: ticket.flight, 
+                            passengers: [] 
                         };
-                    } catch (e) {
-                        console.error(`Data chain broken for ${b.bookingId}`, e);
                     }
-                })
-            );
-            setFlightDetails(detailsMap);
-        } catch (err) { 
-            console.error("Booking fetch failed", err); 
-        } finally { 
-            setLoading(false); 
-        }
-    };
+                    acc[code].passengers.push(ticket);
+                    return acc;
+                }, {});
+
+                return { ...booking, flights: Object.values(flightMap) };
+            });
+        }, [bookings]
+    );
 
     const handleCancelBooking = async (bookingId) => {
         if (!window.confirm("Are you sure you want to cancel this booking?")) return;
@@ -91,33 +266,32 @@ const ManageBooking = () => {
         }
     };
     
-    const openSeatModal = async (booking) => {
-        const flightData = flightDetails[booking.bookingId];
-        if (!flightData) return alert("Flight info not loaded yet.");
+    const openSeatModal = async (ticket, flightInfo) => {
+    setSelectedTicket(ticket);
+    setTargetFlight(flightInfo);
+    
+    setLoadingSeats(true);
+    setNewSeatNumber("");
+    
+    setAllowedClass(ticket.ticketClass?.toLowerCase() || "economy");
 
-        setSelectedBooking(booking);
-        setLoadingSeats(true);
-        setNewSeatNumber("");
-        
-        setAllowedClass(flightData.cabinClass?.toLowerCase() || "economy");
+    try {
+        const seatRes = await getSeatsForFlight(flightInfo.flightNum); 
+        setAvailableSeats(seatRes.data);
+    } catch (err) { 
+        console.error("Seat load error:", err);
+        alert("Error loading seats"); 
+        setSelectedTicket(null); // Reset on error
+    } finally { 
+        setLoadingSeats(false); 
+    }
+};
 
-        try {
-            const seatRes = await getSeatsForFlight(flightData.flightNum); 
-            setAvailableSeats(seatRes.data);
-        } catch (err) { 
-            console.error("Seat load error:", err);
-            alert("Error loading seats"); 
-            setSelectedBooking(null);
-        } finally { 
-            setLoadingSeats(false); 
-        }
-    };
-
-    const handleCloseModal = () => setSelectedBooking(null);
+    const handleCloseModal = () => setSelectedTicket(null);
 
     const confirmSeatChange = async () => {
         try {
-            await api.put(`/Booking/${selectedBooking.bookingId}/change-seat`, 
+            await api.put(`Ticket/${selectedTicket.ticketCode}/change-seat`, 
                 JSON.stringify(newSeatNumber), 
                 { headers: { 'Content-Type': 'application/json' } }
             );
@@ -139,105 +313,152 @@ const ManageBooking = () => {
             <p className="text-gray-500 mt-2 font-medium">Manage your seats and flight details</p>
         </header>
 
-        {/* BOOKING CARDS LIST */}
+        {/*--Empty State---*/}
+        {groupedBookings.length === 0 ? (
+            <div className="bg-white rounded-3xl border-2 border-dashed border-gray-200 p-20 text-center">
+                <div className="bg-blue-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <svg className="w-10 h-10 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                </div>
+                <h2 className="text-2xl font-black text-gray-900">No trips found</h2>
+                <p className="text-gray-500 mt-2 max-w-sm mx-auto font-medium">
+                    It looks like you haven't booked any flights yet. Ready to start your next adventure?
+                </p>
+                <button 
+                    onClick={() => navigate('/')} 
+                    className="mt-8 px-8 py-3 bg-blue-600 text-white font-black rounded-xl shadow-lg shadow-blue-100 hover:scale-105 transition-all"
+                >
+                    Book a Flight
+                </button>
+            </div>
+        ):(
         <div className="space-y-6">
-            {bookings.map((b) => {
+            {groupedBookings.map((b) => {
                 const isCancelled = b.bookingStatus === "Cancelled" || b.bookingStatus === 2;
-                const flight = flightDetails[b.bookingId];
+                const statusColor = isCancelled ? 'bg-red-500' : 'bg-green-500';
+                const statusText = isCancelled ? "Cancelled" : "Confirmed";
 
                 return (
-                    <div key={b.bookingId} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden flex flex-col md:flex-row transition-all hover:shadow-md">
-                        {/* Left Side: Flight Info */}
-                        <div className="p-8 flex-1">
-                            <div className="flex items-center gap-4 mb-6">
+                    <div key={b.bookingId} className="bg-white rounded-2xl border border-gray-100 shadow-lg mb-8 overflow-hidden">
+                        <div className="p-8">
+                            
+                            <div className="flex items-center gap-4 mb-8">
                                 <span className="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-black rounded-full uppercase">
                                     Ref: {b.bookingId.substring(0, 8)}
                                 </span>
-                                <div className={`h-2 w-2 rounded-full ${isCancelled ? 'bg-red-500' : 'bg-green-500'}`} />
-                                <span className="text-sm font-bold text-gray-700">{b.bookingStatus}</span>
+                                <div className={`h-2.5 w-2.5 rounded-full ${statusColor}`} />
+                                <span className="text-sm font-bold text-gray-700">{statusText}</span>
                             </div>
 
-                            {flight ? (
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-6 py-2">
-                                <div className="text-center min-w-[80px]">
-                                    <p className="text-xl font-black text-gray-900 leading-none">
-                                        {flight.departingPortCode || flight.departingPort}
-                                    </p>
-                                    <p className="text-[10px] text-gray-400 uppercase mt-1 font-bold">Departure</p>
-                                </div>
-
-                                <div className="flex-1 flex items-center gap-2">
-                                    <div className="h-px flex-1 bg-gray-200 border-t border-dashed" />
-                                    <svg className="w-4 h-4 text-blue-500 rotate-90" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
-                                    </svg>
-                                    <div className="h-px flex-1 bg-gray-200 border-t border-dashed" />
-                                </div>
-
-                                <div className="text-center min-w-[80px]">
-                                    {/* Use the exact JsonPropertyName from your C# Model */}
-                                    <p className="text-xl font-black text-gray-900 leading-none">
-                                        {flight.arrivingPortCode || flight.arrivingPort}
-                                    </p>
-                                    <p className="text-[10px] text-gray-400 uppercase mt-1 font-bold">Arrival</p>
-                                </div>
-                            </div>
-
-                                {/* Info Row */}
-                                <div className="flex gap-8 mt-4 pt-4 border-t border-gray-50">
-                                    <div>
-                                        <p className="text-[10px] uppercase font-bold text-gray-400">Date</p>
-                                        <p className="text-sm font-bold text-gray-800">
-                                            {new Date(flight.departTime).toLocaleDateString()}
+                            {/* --- NESTED FLIGHTS LOOP --- */}
+                            {b.flights.map((flightGroup, index) => (
+                                <div key={index} className="mt-10 pt-10 first:mt-0 first:pt-0 border-t border-dashed border-gray-100 relative">
+                                    {/* Outbound/Return indicator */}
+                                    {b.flights.length > 1 && (
+                                        <p className="absolute top-3 left-0 text-[10px] font-black text-blue-400 uppercase tracking-widest">
+                                            {index === 0 ? "Outbound Flight" : "Return Flight"}
                                         </p>
+                                    )}
+
+                                    <div className="flex items-center gap-6 py-2">
+                                        <div className="text-center min-w-[80px]">
+                                            <p className="text-3xl font-black text-gray-900">{flightGroup.flightInfo.departingPortCode}</p>
+                                            <p className="text-[10px] text-gray-400 uppercase font-bold">Departure</p>
+                                        </div>
+                                        <div className="flex-1 flex items-center gap-2">
+                                            <div className="h-px flex-1 bg-gray-200" />
+                                            <svg className="w-5 h-5 text-blue-500 rotate-90" fill="currentColor" viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" /></svg>
+                                            <div className="h-px flex-1 bg-gray-200" />
+                                        </div>
+                                        <div className="text-center min-w-[80px]">
+                                            <p className="text-3xl font-black text-gray-900">{flightGroup.flightInfo.arrivingPortCode}</p>
+                                            <p className="text-[10px] text-gray-400 uppercase font-bold">Arrival</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="text-[10px] uppercase font-bold text-gray-400">Time</p>
-                                        <p className="text-sm font-bold text-gray-800">
-                                            {formatDateTime(flight.departTime)}
-                                        </p>
+
+                                    {/* ---INFO ROW --- */}
+                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-y-6 gap-x-4 mt-8 pt-6 border-t border-gray-100">
+                                        <div>
+                                            <p className="text-[11px] text-gray-400 font-black uppercase tracking-wider mb-1">Departure</p>
+                                            <p className="text-base font-bold text-gray-900">
+                                                {new Date(flightGroup.flightInfo.departTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                            </p>
+                                            <p className="text-sm font-medium text-gray-500">{formatDateTime(flightGroup.flightInfo.departTime)}</p>
+                                        </div>
+
+                                        <div>
+                                            <p className="text-[11px] text-gray-400 font-black uppercase tracking-wider mb-1">Arrival Est.</p>
+                                            <p className="text-base font-bold text-gray-900">
+                                                {flightGroup.flightInfo.arrivalTime ? new Date(flightGroup.flightInfo.arrivalTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "Same Day"}
+                                            </p>
+                                            <p className="text-sm font-medium text-gray-500">
+                                                {flightGroup.flightInfo.arrivalTime ? formatDateTime(flightGroup.flightInfo.arrivalTime) : "TBD"}
+                                            </p>
+                                        </div>
+
+                                        <div>
+                                            <p className="text-[11px] text-gray-400 font-black uppercase tracking-wider mb-1">Flight Details</p>
+                                            <p className="text-base font-bold text-gray-900">#{flightGroup.flightInfo.flightNum}</p>
+                                        </div>
+
+                                        <div>
+                                            <p className="text-[11px] text-gray-400 font-black uppercase tracking-wider mb-1">Cabin Class</p>
+                                            <p className="text-base font-bold text-blue-600 uppercase tracking-tight">
+                                                {flightGroup.passengers[0]?.ticketClass || "Economy"}
+                                            </p>
+                                        </div>
+
+                                        <div className="md:text-right">
+                                            <p className="text-[11px] text-gray-400 font-black uppercase tracking-wider mb-1"> Flight Status</p>
+                                            <p className="text-s font-black text-green-600 uppercase">On Time</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="text-[10px] uppercase font-bold text-gray-400">Flight #</p>
-                                        <p className="text-sm font-bold text-gray-800">{flight.flightNum}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] uppercase font-bold text-gray-400">Cabin</p>
-                                        <p className="text-sm font-bold text-blue-600 uppercase">{flight.cabinClass || "Economy"}</p>
+
+                                    {/* PASSENGER SECTION (New Logic, Classy Look) */}
+                                    <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {flightGroup.passengers.map(ticket => (
+                                            <div key={ticket.ticketCode} className="flex justify-between items-center p-5 bg-gray-50 rounded-2xl border border-gray-100 shadow-inner">
+                                                <div>
+                                            
+                                                    <p className="font-black text-gray-900">
+                                                        {ticket.passenger?.firstName} {ticket.passenger?.lastName}
+                                                    </p>
+                                                    <p className="text-s font-bold text-gray-500">Seat <span className="text-blue-600 font-black">{ticket.seatNumber}</span></p>
+                                                </div>
+                                                <button 
+                                                    onClick={() => openSeatModal(ticket, flightGroup.flightInfo)}
+                                                    disabled={isCancelled}
+                                                    className="text-xs font-black text-blue-600 hover:text-blue-800 uppercase tracking-widest transition-all"
+                                                >
+                                                    Change Seat
+                                                </button>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
-                            </div>
-                        ) : (
-                            <div className="py-8 text-center bg-gray-50 rounded-2xl text-gray-400 text-sm font-medium animate-pulse">
-                                Fetching flight details...
-                            </div>
-                        )}
+                            ))}
                         </div>
 
-                        {/* Right Side: Actions */}
-                        <div className="bg-gray-50/50 p-8 border-t md:border-t-0 md:border-l border-gray-100 flex flex-col justify-center gap-3 w-full md:w-72">
-                            <button 
-                                onClick={() => openSeatModal(b)} 
-                                disabled={isCancelled || !flight}
-                                className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold transition-all disabled:bg-gray-200 disabled:text-gray-400 shadow-lg shadow-blue-100 disabled:shadow-none"                            >
-                                Change Seat
-                            </button>
+                        {/* General Actions (Cancel) */}
+                        <div className="p-5 bg-gray-50 border-t border-gray-100 flex justify-end">
                             {!isCancelled && (
-                            <button 
-                                onClick={() => handleCancelBooking(b.bookingId)}
-                                className="w-full py-4 bg-red-50 text-red-600 border border-red-100 rounded-lg font-bold transition-all hover:bg-red-100 active:scale-95"
-                                >Cancel Trip
-                            </button>
-                        )}
+                                <button 
+                                    onClick={() => handleCancelBooking(b.bookingId)}
+                                    className="px-8 py-3 bg-red-50 text-red-600 font-bold text-sm rounded-xl transition-all hover:bg-red-100 active:scale-95"
+                                >
+                                    Cancel Entire Itinerary
+                                </button>
+                            )}
                         </div>
                     </div>
                 );
-            })}
-        </div>
+            })}           
+        </div>)
+        }
 
         {/* SEAT SELECTION MODAL */}
-        {selectedBooking && (
+        {selectedTicket && (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                 <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-8 shadow-2xl">
                     <div className="flex justify-between items-center mb-8">
@@ -253,41 +474,32 @@ const ManageBooking = () => {
                     ) : (
                         <div className="space-y-8">
                             {/* Visual Seat Map Container */}
-                            <div className="flex justify-center bg-gray-50 p-8 rounded-3xl border border-gray-100">
-                                <div className="grid grid-cols-1 gap-4">
-                                    <p className="text-center text-[10px] text-gray-400 uppercase tracking-[0.3em] mb-4 font-black">Front of Aircraft</p>
-                                    <div className="space-y-3">
-                                        {groupSeatsForRender(availableSeats).map(row => (
-                                            <div key={row.rowNumber} className="flex gap-3 items-center justify-center">
-                                                <span className="w-6 text-[10px] font-black text-gray-300">{row.rowNumber}</span>
-                                                {row.seats.map(seat => {
-                                                    const isWrongClass = seat.seatclass?.toLowerCase() !== allowedClass;
-                                                    const isOccupied = seat.seatStatus === "Occupied";
-                                                    const isSelected = newSeatNumber === seat.seatNumber;
+                            <div className="space-y-4">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div>
+                                        <p className="text-sm text-gray-500">Passenger</p>
+                                        <p className="font-medium text-gray-900">
+                                            {selectedTicket?.passenger?.firstName} {selectedTicket?.passenger?.lastName}
+                                        </p>
+                                    </div>
 
-                                                    return (
-                                                        <button
-                                                            key={seat.seatNumber}
-                                                            disabled={isOccupied || isWrongClass}                                                       
-                                                            onClick={() => setNewSeatNumber(seat.seatNumber)}
-                                                            className={`w-11 h-11 rounded-xl text-xs font-black border-2 transition-all ${
-                                                                isSelected 
-                                                                ? "bg-blue-600 text-white border-blue-700 shadow-md scale-110" 
-                                                                : isOccupied 
-                                                                ? "bg-red-50 text-red-300 cursor-not-allowed border-red-100" 
-                                                                : isWrongClass
-                                                                ? "bg-gray-100 text-gray-300 cursor-not-allowed border-gray-100"
-                                                                : "bg-white text-green-600 border-green-100 hover:border-green-400 hover:bg-green-50"
-                                                            }`}
-                                                        >
-                                                            {seat.letter}
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        ))}
+                                    <div className="text-right">
+                                        <p className="text-sm text-gray-500">Selected seat</p>
+                                        <p className="font-medium text-gray-900">
+                                            {newSeatNumber || selectedTicket?.seatNumber || "None"}
+                                        </p>
                                     </div>
                                 </div>
+
+                                <PlaneLegend />
+
+                                <SeatMap
+                                    seats={availableSeats}
+                                    allowedClass={allowedClass}
+                                    selectedPassengerId={selectedTicket?.passengerId}
+                                    selectedSeatNumber={newSeatNumber || selectedTicket?.seatNumber}
+                                    onSelectSeat={(seat) => setNewSeatNumber(seat.seatNumber)}
+                                />
                             </div>
 
                             {/* Selection Summary Footer */}
