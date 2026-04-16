@@ -91,6 +91,9 @@ namespace AirlineAPI.DTOs.Flight
         public string ArrivingPortCode { get; set; } = "";
         public DateTime DepartTime { get; set; }
         public DateTime ArrivalTime { get; set; }
+        public DateTime DepartTimeUtc { get; set; }
+        public DateTime ArrivalTimeUtc { get; set; }
+
         public string Status { get; set; } = "";
         public string AircraftUsed { get; set; } = "";
         public int Distance { get; set; }

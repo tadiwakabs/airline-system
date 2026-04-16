@@ -322,8 +322,15 @@ namespace AirlineAPI.Controllers
                         ArrivingPort = x.f.arrivingPort,
                         DepartingCity = x.dep.city,
                         ArrivingCity = x.arr.city,
+
+                        // local display
                         DepartTime = x.f.scheduledDepartLocal ?? x.f.departTime,
                         ArrivalTime = x.f.scheduledArrivalLocal ?? x.f.arrivalTime,
+
+                        // utc tracker math
+                        DepartTimeUtc = x.f.departTime,
+                        ArrivalTimeUtc = x.f.arrivalTime,
+
                         AircraftUsed = x.f.aircraftUsed,
                         BookingId = null,
                     })
@@ -369,12 +376,19 @@ namespace AirlineAPI.Controllers
                         Status = f.status.ToString(),
                         DepartingPort = f.departingPort,
                         ArrivingPort = f.arrivingPort,
+
+                        // local display
                         DepartTime = f.scheduledDepartLocal ?? f.departTime,
                         ArrivalTime = f.scheduledArrivalLocal ?? f.arrivalTime,
+
+                        // utc tracker math
+                        DepartTimeUtc = f.departTime,
+                        ArrivalTimeUtc = f.arrivalTime,
+
                         BookingId = booking.bookingId,
                         AircraftUsed = f.aircraftUsed,
                         DepartingCity = depCity,
-                        ArrivingCity  = arrCity,
+                        ArrivingCity = arrCity,
                     };
                 })
                 .OrderBy(f => f.DepartTime)
