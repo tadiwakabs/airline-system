@@ -55,24 +55,33 @@ export default function Login() {
             newErrors.password = "Password is required.";
         }
 
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
+        if (Object.keys(newErrors).length >0){
+            setErrors(newErrors);
+            return false;
+        }
+        return true;
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        clearErrors();
+        setSubmitError(""); 
+        clearErrors();      
+        setLocalErrors({}); 
 
         if (!validateForm()) return;
 
-        const result = await login(formData);
+        try {
+            const result = await login(formData);
 
-        if (!result.success) {
-            setErrors({response:{data:result.message}});
-            return;
+            if (result && result.success) {
+                clearErrors(); 
+                navigate(from, { replace: true });
+                return ; 
+            } 
+            setErrors({ general: result?.message || "Invalid credentials." });
+        } catch (err) {
+            setErrors({ general: "A connection error occurred. Please try again." });
         }
-
-        navigate(from, { replace: true });
     };
 
     return (

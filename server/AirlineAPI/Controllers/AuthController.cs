@@ -124,7 +124,7 @@ namespace AirlineAPI.Controllers
                     u.Email == request.Username);
             
             var employee = await _context.Employees
-                .FirstOrDefaultAsync(e => e.userId == user.UserId);
+                .FirstOrDefaultAsync(e => e.userId == user!.UserId);
 
             if (user == null)
                 return Unauthorized(new { message = "Invalid username/email or password." });

@@ -1,14 +1,12 @@
 import React from 'react';
 
 const FormError = ({ errors }) => {
-    // Check if errors exists and has content (works for Array or Object)
-    const hasErrors = errors && Object.keys(errors).length > 0;
-    if (!hasErrors) return null;
+    const hasGeneralErrors = errors?.general;
+    const hasArrayErrors = Array.isArray(errors) && errors.length>0;
+    if (!hasGeneralErrors && !hasArrayErrors) return null;
 
     // Convert everything to an array of messages so .map always works
-    const errorList = Array.isArray(errors) 
-        ? errors 
-        : Object.values(errors);
+    const errorList = hasArrayErrors ? errors : [errors.general];
 
     return (
         <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg animate-in fade-in slide-in-from-top-1">
