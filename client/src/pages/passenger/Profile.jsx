@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import Card from "../../components/common/Card";
 import TextInput from "../../components/common/TextInput";
 import Button from "../../components/common/Button";
@@ -37,7 +38,10 @@ const genderOptions = [
 ];
 
 export default function Profile() {
-    const [activeTab, setActiveTab] = useState("profile");
+    const location = useLocation();
+    const [activeTab, setActiveTab] = useState(
+    location.state?.defaultTab || "profile"
+);
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -66,6 +70,8 @@ export default function Profile() {
 
     useEffect(() => {
         loadProfile();
+        loadNotifications();
+        loadStandbyOffers();
     }, []);
 
     const loadProfile = async () => {
