@@ -173,8 +173,13 @@ export default function BookingPayment() {
                 setSubmitting(false);
                 return;
             }
-
-            // Build one ticket entry per passenger per flight leg
+            
+            const baggageData = (booking.baggageData || []).map(bag => ({
+                passengerId: bag.passengerId,
+                additionalBaggage: bag.additionalBaggage,
+                additionalFare: bag.additionalFare,
+                isChecked: 0,
+            }));
             const tickets = [];
             for (const flight of allFlights) {
                 const origin      = flight.departingPort || flight.departingPortCode;
@@ -187,7 +192,6 @@ export default function BookingPayment() {
                     const seatNumber = seatSelections?.[flight.flightNum]?.[passenger.passengerId];
                     if (!seatNumber) continue;
 
-                    // Per-passenger price for this leg from the quote
                     const cabinClass = searchParams?.cabinClass ?? "economy";
                     const fareBreakdown = selectedItinerary?.quote?.[cabinClass] ?? {};
                     const legPrice =
@@ -212,7 +216,8 @@ export default function BookingPayment() {
                 totalPrice:    Number(totalPrice),
                 cabinClass:    searchParams?.cabinClass ?? "economy",
                 paymentMethod: cardType,
-                tickets,
+                tickets:        tickets,
+                baggage:        baggageData
             };
 
             const res = await createBooking(bookingPayload);

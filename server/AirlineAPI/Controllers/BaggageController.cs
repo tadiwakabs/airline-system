@@ -24,11 +24,6 @@ namespace AirlineAPI.Controllers
                 .Where(b => b.Ticket != null && b.Ticket.ticketCode == flightId)
                 .ToListAsync();
 
-            if (flightBaggage == null || !flightBaggage.Any())
-            {
-                return NotFound($"No baggage found for flight: {flightId}");
-            }
-
             return Ok(flightBaggage);
         }
 
