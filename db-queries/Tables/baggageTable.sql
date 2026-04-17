@@ -4,7 +4,7 @@ CREATE TABLE `Baggage` (
        `additionalBaggage` tinyint(1) DEFAULT '0',
        `additionalFare` double DEFAULT NULL,
        `isChecked` tinyint(1) NOT NULL,
-       `ticketCode` varchar(30) NOT NULL,
+       `ticketCode` varchar(30),
        PRIMARY KEY (`baggageId`),
        KEY `passengerId` (`passengerId`),
        KEY `fk_baggage_ticket` (`ticketCode`),
