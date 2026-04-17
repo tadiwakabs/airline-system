@@ -74,6 +74,7 @@ namespace AirlineAPI.DTOs.Flight
         public bool? FlightChange { get; set; }
         public int? RecurringScheduleId { get; set; }
         public List<FlightPricingDto> Pricing { get; set; } = new();
+        public int BookedPassengerCount { get; set; }
     }
     
     public class FlightSearchResultDto
@@ -98,6 +99,7 @@ namespace AirlineAPI.DTOs.Flight
         public string AircraftUsed { get; set; } = "";
         public int Distance { get; set; }
         public bool IsDomestic { get; set; }
+        public bool IsFull { get; set; }
     }
 
     public class FlightSearchPricingDto

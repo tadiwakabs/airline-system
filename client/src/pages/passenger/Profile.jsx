@@ -1,4 +1,4 @@
-﻿import { act, useEffect, useState } from "react";
+import { act, useEffect, useState } from "react";
 import Card from "../../components/common/Card";
 import TextInput from "../../components/common/TextInput";
 import Modal from "../../components/common/Modal";
@@ -6,7 +6,7 @@ import FieldLabel from "../../components/common/FieldLabel";
 import Button from "../../components/common/Button";
 import Dropdown from "../../components/common/Dropdown";
 import Separator from "../../components/common/Separator";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import FormError from "../../components/common/FormError";
 
 import { useFormErrors } from "../../utils/useFormErrors";
@@ -15,6 +15,7 @@ import {
     updateMyProfile,
     changeMyPassword,
 } from "../../services/authService";
+import { getMyNotifications } from "../../services/notificationService";
 import {
     getPassengerByUserId,
     updatePassenger,
@@ -25,6 +26,11 @@ import {
     updateSavedPassenger,
     deleteSavedPassenger,
 } from "../../services/passengerService";
+import {
+    getMyStandbyOffers,
+    acceptStandbyOffer,
+    rejectStandbyOffer
+} from "../../services/standbyService";
 
 const titleOptions = [
     { label: "Select title", value: "" },
@@ -53,7 +59,11 @@ const passengerTypeOptions = [
 ];
 
 export default function Profile() {
-    const [activeTab, setActiveTab] = useState("profile");
+    const location = useLocation();
+    const navigate = useNavigate();
+    const [activeTab, setActiveTab] = useState(
+    location.state?.defaultTab || "profile"
+);
     const [profile, setProfile] = useState(null);
     const [passenger, setPassenger] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -146,11 +156,20 @@ export default function Profile() {
         label: `${s.name} (${s.code})`,
         value: s.code,
     }));
+    
+    // Added state for notifications and standby
+    const [notifications, setNotifications] = useState([]);
+    const [standbyOffers, setStandbyOffers] = useState([]);
+    const [notificationLoading, setNotificationLoading] = useState(false);
+    const [standbyLoading, setStandbyLoading] = useState(false);
+    const [notificationMessage, setNotificationMessage] = useState("");
 
     useEffect(() => {
         loadProfileAndPassenger();
         loadLookups();
         loadSavedPassengers();
+        loadNotifications();
+        loadStandbyOffers();
     }, []);
 
     useEffect(() => {
@@ -221,6 +240,32 @@ export default function Profile() {
             setServerErrors(err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Added loader for notifications
+    const loadNotifications = async () => {
+        try {
+            setNotificationLoading(true);
+            const data = await getMyNotifications();
+            setNotifications(data || []);
+        } catch (err) {
+            setError(err?.response?.data?.message || "Failed to load notifications.");
+        } finally {
+            setNotificationLoading(false);
+        }
+    };
+
+    // Added loader for standby offers
+    const loadStandbyOffers = async () => {
+        try {
+            setStandbyLoading(true);
+            const data = await getMyStandbyOffers();
+            setStandbyOffers(data || []);
+        } catch (err) {
+            setError(err?.response?.data?.message || "Failed to load standby offers.");
+        } finally {
+            setStandbyLoading(false);
         }
     };
 
@@ -465,6 +510,43 @@ export default function Profile() {
         }
     };
 
+    const handleAcceptStandbyOffer = async (standbyId) => {
+        try {
+            setError("");
+            setNotificationMessage("");
+
+            const response = await acceptStandbyOffer(standbyId);
+
+            navigate("/booking/payment", {
+                state: {
+                    standbyBooking: {
+                        ...response,
+                        isStandby: true,
+                    },
+                },
+            });
+        } catch (err) {
+            setError(
+                err?.response?.data?.error ||
+                err?.response?.data?.innerError ||
+                err?.response?.data?.message ||
+                "Failed to accept standby offer."
+            );
+        }
+    };
+
+    const handleRejectStandbyOffer = async (standbyId) => {
+    try {
+        const res = await rejectStandbyOffer(standbyId);
+        alert(res.message || "Standby rejected");
+
+        loadStandbyOffers();
+        loadNotifications();
+    } catch (err) {
+        alert("Failed to reject standby");
+    }
+    };
+
     if (loading) {
         return (
             <div className="mx-auto max-w-6xl px-4 py-10">
@@ -511,6 +593,32 @@ export default function Profile() {
                             Passenger Info
                         </button>
 
+                        {/* Added Notifications tab button */}
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab("notifications")}
+                            className={`w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
+                                activeTab === "notifications"
+                                    ? "bg-blue-600 text-white"
+                                    : "text-gray-700 hover:bg-gray-100 cursor-pointer"
+                            }`}
+                        >
+                            Notifications
+                        </button>
+
+                        {/* Added Standby Offers tab button */}
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab("standby")}
+                            className={`w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
+                                activeTab === "standby"
+                                    ? "bg-blue-600 text-white"
+                                    : "text-gray-700 hover:bg-gray-100 cursor-pointer"
+                            }`}
+                        >
+                            Standby Offers
+                        </button>
+                        
                         <button
                             type="button"
                             onClick={() => setActiveTab("savedPassengers")}
@@ -1166,6 +1274,129 @@ export default function Profile() {
 
                                 <Button type="submit">Change Password</Button>
                             </form>
+                        </>
+                    )}
+
+                    {/* Added Notifications tab content */}
+                    {activeTab === "notifications" && (
+                        <>
+                            <h1 className="text-2xl font-semibold text-gray-900">
+                                Notifications
+                            </h1>
+                            <p className="mt-1 text-sm text-gray-500">
+                                View important account and flight updates.
+                            </p>
+
+                            <Separator className="my-6" />
+
+                            {notificationLoading ? (
+                                <p>Loading notifications...</p>
+                            ) : notifications.length === 0 ? (
+                                <p className="text-sm text-gray-500">No notifications found.</p>
+                            ) : (
+                                <div className="space-y-4">
+                                    {notifications.map((notification) => (
+                                        <Card
+                                            key={notification.notificationId}
+                                            className="p-4"
+                                        >
+                                            <p className="text-sm font-medium text-gray-900">
+                                                {notification.message}
+                                            </p>
+                                            <p className="mt-2 text-xs text-gray-500">
+                                                Flight: {notification.flightNum}
+                                            </p>
+                                            <p className="text-xs text-gray-500">
+                                                Created:{" "}
+                                                {notification.createdAt
+                                                    ? new Date(
+                                                          notification.createdAt
+                                                      ).toLocaleString()
+                                                    : "N/A"}
+                                            </p>
+                                            <p className="text-xs text-gray-500">
+                                                Status: {notification.notificationStatus}
+                                            </p>
+                                        </Card>
+                                    ))}
+                                </div>
+                            )}
+                        </>
+                    )}
+
+                    {/* Added Standby Offers tab content */}
+                    {activeTab === "standby" && (
+                        <>
+                            <h1 className="text-2xl font-semibold text-gray-900">
+                                Standby Offers
+                            </h1>
+                            <p className="mt-1 text-sm text-gray-500">
+                                View and respond to your standby flight offers.
+                            </p>
+
+                            <Separator className="my-6" />
+
+                            {notificationMessage && (
+                                <p className="mb-4 text-sm text-green-600">
+                                    {notificationMessage}
+                                </p>
+                            )}
+
+                            {error && (
+                                <p className="mb-4 text-sm text-red-600">{error}</p>
+                            )}
+
+                            {standbyLoading ? (
+                                <p>Loading standby offers...</p>
+                            ) : standbyOffers.length === 0 ? (
+                                <p className="text-sm text-gray-500">
+                                    No standby offers found.
+                                </p>
+                            ) : (
+                                <div className="space-y-4">
+                                    {standbyOffers.map((offer) => (
+                                        <Card key={offer.standbyId} className="p-4">
+                                            <p className="text-sm font-medium text-gray-900">
+                                                Flight {offer.flightNum}
+                                            </p>
+                                            <p className="mt-1 text-xs text-gray-500">
+                                                Status: {offer.standbyStatus}
+                                            </p>
+                                            <p className="text-xs text-gray-500">
+                                                Expires:{" "}
+                                                {offer.offerExpiresAt
+                                                    ? new Date(
+                                                          offer.offerExpiresAt
+                                                      ).toLocaleString()
+                                                    : "N/A"}
+                                            </p>
+
+                                            {offer.standbyStatus === "Offered" && (
+    <div className="mt-4 flex gap-2">
+        <Button
+            type="button"
+            onClick={() =>
+                handleAcceptStandbyOffer(offer.standbyId)
+            }
+        >
+            Accept Offer
+        </Button>
+
+        <Button
+            type="button"
+            variant="outline"
+            onClick={() =>
+                handleRejectStandbyOffer(offer.standbyId)
+            }
+        >
+            Reject
+        </Button>
+    </div>
+)}
+                                        </Card>
+                                    ))}
+                                </div>
+                            )}
                         </>
                     )}
                 </Card>

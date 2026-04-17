@@ -1181,7 +1181,7 @@ export default function Flights() {
                 title="Delete Flight"
                 description={
                     flightToDelete
-                        ? `Are you sure you want to delete flight #${flightToDelete.flightNum}?`
+                        ? `You are about to delete flight #${flightToDelete.flightNum} with ${flightToDelete.bookedPassengerCount ?? 0} passengers booked. Are you sure? All passengers will be refunded.`
                         : "Are you sure you want to delete this flight?"
                 }
                 confirmText="Delete Flight"
@@ -1191,7 +1191,12 @@ export default function Flights() {
             >
                 <div className="space-y-4">
                     <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                        This action cannot be undone.
+                        <p>This action cannot be undone.</p>
+                        {(flightToDelete?.bookedPassengerCount ?? 0) > 0 && (
+                            <p className="mt-1">
+                                All booked passengers will be refunded at 110% of their ticket price.
+                            </p>
+                        )}
                     </div>
 
                     {flightToDelete && (

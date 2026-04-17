@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { createBooking } from "../../services/bookingService";
+import { completePendingPayment } from "../../services/paymentService";
 import { useFormErrors } from "../../utils/useFormErrors";
 
 import FormError from "../../components/common/FormError";
@@ -70,6 +71,10 @@ export default function BookingPayment() {
 
     // Read state passed from BookingSeats
     const booking = location.state || {};
+    const standbyBooking = booking.standbyBooking || null;
+    const isStandbyPayment = !!standbyBooking;
+
+    // Existing normal booking flow state
     const selectedItinerary = booking.selectedItinerary;
     const returnItinerary = booking.returnItinerary ?? null;
     const searchParams = booking.searchParams;
@@ -80,24 +85,50 @@ export default function BookingPayment() {
     // Build readable values for the summary
     const firstFlight = selectedItinerary?.flights?.[0];
     const lastFlight = selectedItinerary?.flights?.[selectedItinerary?.flights?.length - 1];
-    const flightDetails = firstFlight
+
+    const normalFlightDetails = firstFlight
         ? returnItinerary
             ? `${firstFlight.departingPort} → ${lastFlight.arrivingPort} (return)`
             : `${firstFlight.departingPort} → ${lastFlight.arrivingPort}`
         : "Unknown Flight";
-    const totalPrice = pricingSummary?.total ?? 0;
-    const passengerName = passengers[0]
+
+    const normalTotalPrice = pricingSummary?.total ?? 0;
+
+    const normalPassengerName = passengers[0]
         ? `${passengers[0].firstName} ${passengers[0].lastName}`
         : "Guest";
 
     const allFlights = [
         ...(selectedItinerary?.flights ?? []),
-        ...(returnItinerary?.flights   ?? []),
+        ...(returnItinerary?.flights ?? []),
     ];
 
     const firstPassengerId = passengers[0]?.passengerId;
     const firstFlightNum = firstFlight?.flightNum;
-    const seatNumber = seatSelections?.[firstFlightNum]?.[firstPassengerId] ?? "N/A";
+    const normalSeatNumber = seatSelections?.[firstFlightNum]?.[firstPassengerId] ?? "N/A";
+
+    // Standby-aware summary values
+    const totalPrice = isStandbyPayment
+        ? Number(standbyBooking.totalPrice ?? 0)
+        : normalTotalPrice;
+
+    const passengerName = isStandbyPayment
+        ? (
+            user?.FirstName && user?.LastName
+                ? `${user.FirstName} ${user.LastName}`
+                : user?.firstName && user?.lastName
+                    ? `${user.firstName} ${user.lastName}`
+                    : "Standby Passenger"
+        )
+        : normalPassengerName;
+
+    const flightDetails = isStandbyPayment
+        ? `Flight ${standbyBooking.flightNum}`
+        : normalFlightDetails;
+
+    const seatNumber = isStandbyPayment
+        ? standbyBooking.seatNumber ?? "N/A"
+        : normalSeatNumber;
 
     const [form, setForm] = useState(emptyForm);
     const [localErrors,setLocalErrors]=useState({});
@@ -176,32 +207,75 @@ export default function BookingPayment() {
                 return;
             }
 
-            // Build one ticket entry per passenger per flight leg
+            // Standby payment path: complete existing pending payment
+            if (isStandbyPayment) {
+                const resolvedUserId = user?.UserId || user?.userId || null;
+
+                const bookingPayload = {
+                    userId: resolvedUserId,
+                    totalPrice: Number(standbyBooking.totalPrice ?? 0),
+                    cabinClass: "economy",           // standby is always economy
+                    paymentMethod: cardType || "Card",
+                    tickets: [
+                        {
+                            flightNum: standbyBooking.flightNum,
+                            passengerId: standbyBooking.passengerId,
+                            seatNumber: standbyBooking.seatNumber,
+                            price: Number(standbyBooking.totalPrice ?? 0),
+                            origin: standbyBooking.origin,
+                            destination: standbyBooking.destination,
+                            boardingTime: standbyBooking.boardingTime ?? "",
+                        },
+                    ],
+                };
+
+                const res = await createBooking(bookingPayload);
+                const confirmation = res.data;
+
+                navigate("/booking/confirmation", {
+                    state: {
+                        transactionId: confirmation.transactionId,
+                        bookingId: confirmation.bookingId,
+                        tickets: confirmation.tickets,
+                        passengerName,
+                        flightDetails,
+                        totalPrice,
+                        cardType,
+                        lastFour: form.cardNumber.replace(/\s/g, "").slice(-4),
+                    },
+                });
+                return;
+            }
+
+            // Existing normal booking flow below stays intact
             const tickets = [];
             for (const flight of allFlights) {
                 const origin      = flight.departingPort || flight.departingPortCode;
                 const destination = flight.arrivingPort  || flight.arrivingPortCode;
                 const boardingTime = new Date(flight.departTime).toLocaleTimeString([], {
-                    hour: "2-digit", minute: "2-digit"
+                    hour: "2-digit",
+                    minute: "2-digit",
                 });
 
                 for (const passenger of passengers) {
-                    const seatNumber = seatSelections?.[flight.flightNum]?.[passenger.passengerId];
-                    if (!seatNumber) continue;
+                    const selectedSeatNumber = seatSelections?.[flight.flightNum]?.[passenger.passengerId];
+                    if (!selectedSeatNumber) continue;
 
                     // Per-passenger price for this leg from the quote
                     const cabinClass = searchParams?.cabinClass ?? "economy";
                     const fareBreakdown = selectedItinerary?.quote?.[cabinClass] ?? {};
                     const legPrice =
-                        passenger.passengerType === "Child"  ? (fareBreakdown.perChild  ?? 0) :
-                            passenger.passengerType === "Infant" ? (fareBreakdown.perInfant ?? 0) :
-                                (fareBreakdown.perAdult  ?? 0);
+                        passenger.passengerType === "Child"
+                            ? (fareBreakdown.perChild ?? 0)
+                            : passenger.passengerType === "Infant"
+                                ? (fareBreakdown.perInfant ?? 0)
+                                : (fareBreakdown.perAdult ?? 0);
 
                     tickets.push({
-                        flightNum:   flight.flightNum,
+                        flightNum: flight.flightNum,
                         passengerId: passenger.passengerId,
-                        seatNumber,
-                        price:       legPrice,
+                        seatNumber: selectedSeatNumber,
+                        price: legPrice,
                         origin,
                         destination,
                         boardingTime,
@@ -210,9 +284,9 @@ export default function BookingPayment() {
             }
 
             const bookingPayload = {
-                userId:        resolvedUserId,
-                totalPrice:    Number(totalPrice),
-                cabinClass:    searchParams?.cabinClass ?? "economy",
+                userId: resolvedUserId,
+                totalPrice: Number(totalPrice),
+                cabinClass: searchParams?.cabinClass ?? "economy",
                 paymentMethod: cardType,
                 tickets,
             };
