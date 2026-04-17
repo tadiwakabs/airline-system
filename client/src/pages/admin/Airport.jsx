@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useAuth } from "../../contexts/AuthContext";
 import {
     getAllAirports,
     createAirport,
@@ -6,6 +7,8 @@ import {
     deleteAirport,
     getStates,
 } from "../../services/airportService";
+import {useFormErrors} from "../../utils/useFormErrors";
+import FormError from "../../components/common/FormError";
 
 const emptyForm = {
     airportCode: "",
@@ -24,11 +27,16 @@ export default function Airports() {
     const [form, setForm] = useState(emptyForm);
     const [editingCode, setEditingCode] = useState(null); 
     const [showForm, setShowForm] = useState(false);
-    const [error, setError] = useState("");
+    const [localErrors,setlocalErrors]= useState([]);
+    const {errors: serverErrors, setErrors: setServerErrors, clearErrors}=useFormErrors();
     const [filterText, setFilterText] = useState("");
     const [sortField, setSortField] = useState("airportCode");
     const [sortDir, setSortDir] = useState("asc");
     const [states, setStates] = useState([]); // New state for the dropdown
+    const { user } = useAuth();
+
+    const canManageAirports = user?.userRole === "Administrator";
+    const isReadOnly = !canManageAirports;
   
     useEffect(() => {
         fetchAirports();
@@ -67,7 +75,7 @@ export default function Airports() {
             const res = await getAllAirports();
             setAirportList(res.data);
         } catch (err) {
-            setError("Failed to load airports.");
+            setServerErrors({response:{data:"Failed to load airports."}});
         }
     };
 
@@ -77,7 +85,7 @@ export default function Airports() {
             console.log("States received from API:", res.data); 
             setStates(res.data);
         } catch (err) {
-            console.error("Could not fetch states:", err.response || err);
+            setServerErrors({response:{data:"Failed to load state list"}})
         }
     };
 
@@ -120,24 +128,23 @@ export default function Airports() {
         });
         setEditingCode(airport.airportCode);
         setShowForm(true);
-        setError("");
+        clearErrors();
     };
 
     const handleDelete = async (code) => {
         if (!window.confirm(`Delete airport ${code}?`)) return;
         try {
+            clearErrors();
             await deleteAirport(code);
             setAirportList((prev) => prev.filter((a) => a.airportCode !== code));
         } catch (err) {
-            
-            const msg = err.response?.data?.message || "Failed to delete airport.";
-            setError(msg);
+           setServerErrors(err);
         }
     };
 
     const handleSubmit = async () => {
     try {
-        setError(""); 
+        clearErrors(); 
         if (editingCode) {
             await updateAirport(editingCode, form);
             setAirportList((prev) =>
@@ -153,21 +160,7 @@ export default function Airports() {
         setEditingCode(null);
 
     } catch (err) {
-        // 1. Check if the server actually responded (Validation error)
-        if (err.response) {
-            const serverMsg = err.response.data?.message || "Server rejected the request.";
-            setError(`Failed to save: ${serverMsg}`);
-        } 
-        // 2. Check if the request was made but no response (Server is DOWN)
-        else if (err.request) {
-            setError("Could not connect to the server. Please ensure the C# Backend is running.");
-        } 
-        // 3. Something else happened
-        else {
-            setError("An unexpected error occurred. Please try again.");
-        }
-        
-        console.error("Airport Submit Error:", err);
+        setServerErrors(err);        
     }
 };
 
@@ -175,7 +168,7 @@ export default function Airports() {
         setShowForm(false);
         setForm(emptyForm);
         setEditingCode(null);
-        setError("");
+        clearErrors();
     };
 
     const sortArrow = (field) => {
@@ -187,16 +180,17 @@ export default function Airports() {
         <div className="p-6">
             <div className="flex items-center justify-between mb-4">
                 <h1 className="text-2xl font-bold">Airports</h1>
-                <button
-                    onClick={() => { setShowForm(true); setEditingCode(null); setForm(emptyForm); }}
-                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-                >
-                    + Add Airport
-                </button>
+                {canManageAirports && (
+                    <button
+                        onClick={() => { setShowForm(true); setEditingCode(null); setForm(emptyForm); }}
+                        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                    >
+                        + Add Airport
+                    </button>
+                )}
             </div>
 
-            {error && <p className="text-red-500 mb-3 bg-red-50 p-2 rounded border border-red-200">{error}</p>}
-
+            <FormError errors={serverErrors}/>
             <input
                 type="text"
                 placeholder="Filter by code, name, city, or country..."
@@ -205,7 +199,7 @@ export default function Airports() {
                 className="border px-3 py-2 rounded w-full mb-4 focus:ring-2 focus:ring-blue-400 outline-none"
             />
 
-            {showForm && (
+            {canManageAirports && showForm && (
                 <div className="border rounded p-4 mb-6 bg-gray-50 shadow-inner">
                     <h2 className="font-semibold mb-3">{editingCode ? "Edit Airport" : "Add Airport"}</h2>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -315,13 +309,15 @@ export default function Airports() {
                                     {label}{sortArrow(field)}
                                 </th>
                             ))}
-                            <th className="px-4 py-2 border-b">Actions</th>
+                            {canManageAirports && <th className="px-4 py-2 border-b">Actions</th>}
                         </tr>
                     </thead>
                     <tbody>
                         {filtered.length === 0 ? (
                             <tr>
-                                <td colSpan={7} className="text-center py-6 text-gray-400">No airports found.</td>
+                                <td colSpan={canManageAirports ? 7 : 6} className="text-center py-6 text-gray-400">
+                                    No airports found.
+                                </td>
                             </tr>
                         ) : (
                             filtered.map((a) => (
@@ -332,10 +328,12 @@ export default function Airports() {
                                     <td className="px-4 py-2">{a.state ?? "—"}</td>
                                     <td className="px-4 py-2">{a.country}</td>
                                     <td className="px-4 py-2">{a.timezone ?? "—"}</td>
-                                    <td className="px-4 py-2 flex gap-3">
-                                        <button onClick={() => handleEdit(a)} className="text-blue-600 hover:underline">Edit</button>
-                                        <button onClick={() => handleDelete(a.airportCode)} className="text-red-500 hover:underline">Delete</button>
-                                    </td>
+                                    {canManageAirports && (
+                                        <td className="px-4 py-2 flex gap-3">
+                                            <button onClick={() => handleEdit(a)} className="text-blue-600 hover:underline">Edit</button>
+                                            <button onClick={() => handleDelete(a.airportCode)} className="text-red-500 hover:underline">Delete</button>
+                                        </td>
+                                    )}
                                 </tr>
                             ))
                         )}

@@ -71,6 +71,69 @@ namespace AirlineAPI.Controllers
             return Ok(newTicket);
         }
 
+        [HttpPut("{ticketCode}/change-seat")]
+        [Authorize]
+        public async Task<IActionResult> ChangeSeat(string ticketCode, [FromBody] string newSeat)
+        {
+            var currentUserId = User.FindFirst("sub")?.Value
+                ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            var ticket = await _context.Ticket
+                .Include(t => t.Booking)
+                .FirstOrDefaultAsync(t => t.ticketCode == ticketCode);
+
+            if (ticket == null)
+                return NotFound("Ticket not found.");
+
+            if (ticket.Booking == null)
+                return BadRequest("Booking not found for ticket.");
+
+            if (ticket.Booking.userId != currentUserId && !User.IsInRole("Admin"))
+                return Forbid();
+
+            if (string.IsNullOrWhiteSpace(newSeat))
+                return BadRequest("New seat is required.");
+
+            newSeat = newSeat.Trim().ToUpper();
+
+            if (ticket.seatNumber.Equals(newSeat, StringComparison.OrdinalIgnoreCase))
+                return BadRequest("Passenger is already assigned to that seat.");
+
+            var oldSeat = await _context.Seating
+                .FirstOrDefaultAsync(s => s.flightNum == ticket.flightCode && s.seatNumber == ticket.seatNumber);
+
+            var targetSeat = await _context.Seating
+                .FirstOrDefaultAsync(s => s.flightNum == ticket.flightCode && s.seatNumber == newSeat);
+
+            if (targetSeat == null)
+                return NotFound("Seat not found on this flight.");
+
+            if (targetSeat.seatStatus == SeatStatus.Occupied)
+                return BadRequest("Seat already taken.");
+
+            // Optional: keep same cabin
+            if (ticket.ticketClass.HasValue &&
+                !string.Equals(targetSeat.seatclass.ToString(), ticket.ticketClass.Value.ToString(), StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest("You can only move to a seat in the same cabin class.");
+            }
+
+            if (oldSeat != null)
+            {
+                oldSeat.seatStatus = SeatStatus.Available;
+                oldSeat.passengerId = null;
+            }
+
+            targetSeat.seatStatus = SeatStatus.Occupied;
+            targetSeat.passengerId = ticket.passengerId;
+
+            ticket.seatNumber = newSeat;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = $"Seat changed successfully to {newSeat}" });
+        }
+
         [HttpDelete("{ticketCode}")]
         public async Task<IActionResult> DeleteTicket(string ticketCode, [FromBody] Ticket deletedTicket)
         {

@@ -170,11 +170,18 @@ namespace AirlineAPI.Controllers
         [HttpGet("myBooking")]
         public async Task<ActionResult> GetMyBookings()
         {
-            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var currentUserId = User.FindFirst("sub")?.Value
+                    ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             
             var bookings = await _context.Bookings
+                .Include(b => b.Tickets)
+                .ThenInclude(t => t.Flight)
+                .Include(b => b.Tickets)
+                .ThenInclude(t => t.Passenger)
                 .Where(b => b.userId == currentUserId)
-                .OrderByDescending(b=>b.bookingDate)
+                .OrderByDescending(b => b.Tickets
+                    .Select(t => t.Flight != null ? t.Flight.departTime : DateTime.MinValue)
+                    .FirstOrDefault())
                 .ToListAsync();
 
             return Ok(bookings);
@@ -209,7 +216,8 @@ namespace AirlineAPI.Controllers
     {           return BadRequest("Cannot change seats on a cancelled booking.");
     }
 
-            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var currentUserId = User.FindFirst("sub")?.Value
+                    ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (booking.userId != currentUserId && !User.IsInRole("Admin"))
             {
                 return Forbid();
@@ -250,7 +258,9 @@ namespace AirlineAPI.Controllers
             var booking = await _context.Bookings.FindAsync(id);
             if (booking == null) return NotFound("Booking not found");
 
-            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            var currentUserId = User.FindFirst("sub")?.Value
+                    ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (booking.userId != currentUserId && !User.IsInRole("Admin")) return Forbid();
 
             var tickets = await _context.Ticket
@@ -289,6 +299,116 @@ namespace AirlineAPI.Controllers
             await _context.SaveChangesAsync();
 
             return Ok("Booking successfully cancelled. Tickets deleted and seats released.");
+        }
+
+        /// <summary>
+        /// Look up flight status by a short booking reference (first 8 chars of the UUID)
+        /// or by a plain flight number. No auth required so users can check without logging in.
+        /// GET /api/booking/status?ref=565b2bda
+        /// GET /api/booking/status?ref=1342
+        /// </summary>
+        [AllowAnonymous]
+        [HttpGet("status")]
+        public async Task<IActionResult> GetFlightStatus([FromQuery(Name = "ref")] string reference)
+        {
+            if (string.IsNullOrWhiteSpace(reference))
+                return BadRequest("A booking reference or flight number is required.");
+
+            var query = reference.Trim();
+
+            if (int.TryParse(query, out var flightNum))
+            {
+                var flight = await _context.Flights
+                    .Where(f => f.flightNum == flightNum)
+                    .Join(_context.Airports,
+                        f => f.departingPort,
+                        a => a.airportCode,
+                        (f, dep) => new { f, dep })
+                    .Join(_context.Airports,
+                        x => x.f.arrivingPort,
+                        a => a.airportCode,
+                        (x, arr) => new { x.f, x.dep, arr })
+                    .Select(x => new FlightStatusDto
+                    {
+                        FlightNum = x.f.flightNum,
+                        Status = x.f.status.ToString(),
+                        DepartingPort = x.f.departingPort,
+                        ArrivingPort = x.f.arrivingPort,
+                        DepartingCity = x.dep.city,
+                        ArrivingCity = x.arr.city,
+
+                        // local display
+                        DepartTime = x.f.scheduledDepartLocal ?? x.f.departTime,
+                        ArrivalTime = x.f.scheduledArrivalLocal ?? x.f.arrivalTime,
+
+                        // utc tracker math
+                        DepartTimeUtc = x.f.departTime,
+                        ArrivalTimeUtc = x.f.arrivalTime,
+
+                        AircraftUsed = x.f.aircraftUsed,
+                        BookingId = null,
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (flight == null)
+                    return NotFound("No flight found with that number.");
+
+                return Ok(flight);
+            }
+
+            var normalized = query.Replace("-", "").ToLower();
+            var prefix = normalized[..Math.Min(8, normalized.Length)];
+
+            var booking = await _context.Bookings
+                .Where(b => b.bookingId.Replace("-", "").ToLower().StartsWith(prefix))
+                .Include(b => b.Tickets)
+                    .ThenInclude(t => t.Flight)
+                .OrderByDescending(b => b.bookingDate)
+                .FirstOrDefaultAsync();
+
+            if (booking == null)
+                return NotFound("No booking found matching that reference.");
+
+            var results = booking.Tickets
+                .Where(t => t.Flight != null)
+                .GroupBy(t => t.flightCode)
+                .Select(g =>
+                {
+                    var f = g.First().Flight!;
+                    var depCity = _context.Airports
+                        .Where(a => a.airportCode == f.departingPort)
+                        .Select(a => a.city)
+                        .FirstOrDefault();
+                    var arrCity = _context.Airports
+                        .Where(a => a.airportCode == f.arrivingPort)
+                        .Select(a => a.city)
+                        .FirstOrDefault();
+                    
+                    return new FlightStatusDto
+                    {
+                        FlightNum = f.flightNum,
+                        Status = f.status.ToString(),
+                        DepartingPort = f.departingPort,
+                        ArrivingPort = f.arrivingPort,
+
+                        // local display
+                        DepartTime = f.scheduledDepartLocal ?? f.departTime,
+                        ArrivalTime = f.scheduledArrivalLocal ?? f.arrivalTime,
+
+                        // utc tracker math
+                        DepartTimeUtc = f.departTime,
+                        ArrivalTimeUtc = f.arrivalTime,
+
+                        BookingId = booking.bookingId,
+                        AircraftUsed = f.aircraftUsed,
+                        DepartingCity = depCity,
+                        ArrivingCity = arrCity,
+                    };
+                })
+                .OrderBy(f => f.DepartTime)
+                .ToList();
+
+            return Ok(results);
         }
 
     }   

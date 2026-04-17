@@ -80,8 +80,8 @@ const formStatusOptions = [
 
 const sortOptions = [
     { label: "Flight Number",  value: "flightNum" },
-    { label: "Departure Time", value: "departTime" },
-    { label: "Arrival Time",   value: "arrivalTime" },
+    { label: "Departure Time", value: "scheduledDepartLocal" },
+    { label: "Arrival Time",   value: "scheduledArrivalLocal" },
     { label: "Distance",       value: "distance" },
     { label: "Status",         value: "status" },
 ];
@@ -195,7 +195,7 @@ export default function Flights() {
     // airport filter states — schedule modal
     const [apDepS, setApDepS] = useState(airportOptions);
     const [apArrS, setApArrS] = useState(airportOptions);
-    
+
     // CSV importing states
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [importJson, setImportJson]               = useState("");
@@ -344,8 +344,8 @@ export default function Flights() {
         setEditingFlightId(flight.flightNum);
         setFormData({
             flightNum:         flight.flightNum ?? "",
-            departTime:        formatForDateTimeLocal(flight.departTime),
-            arrivalTime:       formatForDateTimeLocal(flight.arrivalTime),
+            departTime:        formatForDateTimeLocal(flight.scheduledDepartLocal ?? flight.departTime),
+            arrivalTime:       formatForDateTimeLocal(flight.scheduledArrivalLocal ?? flight.arrivalTime),
             aircraftUsed:      flight.aircraftUsed ?? "",
             status:            flight.status ?? "",
             departingPortCode: flight.departingPortCode ?? flight.departingPort ?? "",
@@ -392,16 +392,16 @@ export default function Flights() {
         setError("");
         setSuccessMessage("");
         const payload = {
-            flightNum:         Number(formData.flightNum),
-            departTime:        formData.departTime,
-            arrivalTime:       formData.arrivalTime,
-            aircraftUsed:      formData.aircraftUsed,
-            status:            formData.status,
-            departingPortCode: formData.departingPortCode,
-            arrivingPortCode:  formData.arrivingPortCode,
-            isDomestic:        formData.isDomestic,
-            distance:          Number(formData.distance),
-            flightChange:      formData.flightChange,
+            flightNum:             Number(formData.flightNum),
+            scheduledDepartLocal:  formData.departTime,
+            scheduledArrivalLocal: formData.arrivalTime,
+            aircraftUsed:          formData.aircraftUsed,
+            status:                formData.status,
+            departingPortCode:     formData.departingPortCode,
+            arrivingPortCode:      formData.arrivingPortCode,
+            isDomestic:            formData.isDomestic,
+            distance:              Number(formData.distance),
+            flightChange:          formData.flightChange,
         };
         try {
             if (editingFlightId !== null) {
@@ -604,7 +604,7 @@ export default function Flights() {
         result.sort((a, b) => {
             let aVal = a[sortBy];
             let bVal = b[sortBy];
-            if (sortBy === "departTime" || sortBy === "arrivalTime") {
+            if (sortBy === "scheduledDepartLocal" || sortBy === "scheduledArrivalLocal") {
                 aVal = new Date(aVal).getTime();
                 bVal = new Date(bVal).getTime();
             } else {
@@ -636,7 +636,7 @@ export default function Flights() {
     const renderAircraftAndStatus = (data, setData) => (
         <div className="grid grid-cols-2 gap-4">
             <Combobox
-                label="Aircraft Tail Number"
+                label={<>Aircraft Tail Number <span className="text-red-500">*</span></>}
                 options={filteredAircraftOpts}
                 value={data.aircraftUsed}
                 onChange={(val) => setData((p) => ({ ...p, aircraftUsed: val }))}
@@ -644,7 +644,7 @@ export default function Flights() {
                 placeholder="Search tail number..."
             />
             <Dropdown
-                label="Status"
+                label={<>Status <span className="text-red-500">*</span></>}
                 value={data.status}
                 onChange={(val) => setData((p) => ({ ...p, status: val }))}
                 options={formStatusOptions}
@@ -668,7 +668,7 @@ export default function Flights() {
 
     const renderDaysOfWeek = (daysOfWeek, toggle) => (
         <div>
-            <label className="text-sm font-medium text-gray-700">Days of Week</label>
+            <label className="text-sm font-medium text-gray-700">Days of Week <span className="text-red-500">*</span></label>
             <div className="mt-2 grid grid-cols-4 gap-2">
                 {weekdayOptions.map((day) => (
                     <label key={day.value} className="flex items-center gap-2 text-sm text-gray-700">
@@ -749,7 +749,7 @@ export default function Flights() {
                         Import JSON
                     </Button>
                 </div>
-                
+
             </div>
 
             {/* Feedback */}
@@ -814,8 +814,12 @@ export default function Flights() {
                                 {pagedFlights.map((flight) => (
                                     <tr key={flight.flightNum} className="rounded-xl bg-gray-50 text-sm">
                                         <td className="px-3 py-3 font-medium text-gray-900">{flight.flightNum}</td>
-                                        <td className="px-3 py-3">{formatDisplayDateTime(flight.departTime)}</td>
-                                        <td className="px-3 py-3">{formatDisplayDateTime(flight.arrivalTime)}</td>
+                                        <td className="px-3 py-3">
+                                            {formatDisplayDateTime(flight.scheduledDepartLocal ?? flight.departTime)}
+                                        </td>
+                                        <td className="px-3 py-3">
+                                            {formatDisplayDateTime(flight.scheduledArrivalLocal ?? flight.arrivalTime)}
+                                        </td>
                                         <td className="px-3 py-3">{flight.aircraftUsed}</td>
                                         <td className="px-3 py-3">
                                             {flight.departingPortCode ?? flight.departingPort} →{" "}
@@ -974,20 +978,20 @@ export default function Flights() {
                 {flightFormMode === "single" && (
                     <form onSubmit={handleFlightSubmit} className="space-y-4">
                         <TextInput
-                            label="Flight Number" name="flightNum" type="number"
+                            label={<>Flight Number <span className="text-red-500">*</span></>} name="flightNum" type="number"
                             value={formData.flightNum} onChange={handleFormChange}
                             disabled={editingFlightId !== null}
                         />
                         <div className="grid grid-cols-2 gap-4">
-                            <TextInput label="Departure Time" name="departTime"  type="datetime-local" value={formData.departTime}  onChange={handleFormChange} />
-                            <TextInput label="Arrival Time"   name="arrivalTime" type="datetime-local" value={formData.arrivalTime} onChange={handleFormChange} />
+                            <TextInput label={<>Departure Time (Local) <span className="text-red-500">*</span></>} name="departTime"  type="datetime-local" value={formData.departTime}  onChange={handleFormChange} />
+                            <TextInput label={<>Arrival Time (Local) <span className="text-red-500">*</span></>}   name="arrivalTime" type="datetime-local" value={formData.arrivalTime} onChange={handleFormChange} />
                         </div>
                         {renderAircraftAndStatus(formData, setFormData)}
                         <div className="grid grid-cols-2 gap-4">
-                            <AirportCombobox label="Departing Airport" value={formData.departingPortCode}
+                            <AirportCombobox label={<>Departing Airport <span className="text-red-500">*</span></>} value={formData.departingPortCode}
                                              onChange={(val) => setFormData((p) => ({ ...p, departingPortCode: val }))}
                                              filtered={apDepF} onSearch={(q) => setApDepF(filterAirports(q))} />
-                            <AirportCombobox label="Arriving Airport" value={formData.arrivingPortCode}
+                            <AirportCombobox label={<>Arriving Airport <span className="text-red-500">*</span></>} value={formData.arrivingPortCode}
                                              onChange={(val) => setFormData((p) => ({ ...p, arrivingPortCode: val }))}
                                              filtered={apArrF} onSearch={(q) => setApArrF(filterAirports(q))} />
                         </div>
@@ -1034,19 +1038,19 @@ export default function Flights() {
                 {editingFlightId === null && flightFormMode === "recurring" && (
                     <form onSubmit={handleRecurringSubmit} className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
-                            <TextInput label="Start Date" name="startDate" type="date" value={recurringData.startDate} onChange={handleRecurringChange} />
-                            <TextInput label="End Date"   name="endDate"   type="date" value={recurringData.endDate}   onChange={handleRecurringChange} />
+                            <TextInput label={<>Start Date <span className="text-red-500">*</span></>} name="startDate" type="date" value={recurringData.startDate} onChange={handleRecurringChange} />
+                            <TextInput label={<>End Date <span className="text-red-500">*</span></>}   name="endDate"   type="date" value={recurringData.endDate}   onChange={handleRecurringChange} />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                            <TextInput label="Departure Time" name="departureTimeOfDay" type="time" value={recurringData.departureTimeOfDay} onChange={handleRecurringChange} />
-                            <TextInput label="Arrival Time"   name="arrivalTimeOfDay"   type="time" value={recurringData.arrivalTimeOfDay}   onChange={handleRecurringChange} />
+                            <TextInput label={<>Departure Time (Local) <span className="text-red-500">*</span></>} name="departureTimeOfDay" type="time" value={recurringData.departureTimeOfDay} onChange={handleRecurringChange} />
+                            <TextInput label={<>Arrival Time (Local) <span className="text-red-500">*</span></>}   name="arrivalTimeOfDay"   type="time" value={recurringData.arrivalTimeOfDay}   onChange={handleRecurringChange} />
                         </div>
                         {renderAircraftAndStatus(recurringData, setRecurringData)}
                         <div className="grid grid-cols-2 gap-4">
-                            <AirportCombobox label="Departing Airport" value={recurringData.departingPortCode}
+                            <AirportCombobox label={<>Departing Airport <span className="text-red-500">*</span></>} value={recurringData.departingPortCode}
                                              onChange={(val) => setRecurringData((p) => ({ ...p, departingPortCode: val }))}
                                              filtered={apDepRF} onSearch={(q) => setApDepRF(filterAirports(q))} />
-                            <AirportCombobox label="Arriving Airport" value={recurringData.arrivingPortCode}
+                            <AirportCombobox label={<>Arriving Airport <span className="text-red-500">*</span></>} value={recurringData.arrivingPortCode}
                                              onChange={(val) => setRecurringData((p) => ({ ...p, arrivingPortCode: val }))}
                                              filtered={apArrRF} onSearch={(q) => setApArrRF(filterAirports(q))} />
                         </div>
@@ -1108,19 +1112,19 @@ export default function Flights() {
 
                 <form onSubmit={handleScheduleSubmit} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
-                        <TextInput label="Start Date" name="startDate" type="date" value={scheduleForm.startDate} onChange={handleScheduleFormChange} />
-                        <TextInput label="End Date"   name="endDate"   type="date" value={scheduleForm.endDate}   onChange={handleScheduleFormChange} />
+                        <TextInput label={<>Start Date <span className="text-red-500">*</span></>} name="startDate" type="date" value={scheduleForm.startDate} onChange={handleScheduleFormChange} />
+                        <TextInput label={<>End Date <span className="text-red-500">*</span></>}   name="endDate"   type="date" value={scheduleForm.endDate}   onChange={handleScheduleFormChange} />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                        <TextInput label="Departure Time" name="departureTimeOfDay" type="time" value={scheduleForm.departureTimeOfDay} onChange={handleScheduleFormChange} />
-                        <TextInput label="Arrival Time"   name="arrivalTimeOfDay"   type="time" value={scheduleForm.arrivalTimeOfDay}   onChange={handleScheduleFormChange} />
+                        <TextInput label={<>Departure Time <span className="text-red-500">*</span></>} name="departureTimeOfDay" type="time" value={scheduleForm.departureTimeOfDay} onChange={handleScheduleFormChange} />
+                        <TextInput label={<>Arrival Time <span className="text-red-500">*</span></>}   name="arrivalTimeOfDay"   type="time" value={scheduleForm.arrivalTimeOfDay}   onChange={handleScheduleFormChange} />
                     </div>
                     {renderAircraftAndStatus(scheduleForm, setScheduleForm)}
                     <div className="grid grid-cols-2 gap-4">
-                        <AirportCombobox label="Departing Airport" value={scheduleForm.departingPortCode}
+                        <AirportCombobox label={<>Departing Airport <span className="text-red-500">*</span></>} value={scheduleForm.departingPortCode}
                                          onChange={(val) => setScheduleForm((p) => ({ ...p, departingPortCode: val }))}
                                          filtered={apDepS} onSearch={(q) => setApDepS(filterAirports(q))} />
-                        <AirportCombobox label="Arriving Airport" value={scheduleForm.arrivingPortCode}
+                        <AirportCombobox label={<>Arriving Airport <span className="text-red-500">*</span></>} value={scheduleForm.arrivingPortCode}
                                          onChange={(val) => setScheduleForm((p) => ({ ...p, arrivingPortCode: val }))}
                                          filtered={apArrS} onSearch={(q) => setApArrS(filterAirports(q))} />
                     </div>
@@ -1204,7 +1208,7 @@ export default function Flights() {
                             </p>
                             <p>
                                 <span className="font-medium">Departure:</span>{" "}
-                                {formatDisplayDateTime(flightToDelete.departTime)}
+                                {formatDisplayDateTime(flightToDelete.scheduledDepartLocal ?? flightToDelete.departTime)}
                             </p>
                         </div>
                     )}

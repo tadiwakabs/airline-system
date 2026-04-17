@@ -8,6 +8,7 @@ namespace AirlineAPI.DTOs.Auth
         public string FirstName { get; set; } = null!;
         public string LastName { get; set; } = null!;
         public string UserRole { get; set; } = null!;
+        public string? Department { get; set; }
         public string Token { get; set; } = null!;
     }
 }

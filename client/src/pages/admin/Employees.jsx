@@ -30,27 +30,16 @@ const formStatusOptions = [
 ];
 
 const deptFilterOptions = [
-    { label: "All Departments",    value: "" },
-    { label: "Flight Ops",         value: "Flight Ops" },
-    { label: "Cabin Crew",         value: "Cabin Crew" },
-    { label: "Operations",         value: "Operations" },
-    { label: "Human Resources",    value: "Human Resources" },
-    { label: "Passenger Services", value: "Passenger Services" },
-    { label: "Engineering",        value: "Engineering" },
-    { label: "Finance",            value: "Finance" },
-    { label: "IT",                 value: "IT" },
+    { label: "All Departments", value: "" },
+    { label: "Cabin Crew", value: "Cabin Crew" },
+    { label: "Flight Ops", value: "Flight Ops" },
+    { label: "Administrative", value: "Administrative" },
 ];
 
 const deptFormOptions = [
-    { label: "Select department...", value: "" },
-    { label: "Flight Ops",           value: "Flight Ops" },
-    { label: "Cabin Crew",           value: "Cabin Crew" },
-    { label: "Operations",           value: "Operations" },
-    { label: "Human Resources",      value: "Human Resources" },
-    { label: "Passenger Services",   value: "Passenger Services" },
-    { label: "Engineering",          value: "Engineering" },
-    { label: "Finance",              value: "Finance" },
-    { label: "IT",                   value: "IT" },
+    { label: "Cabin Crew", value: "Cabin Crew" },
+    { label: "Flight Ops", value: "Flight Ops" },
+    { label: "Administrative", value: "Administrative" },
 ];
 
 const sortOptions = [
@@ -525,7 +514,7 @@ export default function Employees() {
                                                     On Leave
                                                 </Button>
                                             )}
-                                            {emp.status !== "Terminated" && (
+                                            {emp.status !== "Terminated" && !emp.isAdmin && (
                                                 <Button
                                                     size="sm"
                                                     variant="outline"
@@ -716,7 +705,7 @@ export default function Employees() {
             >
                 <p className="mb-4 text-sm text-gray-500">
                     Update employment details for this employee.
-                    Changing status to <span className="font-medium">Terminated</span> will update the user's role to Administrator.
+                    Changing status to <span className="font-medium">Terminated</span> will update the user's role to Passenger.
                 </p>
 
                 <form onSubmit={handleEditSubmit} className="space-y-4">

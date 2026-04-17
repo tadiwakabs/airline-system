@@ -25,6 +25,8 @@ import Confirmation from './pages/booking/BookingConfirmation'
 import Employees from "./pages/admin/Employees.jsx";
 import PassengerList from "./pages/employee/PassengerList.jsx";
 import ManageBooking from './pages/manage.jsx';
+import CrewAssignments from "./pages/admin/CrewAssignments.jsx";
+import MyFlights from "./pages/employee/MyFlights.jsx";
 
 
 // Dashboards
@@ -32,7 +34,8 @@ import Admin from './pages/admin/AdminDashboard.jsx';
 import Employee from './pages/employee/EmployeeDashboard.jsx';
 import Reports from './pages/admin/Reports'
 
-
+// Other
+import FlightAutoFill from "./pages/admin/FlightAutoFill";
 
 function App() {
     return (
@@ -93,35 +96,46 @@ function App() {
                             <ManageBooking />
                         </ProtectedRoute>} />
 
+                    
                     {/* Employee-Authenticated Routes */}
                     <Route 
                         path='/employee/dashboard' 
-                        element={<RoleProtectedRoute allowedRoles={["Employee", "Administrator"]}>
+                        element={<RoleProtectedRoute allowedRoles={["Employee"]}>
                                     <Employee />
                                 </RoleProtectedRoute>} />
                     <Route
                         path='/flights'
-                        element={<RoleProtectedRoute allowedRoles={["Employee", "Administrator"]}>
+                        element={<RoleProtectedRoute allowedRoles={["Employee", "Administrator"]} allowedDepartments={["FlightOps"]}>
                             <Flights />
                         </RoleProtectedRoute>} />
-
                     <Route
                         path='/passenger-list'
-                        element={<RoleProtectedRoute allowedRoles={["Employee", "Administrator"]}>
+                        element={<RoleProtectedRoute allowedRoles={["Employee", "Administrator"]} allowedDepartments={["CabinCrew"]}>
                             <PassengerList />
                         </RoleProtectedRoute>} />
-                    
-                    {/* Administrator-Authenticated Routes */}
+                    <Route
+                        path='/cabin-crew/my-flights'
+                        element={<RoleProtectedRoute allowedRoles={["Employee", "Administrator"]} allowedDepartments={["CabinCrew"]}>
+                            <MyFlights />
+                        </RoleProtectedRoute>} />
+                    <Route
+                        path='/flight-ops/crew-assignment'
+                        element={<RoleProtectedRoute allowedRoles={["Employee", "Administrator"]} allowedDepartments={["FlightOps"]}>
+                            <CrewAssignments />
+                        </RoleProtectedRoute>} />
                     <Route
                         path='/aircraft'
-                        element={<RoleProtectedRoute allowedRoles={["Administrator"]}>
+                        element={<RoleProtectedRoute allowedRoles={["Employee", "Administrator"]} allowedDepartments={["FlightOps"]}>
                             <Aircraft />
                         </RoleProtectedRoute>} />
                     <Route
                         path='/airports'
-                        element={<RoleProtectedRoute allowedRoles={["Administrator"]}>
+                        element={<RoleProtectedRoute allowedRoles={["Employee", "Administrator"]} allowedDepartments={["FlightOps"]}>
                             <Airport />
-                        </RoleProtectedRoute>} />
+                        </RoleProtectedRoute>} />                    
+                    
+                    {/* Administrator-Authenticated Routes */}
+
                     <Route
                         path='/admin/dashboard'
                         element={<RoleProtectedRoute allowedRoles={["Administrator"]}>
@@ -138,6 +152,15 @@ function App() {
                             <Reports />
                         </RoleProtectedRoute>} />
 
+
+                    <Route
+                        path="/internal/flight-auto-fill"
+                        element={
+                            <RoleProtectedRoute allowedRoles={["Administrator"]}>
+                                <FlightAutoFill />
+                            </RoleProtectedRoute>
+                        }
+                    />
                 </Routes>
             </AppLayout>
         </AuthProvider>

@@ -97,6 +97,7 @@ namespace AirlineAPI.Controllers
                     FirstName = user.FirstName,
                     LastName = user.LastName,
                     UserRole = user.UserRole.ToString(),
+                    Department = null,
                     Token = token
                 };
 
@@ -121,6 +122,9 @@ namespace AirlineAPI.Controllers
                 .FirstOrDefaultAsync(u =>
                     u.Username == request.Username ||
                     u.Email == request.Username);
+            
+            var employee = await _context.Employees
+                .FirstOrDefaultAsync(e => e.userId == user!.UserId);
 
             if (user == null)
                 return Unauthorized(new { message = "Invalid username/email or password." });
@@ -140,6 +144,7 @@ namespace AirlineAPI.Controllers
                 FirstName = user.FirstName,
                 LastName = user.LastName,
                 UserRole = user.UserRole.ToString(),
+                Department = employee != null ? employee.department.ToString() : null,
                 Token = token
             };
 

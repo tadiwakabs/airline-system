@@ -28,18 +28,20 @@ namespace AirlineAPI.Controllers
 
             var response = flights.Select(f => new FlightResponseDto
             {
-                FlightNum          = f.flightNum,
-                DepartTime         = f.departTime,
-                ArrivalTime        = f.arrivalTime,
-                AircraftUsed       = f.aircraftUsed,
-                Status             = f.status,
-                DepartingPortCode  = f.departingPort,
-                ArrivingPortCode   = f.arrivingPort,
-                IsDomestic         = f.isDomestic,
-                Distance           = f.distance,
-                FlightChange       = f.flightChange,
-                RecurringScheduleId = f.recurringScheduleId,
-                Pricing            = f.Pricing.Select(p => new FlightPricingDto
+                FlightNum             = f.flightNum,
+                DepartTime            = f.departTime,
+                ArrivalTime           = f.arrivalTime,
+                ScheduledDepartLocal  = f.scheduledDepartLocal ?? f.departTime,
+                ScheduledArrivalLocal = f.scheduledArrivalLocal ?? f.arrivalTime,
+                AircraftUsed          = f.aircraftUsed,
+                Status                = f.status,
+                DepartingPortCode     = f.departingPort,
+                ArrivingPortCode      = f.arrivingPort,
+                IsDomestic            = f.isDomestic,
+                Distance              = f.distance,
+                FlightChange          = f.flightChange,
+                RecurringScheduleId   = f.recurringScheduleId,
+                Pricing               = f.Pricing.Select(p => new FlightPricingDto
                 {
                     CabinClass = p.CabinClass.ToString(),
                     Price      = p.Price
@@ -64,6 +66,8 @@ namespace AirlineAPI.Controllers
                 FlightNum          = flight.flightNum,
                 DepartTime         = flight.departTime,
                 ArrivalTime        = flight.arrivalTime,
+                ScheduledDepartLocal  = flight.scheduledDepartLocal ?? flight.departTime,
+                ScheduledArrivalLocal = flight.scheduledArrivalLocal ?? flight.arrivalTime,
                 AircraftUsed       = flight.aircraftUsed,
                 Status             = flight.status,
                 DepartingPortCode  = flight.departingPort,
@@ -88,10 +92,17 @@ namespace AirlineAPI.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
+            var airports = await GetFlightAirportsAsync(dto.DepartingPortCode, dto.ArrivingPortCode);
+            if (airports == null)
+                return BadRequest(new { message = "One or both airports are invalid, or missing timezone data." });
+
+            var departUtc = ConvertLocalToUtc(dto.ScheduledDepartLocal, airports.Value.dep.timezone!);
+            var arrivalUtc = ConvertLocalToUtc(dto.ScheduledArrivalLocal, airports.Value.arr.timezone!);
+
             var validationError = await ValidateFlightAsync(
                 dto.AircraftUsed,
-                dto.DepartTime,
-                dto.ArrivalTime,
+                departUtc,
+                arrivalUtc,
                 dto.DepartingPortCode,
                 dto.ArrivingPortCode,
                 null
@@ -103,8 +114,10 @@ namespace AirlineAPI.Controllers
             var flight = new Flight
             {
                 flightNum = dto.FlightNum,
-                departTime = dto.DepartTime,
-                arrivalTime = dto.ArrivalTime,
+                departTime = departUtc,
+                arrivalTime = arrivalUtc,
+                scheduledDepartLocal = dto.ScheduledDepartLocal,
+                scheduledArrivalLocal = dto.ScheduledArrivalLocal,
                 aircraftUsed = dto.AircraftUsed,
                 status = dto.Status,
                 departingPort = dto.DepartingPortCode,
@@ -116,7 +129,7 @@ namespace AirlineAPI.Controllers
 
             _context.Flights.Add(flight);
             await _context.SaveChangesAsync();
-            
+
             var aircraft = await _context.Aircraft
                 .FirstOrDefaultAsync(a => a.tailnumber == flight.aircraftUsed);
 
@@ -157,6 +170,10 @@ namespace AirlineAPI.Controllers
                 if (dto.EconomyPrice >= dto.BusinessPrice || dto.BusinessPrice >= dto.FirstPrice)
                     return BadRequest(new { message = "Prices must follow the order: Economy < Business < First." });
             }
+            
+            var airports = await GetFlightAirportsAsync(dto.DepartingPortCode, dto.ArrivingPortCode);
+            if (airports == null)
+                return BadRequest(new { message = "One or both airports are invalid, or missing timezone data." });
 
             var schedule = new RecurringSchedule
             {
@@ -191,16 +208,19 @@ namespace AirlineAPI.Controllers
                 if (!selectedDays.Contains(dayNum))
                     continue;
 
-                var departDateTime = date.Add(dto.DepartureTimeOfDay);
-                var arrivalDateTime = date.Add(dto.ArrivalTimeOfDay);
+                var scheduledDepartLocal = date.Add(dto.DepartureTimeOfDay);
+                var scheduledArrivalLocal = date.Add(dto.ArrivalTimeOfDay);
 
-                if (arrivalDateTime <= departDateTime)
-                    arrivalDateTime = arrivalDateTime.AddDays(1);
+                if (scheduledArrivalLocal <= scheduledDepartLocal)
+                    scheduledArrivalLocal = scheduledArrivalLocal.AddDays(1);
+
+                var departUtc = ConvertLocalToUtc(scheduledDepartLocal, airports.Value.dep.timezone!);
+                var arrivalUtc = ConvertLocalToUtc(scheduledArrivalLocal, airports.Value.arr.timezone!);
 
                 var validationError = await ValidateFlightAsync(
                     dto.AircraftUsed,
-                    departDateTime,
-                    arrivalDateTime,
+                    departUtc,
+                    arrivalUtc,
                     dto.DepartingPortCode,
                     dto.ArrivingPortCode,
                     null
@@ -217,8 +237,10 @@ namespace AirlineAPI.Controllers
                 flightsToCreate.Add(new Flight
                 {
                     flightNum = nextFlightNum++,
-                    departTime = departDateTime,
-                    arrivalTime = arrivalDateTime,
+                    departTime = departUtc,
+                    arrivalTime = arrivalUtc,
+                    scheduledDepartLocal = scheduledDepartLocal,
+                    scheduledArrivalLocal = scheduledArrivalLocal,
                     aircraftUsed = dto.AircraftUsed,
                     status = dto.Status,
                     departingPort = dto.DepartingPortCode,
@@ -289,10 +311,17 @@ namespace AirlineAPI.Controllers
             if (flight == null)
                 return NotFound(new { message = "Flight not found." });
 
+            var airports = await GetFlightAirportsAsync(dto.DepartingPortCode, dto.ArrivingPortCode);
+            if (airports == null)
+                return BadRequest(new { message = "One or both airports are invalid, or missing timezone data." });
+
+            var departUtc = ConvertLocalToUtc(dto.ScheduledDepartLocal, airports.Value.dep.timezone!);
+            var arrivalUtc = ConvertLocalToUtc(dto.ScheduledArrivalLocal, airports.Value.arr.timezone!);
+
             var validationError = await ValidateFlightAsync(
                 dto.AircraftUsed,
-                dto.DepartTime,
-                dto.ArrivalTime,
+                departUtc,
+                arrivalUtc,
                 dto.DepartingPortCode,
                 dto.ArrivingPortCode,
                 id
@@ -301,8 +330,10 @@ namespace AirlineAPI.Controllers
             if (validationError != null)
                 return BadRequest(new { message = validationError });
 
-            flight.departTime = dto.DepartTime;
-            flight.arrivalTime = dto.ArrivalTime;
+            flight.departTime = departUtc;
+            flight.arrivalTime = arrivalUtc;
+            flight.scheduledDepartLocal = dto.ScheduledDepartLocal;
+            flight.scheduledArrivalLocal = dto.ScheduledArrivalLocal;
             flight.aircraftUsed = dto.AircraftUsed;
             flight.status = dto.Status;
             flight.departingPort = dto.DepartingPortCode;
@@ -391,8 +422,8 @@ public async Task<IActionResult> CancelFlight(int id)
                 .Where(f =>
                     (f.departingPort ?? "").Trim().ToUpper() == from &&
                     (f.arrivingPort ?? "").Trim().ToUpper() == to &&
-                    f.departTime >= dayStart &&
-                    f.departTime < dayEnd)
+                    f.scheduledDepartLocal.HasValue &&
+                    f.scheduledDepartLocal.Value.Date == dayStart)
                 .Select(f =>
                 {
                     var economyBase = f.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Economy)?.Price;
@@ -409,8 +440,10 @@ public async Task<IActionResult> CancelFlight(int id)
                                 FlightNum = f.flightNum,
                                 DepartingPortCode = f.departingPort,
                                 ArrivingPortCode = f.arrivingPort,
-                                DepartTime = f.departTime,
-                                ArrivalTime = f.arrivalTime,
+                                DepartTime = f.scheduledDepartLocal ?? f.departTime,
+                                ArrivalTime = f.scheduledArrivalLocal ?? f.arrivalTime,
+                                DepartTimeUtc = f.departTime,
+                                ArrivalTimeUtc = f.arrivalTime,
                                 Status = f.status,
                                 AircraftUsed = f.aircraftUsed,
                                 Distance = f.distance,
@@ -435,16 +468,17 @@ public async Task<IActionResult> CancelFlight(int id)
                 .Where(f =>
                     (f.departingPort ?? "").Trim().ToUpper() == from &&
                     (f.arrivingPort ?? "").Trim().ToUpper() != to &&
-                    f.departTime >= dayStart &&
-                    f.departTime < dayEnd)
+                    f.scheduledDepartLocal.HasValue &&
+                    f.scheduledDepartLocal.Value.Date == dayStart)
                 .ToList();
 
             var candidateSecondLegs = allFlights
                 .Where(f =>
                     (f.departingPort ?? "").Trim().ToUpper() != from &&
                     (f.arrivingPort ?? "").Trim().ToUpper() == to &&
-                    f.departTime >= dayStart &&
-                    f.departTime < dayEnd.AddDays(1))
+                    f.scheduledDepartLocal.HasValue &&
+                    f.scheduledDepartLocal.Value.Date >= dayStart &&
+                    f.scheduledDepartLocal.Value.Date < dayEnd.AddDays(1))
                 .ToList();
 
             // Load airports for geographic filtering
@@ -507,25 +541,37 @@ public async Task<IActionResult> CancelFlight(int id)
                         {
                             new FlightLegDto
                             {
-                                FlightNum = x.leg1.flightNum, DepartingPortCode = x.leg1.departingPort,
-                                ArrivingPortCode = x.leg1.arrivingPort, DepartTime = x.leg1.departTime,
-                                ArrivalTime = x.leg1.arrivalTime, Status = x.leg1.status,
-                                AircraftUsed = x.leg1.aircraftUsed, Distance = x.leg1.distance,
+                                FlightNum = x.leg1.flightNum,
+                                DepartingPortCode = x.leg1.departingPort,
+                                ArrivingPortCode = x.leg1.arrivingPort,
+                                DepartTime = x.leg1.scheduledDepartLocal ?? x.leg1.departTime,
+                                ArrivalTime = x.leg1.scheduledArrivalLocal ?? x.leg1.arrivalTime,
+                                DepartTimeUtc = x.leg1.departTime,
+                                ArrivalTimeUtc = x.leg1.arrivalTime,
+                                Status = x.leg1.status,
+                                AircraftUsed = x.leg1.aircraftUsed,
+                                Distance = x.leg1.distance,
                                 IsDomestic = x.leg1.isDomestic,
                                 IsFull = !_context.Seating.Any(s =>
-                                s.flightNum == x.leg1.flightNum &&
-                                s.seatStatus == SeatStatus.Available)
+                                    s.flightNum == x.leg1.flightNum &&
+                                    s.seatStatus == SeatStatus.Available)
                             },
                             new FlightLegDto
                             {
-                                FlightNum = x.leg2.flightNum, DepartingPortCode = x.leg2.departingPort,
-                                ArrivingPortCode = x.leg2.arrivingPort, DepartTime = x.leg2.departTime,
-                                ArrivalTime = x.leg2.arrivalTime, Status = x.leg2.status,
-                                AircraftUsed = x.leg2.aircraftUsed, Distance = x.leg2.distance,
+                                FlightNum = x.leg2.flightNum,
+                                DepartingPortCode = x.leg2.departingPort,
+                                ArrivingPortCode = x.leg2.arrivingPort,
+                                DepartTime = x.leg2.scheduledDepartLocal ?? x.leg2.departTime,
+                                ArrivalTime = x.leg2.scheduledArrivalLocal ?? x.leg2.arrivalTime,
+                                DepartTimeUtc = x.leg2.departTime,
+                                ArrivalTimeUtc = x.leg2.arrivalTime,
+                                Status = x.leg2.status,
+                                AircraftUsed = x.leg2.aircraftUsed,
+                                Distance = x.leg2.distance,
                                 IsDomestic = x.leg2.isDomestic,
                                 IsFull = !_context.Seating.Any(s =>
-                                s.flightNum == x.leg2.flightNum &&
-                                s.seatStatus == SeatStatus.Available)
+                                    s.flightNum == x.leg2.flightNum &&
+                                    s.seatStatus == SeatStatus.Available)
                             }
                         },
                         Pricing = new FlightSearchPricingDto
@@ -738,6 +784,34 @@ public async Task<IActionResult> CancelFlight(int id)
             }
 
             return null;
+        }
+        
+        private async Task<(Airport dep, Airport arr)?> GetFlightAirportsAsync(string departingPortCode, string arrivingPortCode)
+        {
+            var dep = await _context.Airports.FindAsync(departingPortCode);
+            var arr = await _context.Airports.FindAsync(arrivingPortCode);
+
+            if (dep == null || arr == null)
+                return null;
+
+            if (string.IsNullOrWhiteSpace(dep.timezone) || string.IsNullOrWhiteSpace(arr.timezone))
+                return null;
+
+            return (dep, arr);
+        }
+
+        private static TimeZoneInfo ResolveTimeZone(string tz)
+        {
+            // Linux / MySQL IANA names like America/Chicago should work on your LXC
+            return TimeZoneInfo.FindSystemTimeZoneById(tz);
+        }
+
+        private static DateTime ConvertLocalToUtc(DateTime localDateTime, string timeZoneId)
+        {
+            var tz = ResolveTimeZone(timeZoneId);
+
+            var unspecified = DateTime.SpecifyKind(localDateTime, DateTimeKind.Unspecified);
+            return TimeZoneInfo.ConvertTimeToUtc(unspecified, tz);
         }
     }
 }

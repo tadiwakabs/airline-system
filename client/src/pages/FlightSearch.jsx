@@ -34,6 +34,31 @@ function formatCabinClass(cabinClass) {
     return cabinClass.charAt(0).toUpperCase() + cabinClass.slice(1);
 }
 
+function parseLocalDateTime(value) {
+    if (!value) return null;
+
+    const raw = String(value).trim();
+    const [datePart, timePart = ""] = raw.split("T");
+    if (!datePart) return null;
+
+    const [year, month, day] = datePart.split("-").map(Number);
+    const [hour = 0, minute = 0] = timePart.split(":").map(Number);
+
+    if (!year || !month || !day) return null;
+
+    return new Date(year, month - 1, day, hour, minute);
+}
+
+function formatLocalTime(value) {
+    const d = parseLocalDateTime(value);
+    if (!d) return "—";
+
+    return d.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+    });
+}
+
 function useFlightSearch(from, to, date, passengers, enabled) {
     const [results, setResults] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -53,45 +78,50 @@ function useFlightSearch(from, to, date, passengers, enabled) {
                 setError("");
 
                 const res = await searchFlightResults({
-                    from,
-                    to,
-                    date,
-                    adults: passengers?.adults ?? 1,
+                    from, to, date,
+                    adults:   passengers?.adults   ?? 1,
                     children: passengers?.children ?? 0,
-                    infants: passengers?.infants ?? 0,
+                    infants:  passengers?.infants  ?? 0,
                 });
 
                 if (cancelled) return;
-
-                setResults(
-                    res.data.map((item) => ({
-                        type: item.type,
-                        flights: item.flights.map((f) => ({
-                            flightNum: f.flightNum,
-                            departingPort: f.departingPortCode,
-                            arrivingPort: f.arrivingPortCode,
-                            departTime: f.departTime,
-                            arrivalTime: f.arrivalTime,
-                            status: f.status,
-                            aircraftUsed: f.aircraftUsed,
-                            distance: f.distance,
-                            isDomestic: f.isDomestic,
-                            isFull: f.isFull,
-                        })),
-                        pricing: {
-                            economy: item.pricing?.economy ?? 0,
-                            business: item.pricing?.business ?? 0,
-                            first: item.pricing?.first ?? 0,
-                        },
-                        quote: item.quote,
-                    }))
-                );
-
+                setResults(res.data.map((item) => ({
+                    type: item.type,
+                    flights: item.flights.map((f) => ({
+                        flightNum:      f.flightNum,
+                        departingPort:  f.departingPortCode,
+                        arrivingPort:   f.arrivingPortCode,
+                        departTime:     f.departTime,
+                        arrivalTime:    f.arrivalTime,
+                        departTimeUtc:  f.departTimeUtc,
+                        arrivalTimeUtc: f.arrivalTimeUtc,
+                        status:         f.status,
+                        aircraftUsed:   f.aircraftUsed,
+                        distance:       f.distance,
+                        isDomestic:     f.isDomestic,
+                        isFull: f.isFull,
+                    })),
+                    pricing: {
+                        economy:  item.pricing?.economy  ?? 0,
+                        business: item.pricing?.business ?? 0,
+                        first:    item.pricing?.first    ?? 0,
+                    },
+                    quote: item.quote,
+                })));
                 setLoading(false);
-            } catch {
+            } catch (err) {
                 if (!cancelled) {
-                    setError("Could not load flight results.");
+                    const serverError = err.response?.data;
+                    let message= "Could not load flight results.";
+                    
+                    if (typeof serverError==='string'){
+                        message = serverError;
+                    } else if (serverError?.errors){
+                        message= Object.values(serverError.errors).flat().join(", ");
+                    }
+                    setError(message);
                     setLoading(false);
+            
                 }
             }
         };
@@ -131,6 +161,7 @@ export default function FlightSearch() {
 
     const isReturn = searchParams.flightType === "return";
 
+    // Outbound search — always runs when form is submitted
     const outbound = useFlightSearch(
         searchParams.departure,
         searchParams.arrival,
@@ -139,8 +170,9 @@ export default function FlightSearch() {
         !showSearchForm
     );
 
+    // Return search — only runs after user picks an outbound flight
     const returnSearch = useFlightSearch(
-        searchParams.arrival,
+        searchParams.arrival,    // reversed
         searchParams.departure,
         searchParams.dateReturn,
         searchParams.passengers,
@@ -174,9 +206,11 @@ export default function FlightSearch() {
 
     const handleSelectOutbound = (itinerary) => {
         if (isReturn) {
+            // Store outbound, switch to return selection
             setSelectedOutbound(itinerary);
             setSelectionStage("return");
         } else {
+            // One-way: go straight to passengers
             navigate("/booking/passengers", {
                 state: { selectedItinerary: itinerary, searchParams },
             });
@@ -271,6 +305,7 @@ export default function FlightSearch() {
                     </Card>
                 )}
 
+                {/* Stage indicator for return trips */}
                 {!showSearchForm && isReturn && (
                     <div className="flex items-center gap-3">
                         {selectionStage === "return" && (
@@ -309,6 +344,7 @@ export default function FlightSearch() {
                     </div>
                 )}
 
+                {/* Selected outbound summary when picking return */}
                 {selectionStage === "return" && selectedOutbound && (
                     <Card className="p-4 border-green-200 bg-green-50">
                         <p className="text-xs font-medium uppercase tracking-wide text-green-600 mb-1">
@@ -322,12 +358,7 @@ export default function FlightSearch() {
                                 ].arrivingPort
                             }
                             {" · "}
-                            {new Date(
-                                selectedOutbound.flights[0].departTime
-                            ).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                            })}
+                            {formatLocalTime(selectedOutbound.flights[0].departTime)}
                         </p>
                     </Card>
                 )}
@@ -362,14 +393,22 @@ export default function FlightSearch() {
                     </Card>
                 )}
 
-                {!activeResults.loading &&
-                    !activeResults.error &&
-                    activeResults.results.length === 0 &&
-                    !showSearchForm && (
-                        <Card className="p-6">
-                            <p>No flights found.</p>
-                        </Card>
-                    )}
+                {activeResults.loading && <Card className="p-6"><p>Loading flights...</p></Card>}
+                {activeResults.error && (
+                    <Card className="p-6 border-red-100 bg-red-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                            <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                            <p className="text-red-700 font-bold text-sm">
+                                {activeResults.error}
+                            </p>
+                        </div>
+                    </Card>
+                )}
+                 {!activeResults.loading && !activeResults.error && activeResults.results.length === 0 && !showSearchForm && (
+                    <Card className="p-6"><p>No flights found.</p></Card>
+                )}
 
                 {!activeResults.loading &&
                     !activeResults.error &&
