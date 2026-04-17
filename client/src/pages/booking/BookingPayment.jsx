@@ -237,6 +237,13 @@ export default function BookingPayment() {
                         ticketCode: matchedTicket?.ticketCode
                     };
                 }).filter(b => b.ticketCode);
+                try {
+                    if (finalizedBaggage.length > 0) {
+                        await api.post("/Baggage/bulk", finalizedBaggage);
+                    } 
+                } catch (baggageErr) {
+                    console.error("Baggage failed to save, but booking is okay:", baggageErr);
+                }
             }
             const cabinClassLabel =
                 searchParams?.cabinClass?.toLowerCase() === "first"
