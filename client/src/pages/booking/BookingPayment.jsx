@@ -232,15 +232,12 @@ export default function BookingPayment() {
                     return {
                         passengerId: bag.passengerId,
                         additionalBaggage: bag.additionalBaggage,
-                        additionalFare: bag.additonalFare,
+                        additionalFare: bag.additionalFare,
                         isChecked: 0,
                         ticketCode: matchedTicket?.ticketCode
                     };
                 }).filter(b => b.ticketCode);
 
-                if (finalizedBaggage.legnth > 0) {
-                    await api.post("/Baggage/bulk", finalizedBaggage);
-                }
             }
 
             const cabinClassLabel =
