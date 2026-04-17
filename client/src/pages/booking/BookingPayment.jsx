@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { createBooking } from "../../services/bookingService";
+import { completePendingPayment } from "../../services/paymentService";
 
 function detectCardType(number) {
     const clean = number.replace(/\s/g, "");
@@ -61,8 +62,11 @@ export default function BookingPayment() {
     const location = useLocation();
     const { user } = useAuth();
 
-    // Read state passed from BookingSeats
     const booking = location.state || {};
+    const standbyBooking = booking.standbyBooking || null;
+    const isStandbyPayment = !!standbyBooking;
+
+    // Existing normal booking flow state
     const selectedItinerary = booking.selectedItinerary;
     const returnItinerary = booking.returnItinerary ?? null;
     const searchParams = booking.searchParams;
@@ -70,27 +74,53 @@ export default function BookingPayment() {
     const pricingSummary = booking.pricingSummary;
     const seatSelections = booking.seatSelections ?? {};
 
-    // Build readable values for the summary
+    // Existing booking summary values
     const firstFlight = selectedItinerary?.flights?.[0];
     const lastFlight = selectedItinerary?.flights?.[selectedItinerary?.flights?.length - 1];
-    const flightDetails = firstFlight
+
+    const normalFlightDetails = firstFlight
         ? returnItinerary
             ? `${firstFlight.departingPort} → ${lastFlight.arrivingPort} (return)`
             : `${firstFlight.departingPort} → ${lastFlight.arrivingPort}`
         : "Unknown Flight";
-    const totalPrice = pricingSummary?.total ?? 0;
-    const passengerName = passengers[0]
+
+    const normalTotalPrice = pricingSummary?.total ?? 0;
+
+    const normalPassengerName = passengers[0]
         ? `${passengers[0].firstName} ${passengers[0].lastName}`
         : "Guest";
 
     const allFlights = [
         ...(selectedItinerary?.flights ?? []),
-        ...(returnItinerary?.flights   ?? []),
+        ...(returnItinerary?.flights ?? []),
     ];
 
     const firstPassengerId = passengers[0]?.passengerId;
     const firstFlightNum = firstFlight?.flightNum;
-    const seatNumber = seatSelections?.[firstFlightNum]?.[firstPassengerId] ?? "N/A";
+    const normalSeatNumber = seatSelections?.[firstFlightNum]?.[firstPassengerId] ?? "N/A";
+
+    // Standby-aware summary values
+    const totalPrice = isStandbyPayment
+        ? Number(standbyBooking.totalPrice ?? 0)
+        : normalTotalPrice;
+
+    const passengerName = isStandbyPayment
+        ? (
+            user?.FirstName && user?.LastName
+                ? `${user.FirstName} ${user.LastName}`
+                : user?.firstName && user?.lastName
+                    ? `${user.firstName} ${user.lastName}`
+                    : "Standby Passenger"
+        )
+        : normalPassengerName;
+
+    const flightDetails = isStandbyPayment
+        ? `Flight ${standbyBooking.flightNum}`
+        : normalFlightDetails;
+
+    const seatNumber = isStandbyPayment
+        ? standbyBooking.seatNumber ?? "N/A"
+        : normalSeatNumber;
 
     const [form, setForm] = useState(emptyForm);
     const [errors, setErrors] = useState({});
@@ -168,32 +198,48 @@ export default function BookingPayment() {
                 return;
             }
 
-            // Build one ticket entry per passenger per flight leg
+            // Standby payment path: complete existing pending payment
+            if (isStandbyPayment) {
+                const res = await completePendingPayment(
+                    standbyBooking.transactionId,
+                    cardType || "Card"
+                );
+
+                navigate("/profile", {
+                    state: { defaultTab: "standby" },
+                });
+
+                return;
+            }
+
+            // Existing normal booking flow below stays intact
             const tickets = [];
             for (const flight of allFlights) {
-                const origin      = flight.departingPort || flight.departingPortCode;
-                const destination = flight.arrivingPort  || flight.arrivingPortCode;
+                const origin = flight.departingPort || flight.departingPortCode;
+                const destination = flight.arrivingPort || flight.arrivingPortCode;
                 const boardingTime = new Date(flight.departTime).toLocaleTimeString([], {
-                    hour: "2-digit", minute: "2-digit"
+                    hour: "2-digit",
+                    minute: "2-digit",
                 });
 
                 for (const passenger of passengers) {
-                    const seatNumber = seatSelections?.[flight.flightNum]?.[passenger.passengerId];
-                    if (!seatNumber) continue;
+                    const selectedSeatNumber = seatSelections?.[flight.flightNum]?.[passenger.passengerId];
+                    if (!selectedSeatNumber) continue;
 
-                    // Per-passenger price for this leg from the quote
                     const cabinClass = searchParams?.cabinClass ?? "economy";
                     const fareBreakdown = selectedItinerary?.quote?.[cabinClass] ?? {};
                     const legPrice =
-                        passenger.passengerType === "Child"  ? (fareBreakdown.perChild  ?? 0) :
-                            passenger.passengerType === "Infant" ? (fareBreakdown.perInfant ?? 0) :
-                                (fareBreakdown.perAdult  ?? 0);
+                        passenger.passengerType === "Child"
+                            ? (fareBreakdown.perChild ?? 0)
+                            : passenger.passengerType === "Infant"
+                                ? (fareBreakdown.perInfant ?? 0)
+                                : (fareBreakdown.perAdult ?? 0);
 
                     tickets.push({
-                        flightNum:   flight.flightNum,
+                        flightNum: flight.flightNum,
                         passengerId: passenger.passengerId,
-                        seatNumber,
-                        price:       legPrice,
+                        seatNumber: selectedSeatNumber,
+                        price: legPrice,
                         origin,
                         destination,
                         boardingTime,
@@ -202,9 +248,9 @@ export default function BookingPayment() {
             }
 
             const bookingPayload = {
-                userId:        resolvedUserId,
-                totalPrice:    Number(totalPrice),
-                cabinClass:    searchParams?.cabinClass ?? "economy",
+                userId: resolvedUserId,
+                totalPrice: Number(totalPrice),
+                cabinClass: searchParams?.cabinClass ?? "economy",
                 paymentMethod: cardType,
                 tickets,
             };
@@ -247,14 +293,16 @@ export default function BookingPayment() {
                     lastFour: form.cardNumber.replace(/\s/g, "").slice(-4),
                 },
             });
-
         } catch (err) {
             const data = err?.response?.data;
             const message =
-                typeof data === "string" ? data :
-                    data?.message || data?.title ||
-                    (data?.errors ? JSON.stringify(data.errors) : null) ||
-                    "Payment failed. Please try again.";
+                typeof data === "string"
+                    ? data
+                    : data?.message ||
+                      data?.title ||
+                      (data?.errors ? JSON.stringify(data.errors) : null) ||
+                      "Payment failed. Please try again.";
+
             setErrors({ submit: message });
         } finally {
             setSubmitting(false);
@@ -265,7 +313,6 @@ export default function BookingPayment() {
         <div className="max-w-2xl mx-auto p-6">
             <h1 className="text-2xl font-bold mb-2">Payment</h1>
 
-            {/* Booking Summary */}
             <div className="bg-blue-50 border border-blue-200 rounded p-4 mb-6 text-sm">
                 <p className="font-semibold text-blue-800 mb-1">Booking Summary</p>
                 <p>Passenger: <span className="font-medium">{passengerName}</span></p>
@@ -274,7 +321,6 @@ export default function BookingPayment() {
                 <p>Total: <span className="font-bold text-blue-700">${totalPrice}</span></p>
             </div>
 
-            {/* Card Details */}
             <div className="border rounded p-4 mb-4">
                 <div className="flex items-center justify-between mb-3">
                     <h2 className="font-semibold">Card Details</h2>
@@ -322,7 +368,6 @@ export default function BookingPayment() {
                 </div>
             </div>
 
-            {/* Billing Address */}
             <div className="border rounded p-4 mb-6">
                 <h2 className="font-semibold mb-3">Billing Address</h2>
                 <div className="grid gap-3">

@@ -2,6 +2,7 @@ using AirlineAPI.Data;
 using AirlineAPI.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
 
 namespace AirlineAPI.Controllers
 {
@@ -58,5 +59,43 @@ namespace AirlineAPI.Controllers
 
             return Ok(newPayment);
         }
+        [Authorize]
+[Authorize]
+[HttpPut("{id}/complete")]
+public async Task<IActionResult> CompletePayment(int id, [FromBody] CompletePaymentRequest dto)
+{
+    var payment = await _context.Payments.FindAsync(id);
+
+    if (payment == null)
+        return NotFound(new { message = "Payment not found" });
+
+    payment.paymentMethod = dto.PaymentMethod;
+    payment.paymentStatus = PaymentStatus.Sucess;
+
+    var ticket = await _context.Ticket
+        .FirstOrDefaultAsync(t => t.bookingId == payment.bookingId);
+
+    if (ticket != null)
+        ticket.status = TicketStatus.Booked;
+
+    var booking = await _context.Bookings
+        .FirstOrDefaultAsync(b => b.bookingId == payment.bookingId);
+
+    if (booking != null)
+        booking.bookingStatus = BookingStatus.Confirmed;
+
+    await _context.SaveChangesAsync();
+
+    return Ok(new
+    {
+        message = "Payment completed successfully.",
+        bookingId = payment.bookingId,
+        transactionId = payment.transactionId
+    });
+}
     }
+    public class CompletePaymentRequest
+{
+    public string PaymentMethod { get; set; } = "";
+}
 }

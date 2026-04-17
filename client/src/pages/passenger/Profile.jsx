@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Card from "../../components/common/Card";
 import TextInput from "../../components/common/TextInput";
 import Button from "../../components/common/Button";
@@ -39,6 +39,7 @@ const genderOptions = [
 
 export default function Profile() {
     const location = useLocation();
+    const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState(
     location.state?.defaultTab || "profile"
 );
@@ -178,20 +179,22 @@ export default function Profile() {
         }
     };
 
-    // Added handler for standby acceptance
     const handleAcceptStandbyOffer = async (standbyId) => {
-        try {
-            setError("");
-            setNotificationMessage("");
+    try {
+        setError("");
+        setNotificationMessage("");
 
-            const response = await acceptStandbyOffer(standbyId);
-            setNotificationMessage(response.message || "Standby offer accepted.");
-            await loadStandbyOffers();
-            await loadNotifications();
-        } catch (err) {
-            setError(err?.response?.data?.message || "Failed to accept standby offer.");
-        }
-    };
+        const response = await acceptStandbyOffer(standbyId);
+
+        navigate("/booking/payment", {
+            state: {
+                standbyBooking: response,
+            },
+        });
+    } catch (err) {
+        setError(err?.response?.data?.message || "Failed to accept standby offer.");
+    }
+};
 
     const handleRejectStandbyOffer = async (standbyId) => {
     try {
