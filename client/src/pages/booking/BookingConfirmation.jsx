@@ -63,12 +63,16 @@ export default function Confirmation() {
                             <span className="font-mono">{ticket.ticketCode}</span>
                         </div>
                         <div className="flex justify-between">
+                            <span className="text-gray-500">Passenger</span>
+                            <span>{ticket.passengerName || "—"}</span>
+                        </div>
+                        <div className="flex justify-between">
                             <span className="text-gray-500">Flight</span>
                             <span>#{ticket.flightNum}</span>
                         </div>
                         <div className="flex justify-between">
                             <span className="text-gray-500">Seat</span>
-                            <span>{ticket.seatNumber}</span>
+                            <span>{ticket.seatDisplay || ticket.seatNumber || "—"}</span>
                         </div>
                         <div className="flex justify-between">
                             <span className="text-gray-500">Boarding</span>
@@ -78,7 +82,7 @@ export default function Confirmation() {
                 ))}
 
                 <div className="flex gap-4 mx-2 mt-2">
-                    <Button onClick={() => navigate("/bookings")} className="w-full cursor-pointer">
+                    <Button onClick={() => navigate("/manage")} className="w-full cursor-pointer">
                         Manage your Bookings
                     </Button>
 

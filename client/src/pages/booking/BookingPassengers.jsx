@@ -3,7 +3,16 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Card from "../../components/common/Card.jsx";
 import Button from "../../components/common/Button.jsx";
 import Dropdown from "../../components/common/Dropdown.jsx";
-import {getCountries, getPassengerByUserId, getStates, updatePassenger, createPassenger} from "../../services/passengerService";
+import {
+    getCountries,
+    getPassengerByUserId,
+    getStates,
+    updatePassenger,
+    createPassenger,
+    getSavedPassengers,
+} from "../../services/passengerService";
+import FormError from "../../components/common/FormError.jsx";
+import { useFormErrors } from "../../utils/useFormErrors";
 
 function capitalize(value) {
     if (!value) return "";
@@ -33,6 +42,7 @@ function createEmptyPassenger(type) {
         dlNumber: "",
         dlState: "",
         isAccountPassenger: false,
+        selectedSavedPassengerId: "",
     };
 }
 
@@ -152,6 +162,13 @@ function validatePassenger(passenger, isDomesticItinerary) {
         }
     }
 
+    if (passenger.phoneNumber){
+        const onlyNums= /^\d+$/;
+        if (!onlyNums.test(passenger.phoneNumber)){
+            return "Phone number must contain only digits."
+        }
+    }
+
     if (!isDomesticItinerary) {
         if (!passenger.passportNumber) {
             return `${passenger.firstName || passenger.passengerType} is missing a passport number.`;
@@ -179,10 +196,12 @@ export default function BookingPassengers() {
 
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
+    const [localErrors, setLocalErrors] = useState({});
     const [passengerForms, setPassengerForms] = useState(initialPassengerForms);
     const [countries, setCountries] = useState([]);
     const [states, setStates] = useState([]);
+    const {errors:serverErrors,setErrors:setServerErrors,clearErrors}= useFormErrors();
+    const [savedPassengers, setSavedPassengers] = useState([]);
 
     const countryOptions = countries.map(c => ({
         label: c.name,
@@ -223,12 +242,25 @@ export default function BookingPassengers() {
     }, []);
 
     useEffect(() => {
+        const loadSavedPassengers = async () => {
+            try {
+                const res = await getSavedPassengers();
+                setSavedPassengers(res.data || []);
+            } catch (err) {
+                console.error("Error loading saved passengers:", err);
+            }
+        };
+
+        loadSavedPassengers();
+    }, []);
+
+    useEffect(() => {
         if (!selectedItinerary || !searchParams) return;
 
         const fetchPassengerProfile = async () => {
             try {
                 setLoading(true);
-                setError("");
+                clearErrors();
 
                 const userId = getUserIdFromStorage();
 
@@ -273,14 +305,15 @@ export default function BookingPassengers() {
                             dlNumber: savedProfile?.dlNumber || savedProfile?.DLNumber || "",
                             dlState: savedProfile?.dlState || savedProfile?.DLState || "",
                             isAccountPassenger: true,
+                            selectedSavedPassengerId: "",
                         };
                     }
 
                     return updated;
                 });
             } catch (err) {
-                console.error("Error loading passenger profile:", err);
-                setError("Could not load saved passenger profile.");
+                console.error("Error loading passenger profile:", err)
+                setServerErrors({response:{data:"Couldn't load saved passenger profile."}});
             } finally {
                 setLoading(false);
             }
@@ -297,9 +330,45 @@ export default function BookingPassengers() {
         );
     };
 
+    const handleApplySavedPassenger = (index, savedPassengerId) => {
+        const selected = savedPassengers.find((p) => p.passengerId === savedPassengerId);
+        if (!selected) return;
+
+        setPassengerForms((prev) =>
+            prev.map((passenger, i) =>
+                i === index
+                    ? {
+                        ...passenger,
+                        title: selected.title || "",
+                        firstName: selected.firstName || "",
+                        lastName: selected.lastName || "",
+                        dateOfBirth: selected.dateOfBirth
+                            ? String(selected.dateOfBirth).slice(0, 10)
+                            : "",
+                        gender: selected.gender || "",
+                        email: selected.email || "",
+                        phoneNumber: selected.phoneNumber || "",
+                        passportNumber: selected.passportNumber || "",
+                        passportCountryCode: selected.passportCountryCode || "",
+                        passportExpirationDate: selected.passportExpirationDate
+                            ? String(selected.passportExpirationDate).slice(0, 10)
+                            : "",
+                        placeOfBirth: selected.placeOfBirth || "",
+                        nationality: selected.nationality || "",
+                        dlNumber: selected.dlNumber || "",
+                        dlState: selected.dlState || "",
+                        passengerType: selected.passengerType || passenger.passengerType,
+                        isAccountPassenger: false,
+                        selectedSavedPassengerId: selected.passengerId,
+                    }
+                    : passenger
+            )
+        );
+    };
+
     const handleContinue = async () => {
         try {
-            setError("");
+            clearErrors();
 
             const userId = getUserIdFromStorage();
             const returnItinerary = state?.returnItinerary ?? null;
@@ -307,7 +376,7 @@ export default function BookingPassengers() {
             for (const passenger of passengerForms) {
                 const validationError = validatePassenger(passenger, isDomesticItinerary);
                 if (validationError) {
-                    setError(validationError);
+                    setServerErrors({response:{data:validationError}});
                     return;
                 }
             }
@@ -348,12 +417,7 @@ export default function BookingPassengers() {
                 },
             });
         } catch (err) {
-            console.error("Error saving passenger:", err.response?.data || err.message);
-            setError(
-                err.response?.data?.message ||
-                (typeof err.response?.data === "string" ? err.response.data : "") ||
-                "Error saving passenger"
-            );
+            setServerErrors(err);
         }
     };
 
@@ -389,11 +453,7 @@ export default function BookingPassengers() {
                     </Card>
                 )}
 
-                {error && (
-                    <Card className="p-5 border-red-200">
-                        <p className="text-red-600">{error}</p>
-                    </Card>
-                )}
+                <FormError errors={serverErrors}/>
 
                 {!loading &&
                     passengerForms.map((passenger, index) => {
@@ -415,6 +475,28 @@ export default function BookingPassengers() {
                                         </p>
                                     )}
                                 </div>
+
+                                {!passenger.isAccountPassenger && (
+                                    <div>
+                                        <label className="block text-sm text-gray-600 mb-1">
+                                            Use Saved Passenger
+                                        </label>
+                                        <select
+                                            className="w-full border rounded-lg px-3 py-2"
+                                            value={passenger.selectedSavedPassengerId || ""}
+                                            onChange={(e) => handleApplySavedPassenger(index, e.target.value)}
+                                        >
+                                            <option value="">Select saved passenger</option>
+                                            {savedPassengers
+                                                .filter((p) => p.passengerType === passenger.passengerType)
+                                                .map((p) => (
+                                                    <option key={p.passengerId} value={p.passengerId}>
+                                                        {p.firstName} {p.lastName}
+                                                    </option>
+                                                ))}
+                                        </select>
+                                    </div>
+                                )}
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
@@ -439,27 +521,31 @@ export default function BookingPassengers() {
                                         />
                                     </div>
 
-                                    <div>
-                                        <label className="block text-sm text-gray-600 mb-1">Email</label>
-                                        <input
-                                            className="w-full border rounded-lg px-3 py-2"
-                                            value={passenger.email}
-                                            onChange={(e) =>
-                                                handlePassengerChange(index, "email", e.target.value)
-                                            }
-                                        />
-                                    </div>
+                                    {passenger.passengerType === "Adult" && (
+                                        <>
+                                            <div>
+                                                <label className="block text-sm text-gray-600 mb-1">Email</label>
+                                                <input
+                                                    className="w-full border rounded-lg px-3 py-2"
+                                                    value={passenger.email}
+                                                    onChange={(e) =>
+                                                        handlePassengerChange(index, "email", e.target.value)
+                                                    }
+                                                />
+                                            </div>
 
-                                    <div>
-                                        <label className="block text-sm text-gray-600 mb-1">Phone Number</label>
-                                        <input
-                                            className="w-full border rounded-lg px-3 py-2"
-                                            value={passenger.phoneNumber}
-                                            onChange={(e) =>
-                                                handlePassengerChange(index, "phoneNumber", e.target.value)
-                                            }
-                                        />
-                                    </div>
+                                            <div>
+                                                <label className="block text-sm text-gray-600 mb-1">Phone Number</label>
+                                                <input
+                                                    className="w-full border rounded-lg px-3 py-2"
+                                                    value={passenger.phoneNumber}
+                                                    onChange={(e) =>
+                                                        handlePassengerChange(index, "phoneNumber", e.target.value)
+                                                    }
+                                                />
+                                            </div>
+                                        </>
+                                    )}
 
                                     <div>
                                         <label className="block text-sm text-gray-600 mb-1">Date of Birth</label>

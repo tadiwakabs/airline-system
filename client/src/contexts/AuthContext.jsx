@@ -1,24 +1,38 @@
-﻿import { createContext, useContext, useEffect, useMemo, useState } from "react";
+﻿import { createContext, useContext, useMemo, useState } from "react";
 import { loginUser } from "../services/authService";
 
 const AuthContext = createContext(null);
 
+function parseJwt(token) {
+    try {
+        return JSON.parse(atob(token.split(".")[1]));
+    } catch {
+        return null;
+    }
+}
+
+function isTokenExpired(token) {
+    const payload = parseJwt(token);
+    return !payload?.exp || payload.exp * 1000 < Date.now();
+}
+
 export function AuthProvider({ children }) {
-    const [user, setUser] = useState(null);
-    const [token, setToken] = useState(localStorage.getItem("token"));
-    const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem("token"));
+    const rawUser = localStorage.getItem("user");
+    const rawToken = localStorage.getItem("token");
+
+    const tokenValid = rawToken && !isTokenExpired(rawToken);
+
+    if (!tokenValid) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+    }
+
+    const [user, setUser] = useState(
+        tokenValid && rawUser ? JSON.parse(rawUser) : null
+    );
+    const [token, setToken] = useState(tokenValid ? rawToken : null);
+    const [isAuthenticated, setIsAuthenticated] = useState(!!tokenValid);
     const [loading, setLoading] = useState(false);
-
-    useEffect(() => {
-        const savedUser = localStorage.getItem("user");
-        const savedToken = localStorage.getItem("token");
-
-        if (savedUser && savedToken) {
-            setUser(JSON.parse(savedUser));
-            setToken(savedToken);
-            setIsAuthenticated(true);
-        }
-    }, []);
 
     const login = async ({ username, password }) => {
         setLoading(true);
@@ -33,6 +47,7 @@ export function AuthProvider({ children }) {
                 firstName: data.firstName,
                 lastName: data.lastName,
                 userRole: data.userRole,
+                department: data.department || null,
             };
 
             localStorage.setItem("token", data.token);
@@ -54,6 +69,25 @@ export function AuthProvider({ children }) {
         }
     };
 
+    const loginWithToken = (data) => {
+        const authUser = {
+            userId: data.userId,
+            username: data.username,
+            email: data.email,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            userRole: data.userRole,
+            department: data.department || null,
+        };
+
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("user", JSON.stringify(authUser));
+
+        setToken(data.token);
+        setUser(authUser);
+        setIsAuthenticated(true);
+    };
+
     const logout = () => {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
@@ -70,6 +104,7 @@ export function AuthProvider({ children }) {
             isAuthenticated,
             loading,
             login,
+            loginWithToken,
             logout,
         }),
         [user, token, isAuthenticated, loading]

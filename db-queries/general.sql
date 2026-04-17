@@ -13,6 +13,10 @@ SHOW CREATE TABLE Payment;
 SHOW CREATE TABLE Seating;
 SHOW CREATE TABLE States;
 SHOW CREATE TABLE Ticket;
+SHOW CREATE TABLE FlightPricing;
+SHOW CREATE TABLE RecurringSchedule;
+SHOW CREATE TABLE Standby;
+SHOW CREATE TABLE Notification;
 
 -- View trigger creation queries
 SHOW TRIGGERS;

@@ -43,7 +43,7 @@ namespace AirlineAPI.Services
                 issuer: jwtIssuer,
                 audience: jwtAudience,
                 claims: claims,
-                expires: DateTime.UtcNow.AddHours(12),
+                expires: DateTime.UtcNow.AddDays(7),
                 signingCredentials: creds
             );
 

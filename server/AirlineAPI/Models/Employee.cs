@@ -9,8 +9,15 @@ namespace AirlineAPI.Models
         OnLeave,
         Terminated
     }
+    
+    public enum EmployeeDepartment
+    {
+        CabinCrew,
+        FlightOps,
+        Administrative
+    }
 
-    [Table("Employee")]
+    [Table("Employees")]
     public class Employee
     {
         [Key]
@@ -36,10 +43,10 @@ namespace AirlineAPI.Models
         [StringLength(50)]
         public string? jobTitle { get; set; }
 
-        [StringLength(50)]
-        public string? department { get; set; }
+        [Required]
+        public EmployeeDepartment department { get; set; }
 
-        public DateTime hire_date { get; set; }
+        public DateTime? hire_date { get; set; }
 
         [Required]
         [StringLength(3)]

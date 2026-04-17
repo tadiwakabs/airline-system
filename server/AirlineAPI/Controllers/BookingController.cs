@@ -163,14 +163,40 @@ namespace AirlineAPI.Controllers
         [HttpGet("myBooking")]
         public async Task<ActionResult> GetMyBookings()
         {
-            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var currentUserId = User.FindFirst("sub")?.Value
+                    ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             
             var bookings = await _context.Bookings
+                .Include(b => b.Tickets)
+                .ThenInclude(t => t.Flight)
+                .Include(b => b.Tickets)
+                .ThenInclude(t => t.Passenger)
                 .Where(b => b.userId == currentUserId)
-                .OrderByDescending(b=>b.bookingDate)
+                .OrderByDescending(b => b.Tickets
+                    .Select(t => t.Flight != null ? t.Flight.departTime : DateTime.MinValue)
+                    .FirstOrDefault())
                 .ToListAsync();
 
             return Ok(bookings);
+        }
+        
+        [HttpGet("{bookingId}/flights")]
+        public async Task<IActionResult> GetFlightsByBooking(string bookingId)
+        {
+            var bookingExists = await _context.Bookings.AnyAsync(b => b.bookingId == bookingId);
+            if (!bookingExists)
+                return NotFound("Booking not found.");
+
+            var flights = await _context.Ticket
+                .Where(t => t.bookingId == bookingId)
+                .Include(t => t.Flight)
+                .Where(t => t.Flight != null)
+                .Select(t => t.Flight)
+                .Distinct()
+                .OrderBy(f => f!.departTime)
+                .ToListAsync();
+            
+            return Ok(flights);
         }
 
         [HttpPut("{id}/change-seat")]
@@ -183,7 +209,8 @@ namespace AirlineAPI.Controllers
     {           return BadRequest("Cannot change seats on a cancelled booking.");
     }
 
-            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var currentUserId = User.FindFirst("sub")?.Value
+                    ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (booking.userId != currentUserId && !User.IsInRole("Admin"))
             {
                 return Forbid();
@@ -225,7 +252,8 @@ namespace AirlineAPI.Controllers
             if (booking == null) return NotFound("Booking not found");
 
 
-            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var currentUserId = User.FindFirst("sub")?.Value
+                    ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (booking.userId != currentUserId && !User.IsInRole("Admin")) return Forbid();
 
             
