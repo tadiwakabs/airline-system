@@ -106,12 +106,23 @@ export default function FlightSearch() {
         cabinClass: "economy",
     };
 
-    const [searchParams, setSearchParams]         = useState(state || fallback);
+    const [searchParams, setSearchParams]         = useState(state?.searchParams || state || fallback);
     const [showSearchForm, setShowSearchForm] = useState(!state);
     // "outbound" | "return"
     const [selectionStage, setSelectionStage]      = useState("outbound");
     const [selectedOutbound, setSelectedOutbound]  = useState(null);
-
+    
+    useEffect(() => {
+        if (state?.searchParams) {
+            setSearchParams(state.searchParams);
+            setShowSearchForm(false); // Hide the form so results show up
+            
+            if (state.selectedItinerary && state.searchParams.flightType === "return") {
+                setSelectedOutbound(state.selectedItinerary);
+                setSelectionStage("return");
+            }
+        }
+    }, [state]);
     const isReturn = searchParams.flightType === "return";
 
     // Outbound search — always runs when form is submitted

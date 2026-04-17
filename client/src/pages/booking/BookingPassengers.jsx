@@ -421,6 +421,12 @@ export default function BookingPassengers() {
         }
     };
 
+    const handleBack = () => {
+        navigate("/flight-search", {
+            state: { searchParams,selectedItinerary,fromBooking: true }
+        });
+    };
+
     const isDomesticItinerary =
         selectedItinerary?.flights?.every((f) => f.isDomestic) ?? true;
 
@@ -664,7 +670,8 @@ export default function BookingPassengers() {
                     })}
 
                 {!loading && (
-                    <div className="flex justify-end">
+                    <div className="flex justify-center mt-8">
+                        <Button variant="outline" onClick={handleBack} className="mr-auto"> Back </Button>
                         <Button onClick={handleContinue}>Continue</Button>
                     </div>
                 )}
