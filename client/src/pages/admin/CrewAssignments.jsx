@@ -6,6 +6,8 @@ import Dropdown from "../../components/common/Dropdown";
 import Separator from "../../components/common/Separator";
 import Modal from "../../components/common/Modal";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
+
 import {
     getAllFlights,
 } from "../../services/flightService";
@@ -60,6 +62,7 @@ export default function CrewAssignments() {
     }, []);
     
     const navigate = useNavigate();
+    const {user} = useAuth();
     const loadPageData = async () => {
         try {
             setLoading(true);
@@ -157,7 +160,13 @@ export default function CrewAssignments() {
     };
 
     const handleBack = () => {
-        navigate("/admin/dashboard");
+        const role = user?.userRole;
+        
+        if (role == "Administrator"){
+            navigate("/admin/dashboard");
+        } else {
+            navigate("/employee/dashboard")
+        }   
     };
 
     const filteredFlights = useMemo(() => {
