@@ -67,7 +67,6 @@ export default function Profile() {
     const [profile, setProfile] = useState(null);
     const [passenger, setPassenger] = useState(null);
     const [loading, setLoading] = useState(true);
-    const navigate = useNavigate();
     const { errors: serverErrors, setErrors: setServerErrors, clearErrors } = useFormErrors();
 
     const [countries, setCountries] = useState([]);
