@@ -82,7 +82,7 @@ export default function BookingPayment() {
     const pricingSummary = booking.pricingSummary;
     const seatSelections = booking.seatSelections ?? {};
 
-    // Existing booking summary values
+    // Build readable values for the summary
     const firstFlight = selectedItinerary?.flights?.[0];
     const lastFlight = selectedItinerary?.flights?.[selectedItinerary?.flights?.length - 1];
 
@@ -250,8 +250,8 @@ export default function BookingPayment() {
             // Existing normal booking flow below stays intact
             const tickets = [];
             for (const flight of allFlights) {
-                const origin = flight.departingPort || flight.departingPortCode;
-                const destination = flight.arrivingPort || flight.arrivingPortCode;
+                const origin      = flight.departingPort || flight.departingPortCode;
+                const destination = flight.arrivingPort  || flight.arrivingPortCode;
                 const boardingTime = new Date(flight.departTime).toLocaleTimeString([], {
                     hour: "2-digit",
                     minute: "2-digit",
