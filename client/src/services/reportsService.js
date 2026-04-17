@@ -1,10 +1,14 @@
-import api from "./api";
+import api from "../api"; 
 
-export const getODDemand = (startDate, endDate) => 
-    api.get("/reports/od-demand", { params: { startDate, endDate } });
+export const getODDemand = () => {
+    return api.get("/reports/od-demand");
+};
 
-export const getRouteVitality = (startDate, endDate) => 
-    api.get("/reports/route-vitality", { params: { startDate, endDate } });
+// Placeholder for future reports
+export const getRouteVitality = () => {
+    return api.get("/reports/route-vitality");
+};
 
-export const getRevenueLeakage = (startDate, endDate) => 
-    api.get("/reports/revenue-leakage", { params: { startDate, endDate } });
+export const getRevenueLeakage = () => {
+    return api.get("/reports/revenue-leakage");
+};
