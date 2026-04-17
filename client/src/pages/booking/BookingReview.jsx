@@ -353,6 +353,25 @@ export default function BookingReview() {
     };
 
     const handleConfirm = () => {
+        const baggageData = passengers.map((passenger) => {
+            const passengerBags = [];
+
+            passengerBags.push({
+                passengerId: passenger.passengerId,
+                additionalBaggage: 0,
+                additionalFare: 0.0,
+                isChecked: 0,
+            });
+            for (let i = 0; i < baggageCount; i++) {
+                passengerBags.push({
+                    passengerId: passenger.passengerId,
+                    additionalBaggage: 1,
+                    additionalFare: BAGGAGE_FEE_PER_BAG,
+                    isChecked: 0,
+                });
+            }
+            return passengerBags;
+        }).flat();
         navigate("/booking/seat-selection", {
             state: {
                 selectedItinerary,
