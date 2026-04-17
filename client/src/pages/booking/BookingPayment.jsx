@@ -237,9 +237,7 @@ export default function BookingPayment() {
                         ticketCode: matchedTicket?.ticketCode
                     };
                 }).filter(b => b.ticketCode);
-
             }
-
             const cabinClassLabel =
                 searchParams?.cabinClass?.toLowerCase() === "first"
                     ? "First Class"
