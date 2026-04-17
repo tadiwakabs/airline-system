@@ -196,8 +196,8 @@ export default function BookingPayment() {
                     const fareBreakdown = selectedItinerary?.quote?.[cabinClass] ?? {};
                     const legPrice =
                         passenger.passengerType === "Child"  ? (fareBreakdown.perChild  ?? 0) :
-                            passenger.passengerType === "Infant" ? (fareBreakdown.perInfant ?? 0) :
-                                (fareBreakdown.perAdult  ?? 0);
+                        passenger.passengerType === "Infant" ? (fareBreakdown.perInfant ?? 0) :
+                        (fareBreakdown.perAdult  ?? 0);
 
                     tickets.push({
                         flightNum:   flight.flightNum,
@@ -217,11 +217,31 @@ export default function BookingPayment() {
                 cabinClass:    searchParams?.cabinClass ?? "economy",
                 paymentMethod: cardType,
                 tickets:        tickets,
-                baggage:        baggageData
             };
 
             const res = await createBooking(bookingPayload);
             const confirmation = res.data;
+
+            const rawBaggageData = booking.baggageData || [];
+            if (rawBaggageData.length > 0)
+            {
+                const finalizedBaggage = rawBaggageData.map(bag => {
+                    const matchedTicket = (confirmation.tickets ?? []).find(
+                        t => t.passengerId === bag.passengerId
+                    );
+                    return {
+                        passengerId: bag.passengerId,
+                        additionalBaggage: bag.additionalBaggage,
+                        additionalFare: bag.additonalFare,
+                        isChecked: 0,
+                        ticketCode: matchedTicket?.ticketCode
+                    };
+                }).filter(b => b.ticketCode);
+
+                if (finalizedBaggage.legnth > 0) {
+                    await api.post("/Baggage/bulk", finalizedBaggage);
+                }
+            }
 
             const cabinClassLabel =
                 searchParams?.cabinClass?.toLowerCase() === "first"

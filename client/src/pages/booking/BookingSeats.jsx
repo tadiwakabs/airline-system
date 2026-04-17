@@ -228,6 +228,7 @@ export default function BookingSeats() {
     const searchParams = state?.searchParams;
     const passengers = state?.passengers ?? [];
     const pricingSummary = state?.pricingSummary ?? null;
+    const baggageData = state?.baggageData ?? [];
 
     const flights = useMemo(() => {
         return [
@@ -389,6 +390,8 @@ export default function BookingSeats() {
                 passengers,
                 pricingSummary,
                 seatSelections,
+                baggageData,
+                baggageData,
             },
         });
     };

@@ -372,12 +372,14 @@ export default function BookingReview() {
             }
             return passengerBags;
         }).flat();
+        
         navigate("/booking/seat-selection", {
             state: {
                 selectedItinerary,
                 returnItinerary,
                 searchParams,
                 passengers,
+                baggageData,
                 pricingSummary: { ...pricing, total: combinedTotal },
             },
         });

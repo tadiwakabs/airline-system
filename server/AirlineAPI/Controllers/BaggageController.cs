@@ -38,6 +38,21 @@ namespace AirlineAPI.Controllers
             return Ok(flightBaggage);
         }
 
+        [HttpPost("bulk")]
+        public async Task<IActionResult> PostBaggageBulk([FromBody] List<Baggage> baggageList)
+        {
+            foreach (var baggage in baggageList)
+            {       
+                if (string.IsNullOrEmpty(baggage.baggageID))
+                {
+                    baggage.baggageID = Guid.NewGuid().ToString().Substring(0, 30);
+                }
+                _context.Baggage.Add(baggage);
+            }
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Baggage added successfully" });
+        }
+
         [HttpPost]
         public async Task<ActionResult<Baggage>> PostBaggage(Baggage baggage)
         {
