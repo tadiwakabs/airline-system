@@ -199,7 +199,7 @@ namespace AirlineAPI.Controllers
                         bookingId = booking.bookingId,
                         bookingPrice = (double)pricing.Price,
                         totalPrice = (double)pricing.Price,
-                        paymentMethod = "Internal Fill",
+                        paymentMethod = "Visa",
                         paymentStatus = PaymentStatus.Success
                     };
 
