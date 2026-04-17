@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { createBooking } from "../../services/bookingService";
 import { useFormErrors } from "../../utils/useFormErrors";
+import api from "../../services/api";
 
 import FormError from "../../components/common/FormError";
 
@@ -227,22 +228,26 @@ export default function BookingPayment() {
             {
                 const finalizedBaggage = rawBaggageData.map(bag => {
                     const matchedTicket = (confirmation.tickets ?? []).find(
-                        t => t.passengerId === bag.passengerId
+                        t => (t.passengerId || t.PassengerId) === bag.passengerId
                     );
+                    const resolvedTicketCode = matchedTicket?.ticketCode || matchedTicket?.TicketCode;
                     return {
+                        ticketCode: resolvedTicketCode,
                         passengerId: bag.passengerId,
                         additionalBaggage: bag.additionalBaggage,
                         additionalFare: bag.additionalFare,
-                        isChecked: 0,
-                        ticketCode: matchedTicket?.ticketCode
+                        isChecked: false,
                     };
                 }).filter(b => b.ticketCode);
                 try {
                     if (finalizedBaggage.length > 0) {
+                        console.log("Attempting to save baggage:", finalizedBaggage);
                         await api.post("/Baggage/bulk", finalizedBaggage);
-                    } 
+                    } else {
+                        console.warn("No baggage linked: No matching ticketCodes found for the passengers.");
+                    }
                 } catch (baggageErr) {
-                    console.error("Baggage failed to save, but booking is okay:", baggageErr);
+                    console.error("Baggage failed to save, but booking is preserved:", baggageErr);
                 }
             }
             const cabinClassLabel =
