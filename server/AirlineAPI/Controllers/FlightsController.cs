@@ -150,7 +150,6 @@ namespace AirlineAPI.Controllers
                 return BadRequest("Assigned aircraft not found.");
 
             var seats = GenerateSeatsForFlight(flight.flightNum, aircraft.numSeats);
-
             _context.Seating.AddRange(seats);
             await _context.SaveChangesAsync();
 
