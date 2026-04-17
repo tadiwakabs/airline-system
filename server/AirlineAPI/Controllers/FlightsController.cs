@@ -393,6 +393,13 @@ namespace AirlineAPI.Controllers
                 if (flight == null)
                     return NotFound(new { message = "Flight not found." });
 
+                // Mark cancelled first so AFTER UPDATE trigger can notify passengers
+                if (flight.status != "Cancelled")
+                {
+                    flight.status = "Cancelled";
+                    await _context.SaveChangesAsync();
+                }
+
                 // Tickets affected by this deleted flight
                 var ticketsToDelete = await _context.Ticket
                     .Where(t => t.flightCode == id)
@@ -411,7 +418,6 @@ namespace AirlineAPI.Controllers
                     .Where(p => affectedBookingIds.Contains(p.bookingId))
                     .ToDictionaryAsync(p => p.bookingId);
 
-                // Calculate refund totals per booking for only the deleted flight's tickets
                 var refundByBooking = ticketsToDelete
                     .GroupBy(t => t.bookingId)
                     .ToDictionary(
@@ -419,14 +425,12 @@ namespace AirlineAPI.Controllers
                         g => g.Sum(t => (double)t.price * 1.10)
                     );
 
-                // Delete only the tickets for this flight
                 if (ticketsToDelete.Any())
                 {
                     _context.Ticket.RemoveRange(ticketsToDelete);
                     await _context.SaveChangesAsync();
                 }
 
-                // Check which bookings still have tickets left
                 var remainingTicketCounts = await _context.Ticket
                     .Where(t => affectedBookingIds.Contains(t.bookingId))
                     .GroupBy(t => t.bookingId)
@@ -467,7 +471,6 @@ namespace AirlineAPI.Controllers
                     }
                 }
 
-                // Delete seats for this flight
                 var seats = await _context.Seating
                     .Where(s => s.flightNum == id)
                     .ToListAsync();
@@ -477,7 +480,6 @@ namespace AirlineAPI.Controllers
                     _context.Seating.RemoveRange(seats);
                 }
 
-                // Delete flight
                 _context.Flights.Remove(flight);
 
                 await _context.SaveChangesAsync();
