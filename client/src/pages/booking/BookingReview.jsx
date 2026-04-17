@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo } from "react";
+﻿import { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Card from "../../components/common/Card.jsx";
 import Button from "../../components/common/Button.jsx";
@@ -241,6 +241,50 @@ function PassengerCard({ passenger, indexWithinType, isDomestic }) {
     );
 }
 
+function BaggageSection({ count, onAdd, onRemove, fee }) {
+    return (
+        <Card className="p-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h2 className="text-base font-semibold text-gray-800">Additional Baggage</h2>
+                    <p className="text-sm text-gray-500 mt-1">
+                        Need extra space? Add checked bags for {formatCurrency(fee)} each.
+                    </p>
+                </div>
+                
+                <div className="flex items-center justify-between sm:justify-end gap-6 bg-gray-50 px-4 py-3 rounded-xl border border-gray-200 min-w-[160px]">
+                    <span className="text-sm font-medium text-gray-600 uppercase tracking-wider">Bags</span>
+                    <div className="flex items-center gap-3">
+                        <button 
+                            onClick={onRemove}
+                            className="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-gray-300 text-gray-600 hover:bg-gray-100 transition-all shadow-sm active:scale-95"
+                        >
+                            −
+                        </button>
+                        <span className="text-lg font-bold text-gray-900 w-6 text-center">
+                            {count}
+                        </span>
+                        <button 
+                            onClick={onAdd}
+                            className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-md active:scale-95"
+                        >
+                            +
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            {count > 0 && (
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                    <p className="text-xs text-blue-700 font-medium">
+                        ✓ {count} extra bag{count > 1 ? 's' : ''} added to your booking.
+                    </p>
+                </div>
+            )}
+        </Card>
+    );
+}
+
 function PriceRow({ label, value, sub, bold }) {
     return (
         <div className={`flex justify-between items-baseline ${bold ? "font-semibold" : ""}`}>
@@ -260,7 +304,7 @@ function PriceRow({ label, value, sub, bold }) {
 }
 
 // ─── main page ───────────────────────────────────────────────────────────────
-
+const BAGGAGE_FEE_PER_BAG = 50.0;
 export default function BookingReview() {
     const { state } = useLocation();
     const navigate = useNavigate();
@@ -268,6 +312,8 @@ export default function BookingReview() {
     const selectedItinerary = state?.selectedItinerary;
     const searchParams      = state?.searchParams;
     const passengers        = state?.passengers ?? [];
+
+    const [baggageCount, setBaggageCount] = useState(0)
 
     // Guard: if state is missing, send user back
     useEffect(() => {
@@ -280,8 +326,12 @@ export default function BookingReview() {
 
     const pricing = usePriceBreakdown(selectedItinerary, searchParams);
     const returnPricing = usePriceBreakdown(returnItinerary, searchParams);
-    const combinedTotal = pricing.total + (returnItinerary ? returnPricing.total : 0);
 
+    const baggageTotal = baggageCount * BAGGAGE_FEE_PER_BAG;
+    const combinedTotal = pricing.total + (returnItinerary ? returnPricing.total : 0) + baggageTotal;
+
+    const handleAddBag = () => setBaggageCount(prev => prev + 1);
+    const handleRemoveBag = () => setBaggageCount(prev => Math.max(0, prev - 1));
     // Group passengers by type for labelling
     const passengersWithIndex = useMemo(() => {
         const counters = {};
@@ -330,8 +380,6 @@ export default function BookingReview() {
                         {selectedItinerary.type === "connecting"
                                 ? "Connecting"
                                 : "Direct"}
-                        
-                        
                     </SectionTitle>
 
                     <div className="space-y-0">
@@ -398,6 +446,13 @@ export default function BookingReview() {
                         ))}
                     </div>
                 </Card>
+
+                <BaggageSection 
+                    count={baggageCount} 
+                    onAdd={handleAddBag} 
+                    onRemove={handleRemoveBag} 
+                    fee={BAGGAGE_FEE_PER_BAG} 
+                />
 
                 {/* ── Price breakdown ── */}
                 <Card className="p-5">

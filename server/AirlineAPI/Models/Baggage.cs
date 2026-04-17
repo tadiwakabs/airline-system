@@ -15,14 +15,6 @@ namespace AirlineAPI.Models
         [ForeignKey("baggageId")]
         public Passenger? Passengers { get; set; }
 
-        [Required]
-        [Range(0, int.MaxValue)]
-        public int baggageCount { get; set; }
-
-        [Required]
-        [Range(0, double.MaxValue)]
-        public double baggageFare { get; set; }
-
         public bool additionalBaggage { get; set; } = false;
 
         [Range(0, double.MaxValue)]
