@@ -50,15 +50,14 @@ namespace AirlineAPI.Controllers
             if (!bookingExists)
                 return BadRequest(new { message = "Invalid bookingId" });
 
-            newPayment.paymentStatus = PaymentStatus.Sucess;
+            newPayment.paymentStatus = PaymentStatus.Success;
 
             _context.Payments.Add(newPayment);
             await _context.SaveChangesAsync();
 
             return Ok(newPayment);
         }
-
-        [Authorize]
+        
         [HttpPut("{id}/complete")]
         public async Task<IActionResult> CompletePayment(int id, [FromBody] CompletePaymentRequest dto)
         {
@@ -68,7 +67,7 @@ namespace AirlineAPI.Controllers
                 return NotFound(new { message = "Payment not found" });
 
             payment.paymentMethod = dto.PaymentMethod;
-            payment.paymentStatus = PaymentStatus.Sucess;
+            payment.paymentStatus = PaymentStatus.Success;
 
             var ticket = await _context.Ticket
                 .FirstOrDefaultAsync(t => t.bookingId == payment.bookingId);

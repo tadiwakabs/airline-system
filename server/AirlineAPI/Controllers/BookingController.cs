@@ -60,7 +60,7 @@ namespace AirlineAPI.Controllers
                     bookingPrice  = (double)request.TotalPrice,
                     totalPrice    = (double)request.TotalPrice,
                     paymentMethod = request.PaymentMethod,
-                    paymentStatus = PaymentStatus.Sucess
+                    paymentStatus = PaymentStatus.Success
                 };
                 _context.Payments.Add(payment);
                 await _context.SaveChangesAsync();
@@ -80,6 +80,13 @@ namespace AirlineAPI.Controllers
 
                     if (seat.seatStatus == SeatStatus.Occupied)
                         return BadRequest($"Seat {t.SeatNumber} on flight {t.FlightNum} is already occupied.");
+                    
+                    if (seat.seatStatus == SeatStatus.Occupied)
+                        return BadRequest($"Seat {t.SeatNumber} on flight {t.FlightNum} is already occupied.");
+
+                    // Allow Reserved seats only if held for this passenger
+                    if (seat.seatStatus == SeatStatus.Reserved && seat.passengerId != t.PassengerId)
+                        return BadRequest($"Seat {t.SeatNumber} on flight {t.FlightNum} is currently reserved by another passenger.");
 
                     // Generate a deterministic, readable ticket code
                     var shortBooking = booking.bookingId.Replace("-", "")[..8].ToUpper();
@@ -243,39 +250,45 @@ namespace AirlineAPI.Controllers
             var booking = await _context.Bookings.FindAsync(id);
             if (booking == null) return NotFound("Booking not found");
 
-
             var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (booking.userId != currentUserId && !User.IsInRole("Admin")) return Forbid();
 
-            
-            var ticket = await _context.Ticket
+            var tickets = await _context.Ticket
                 .Include(t => t.Flight)
-                .FirstOrDefaultAsync(t => t.bookingId == booking.bookingId);
+                .Where(t => t.bookingId == booking.bookingId)
+                .ToListAsync();
 
-            if (ticket == null || ticket.Flight == null) 
-                return BadRequest("Flight information not found for this booking.");
+            if (!tickets.Any())
+                return BadRequest("No tickets found for this booking.");
 
-        
-            if (ticket.Flight.departTime <= DateTime.UtcNow)
+            if (tickets.Any(t => t.Flight == null))
+                return BadRequest("Flight information not found for one or more tickets.");
+
+            if (tickets.Any(t => t.Flight!.departTime <= DateTime.UtcNow))
             {
                 return BadRequest("Cannot cancel a flight that has already departed or is currently in the air.");
             }
 
-            var seat = await _context.Seating
-                .FirstOrDefaultAsync(s => s.flightNum == ticket.flightCode && s.seatNumber == ticket.seatNumber);
-            
-            if (seat != null)
+            foreach (var ticket in tickets)
             {
-                seat.seatStatus = SeatStatus.Available;
+                var seat = await _context.Seating
+                    .FirstOrDefaultAsync(s => s.flightNum == ticket.flightCode && s.seatNumber == ticket.seatNumber);
+
+                if (seat != null)
+                {
+                    seat.seatStatus = SeatStatus.Available;
+                    seat.passengerId = null;
+                    seat.holdExpiresAt = null;
+                }
             }
 
+            _context.Ticket.RemoveRange(tickets);
+
             booking.bookingStatus = BookingStatus.Cancelled;
-            ticket.status = TicketStatus.Cancelled;
 
             await _context.SaveChangesAsync();
 
-            return Ok("Booking successfully cancelled. Your seat has been released.");
-        
+            return Ok("Booking successfully cancelled. Tickets deleted and seats released.");
         }
 
     }   

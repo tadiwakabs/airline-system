@@ -200,15 +200,41 @@ export default function BookingPayment() {
 
             // Standby payment path: complete existing pending payment
             if (isStandbyPayment) {
-                const res = await completePendingPayment(
-                    standbyBooking.transactionId,
-                    cardType || "Card"
-                );
+                const resolvedUserId = user?.UserId || user?.userId || null;
 
-                navigate("/profile", {
-                    state: { defaultTab: "standby" },
+                const bookingPayload = {
+                    userId: resolvedUserId,
+                    totalPrice: Number(standbyBooking.totalPrice ?? 0),
+                    cabinClass: "economy",           // standby is always economy
+                    paymentMethod: cardType || "Card",
+                    tickets: [
+                        {
+                            flightNum: standbyBooking.flightNum,
+                            passengerId: standbyBooking.passengerId,
+                            seatNumber: standbyBooking.seatNumber,
+                            price: Number(standbyBooking.totalPrice ?? 0),
+                            origin: standbyBooking.origin,
+                            destination: standbyBooking.destination,
+                            boardingTime: standbyBooking.boardingTime ?? "",
+                        },
+                    ],
+                };
+
+                const res = await createBooking(bookingPayload);
+                const confirmation = res.data;
+
+                navigate("/booking/confirmation", {
+                    state: {
+                        transactionId: confirmation.transactionId,
+                        bookingId: confirmation.bookingId,
+                        tickets: confirmation.tickets,
+                        passengerName,
+                        flightDetails,
+                        totalPrice,
+                        cardType,
+                        lastFour: form.cardNumber.replace(/\s/g, "").slice(-4),
+                    },
                 });
-
                 return;
             }
 

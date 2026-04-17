@@ -180,26 +180,29 @@ export default function Profile() {
     };
 
     const handleAcceptStandbyOffer = async (standbyId) => {
-    try {
-        setError("");
-        setNotificationMessage("");
+        try {
+            setError("");
+            setNotificationMessage("");
 
-        const response = await acceptStandbyOffer(standbyId);
+            const response = await acceptStandbyOffer(standbyId);
 
-        navigate("/booking/review", {
-            state: {
-                standbyBooking: response,
-            },
-        });
-    } catch (err) {
-        setError(
-            err?.response?.data?.error ||
-            err?.response?.data?.innerError ||
-            err?.response?.data?.message ||
-            "Failed to accept standby offer."
-        );
-    }
-};
+            navigate("/booking/payment", {
+                state: {
+                    standbyBooking: {
+                        ...response,
+                        isStandby: true,
+                    },
+                },
+            });
+        } catch (err) {
+            setError(
+                err?.response?.data?.error ||
+                err?.response?.data?.innerError ||
+                err?.response?.data?.message ||
+                "Failed to accept standby offer."
+            );
+        }
+    };
 
     const handleRejectStandbyOffer = async (standbyId) => {
     try {
