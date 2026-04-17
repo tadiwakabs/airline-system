@@ -85,77 +85,72 @@ namespace AirlineAPI.Controllers
         [HttpPut("{id}/accept")]
 public async Task<IActionResult> AcceptStandbyOffer(int id)
 {
-    try
+    var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+    if (string.IsNullOrEmpty(currentUserId))
+        return Unauthorized("User not authenticated.");
+
+    var passenger = await _context.Passenger
+        .FirstOrDefaultAsync(p => p.UserId == currentUserId);
+
+    if (passenger == null)
+        return NotFound("Passenger record not found.");
+
+    var standby = await _context.Standby
+        .FirstOrDefaultAsync(s => s.standbyId == id);
+
+    if (standby == null)
+        return NotFound(new { message = "Standby request not found." });
+
+    if (standby.passengerId != passenger.PassengerId)
+        return Forbid();
+
+    if (standby.standbyStatus != "Offered")
+        return BadRequest(new { message = "This standby offer is not available to accept." });
+
+    if (standby.offerExpiresAt != null && standby.offerExpiresAt < DateTime.UtcNow)
+        return BadRequest(new { message = "Standby offer expired." });
+
+    var flight = await _context.Flights
+        .FirstOrDefaultAsync(f => f.flightNum == standby.flightNum);
+
+    if (flight == null)
+        return NotFound(new { message = "Flight not found." });
+
+    var seat = await _context.Seating
+        .FirstOrDefaultAsync(se =>
+            se.flightNum == standby.flightNum &&
+            se.seatStatus == SeatStatus.Available);
+
+    if (seat == null)
+        return NotFound(new { message = "No available seat found for this standby offer." });
+
+    seat.seatStatus = SeatStatus.Reserved;
+    seat.passengerId = standby.passengerId;
+    seat.holdExpiresAt = DateTime.UtcNow.AddMinutes(30);
+
+    standby.standbyStatus = "Accepted";
+    standby.offerExpiresAt = null;
+
+    await _context.SaveChangesAsync();
+    var standbyPrice = _context.FlightPricing
+    .Where(fp => fp.FlightNum == standby.flightNum && fp.CabinClass == CabinClass.Economy)
+    .Select(fp => fp.Price)
+    .FirstOrDefault();
+
+    if (standbyPrice <= 0)
+    standbyPrice = 100m;
+
+    return Ok(new
     {
-        var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-        if (string.IsNullOrEmpty(currentUserId))
-            return Unauthorized("User not authenticated.");
-
-        var passenger = await _context.Passenger
-            .FirstOrDefaultAsync(p => p.UserId == currentUserId);
-
-        if (passenger == null)
-            return NotFound("Passenger record not found.");
-
-        var standby = await _context.Standby
-            .FirstOrDefaultAsync(s => s.standbyId == id);
-
-        if (standby == null)
-            return NotFound(new { message = "Standby request not found." });
-
-        if (standby.passengerId != passenger.PassengerId)
-            return Forbid();
-
-        if (standby.standbyStatus != "Offered")
-            return BadRequest(new { message = "This standby offer is not available to accept." });
-
-        if (standby.offerExpiresAt != null && standby.offerExpiresAt < DateTime.UtcNow)
-            return BadRequest(new { message = "Standby offer expired." });
-
-        var ticket = await _context.Ticket
-            .FirstOrDefaultAsync(t =>
-                t.passengerId == standby.passengerId &&
-                t.flightCode == standby.flightNum &&
-                t.status == TicketStatus.Pending);
-
-        if (ticket == null)
-            return NotFound(new { message = "Pending ticket not found for this standby request." });
-
-        var payment = await _context.Payments
-            .FirstOrDefaultAsync(p => p.bookingId == ticket.bookingId);
-
-        if (payment == null)
-            return NotFound(new { message = "Pending payment not found for this standby request." });
-
-        standby.standbyStatus = "Accepted";
-        standby.offerExpiresAt = null;
-
-        // DO NOT mark ticket booked yet
-        // ticket.status = TicketStatus.Booked;   <-- remove this
-
-        await _context.SaveChangesAsync();
-
-        return Ok(new
-        {
-            message = "Standby offer accepted. Proceed to payment.",
-            standbyId = standby.standbyId,
-            transactionId = payment.transactionId,
-            bookingId = ticket.bookingId,
-            flightNum = ticket.flightCode,
-            seatNumber = ticket.seatNumber,
-            totalPrice = payment.totalPrice
-        });
-    }
-    catch (Exception ex)
-    {
-        return StatusCode(500, new
-        {
-            message = "Failed to accept standby offer.",
-            error = ex.Message,
-            innerError = ex.InnerException?.Message
-        });
-    }
+        message = "Standby offer accepted. Continue booking.",
+        flightNum = standby.flightNum,
+        seatNumber = seat.seatNumber,
+        passengerId = standby.passengerId,
+        origin = flight.departingPort,
+        destination = flight.arrivingPort,
+        totalPrice = standbyPrice
+    });
 }
 
         [HttpPut("{id}/reject")]

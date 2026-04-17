@@ -186,13 +186,18 @@ export default function Profile() {
 
         const response = await acceptStandbyOffer(standbyId);
 
-        navigate("/booking/payment", {
+        navigate("/booking/review", {
             state: {
                 standbyBooking: response,
             },
         });
     } catch (err) {
-        setError(err?.response?.data?.message || "Failed to accept standby offer.");
+        setError(
+            err?.response?.data?.error ||
+            err?.response?.data?.innerError ||
+            err?.response?.data?.message ||
+            "Failed to accept standby offer."
+        );
     }
 };
 

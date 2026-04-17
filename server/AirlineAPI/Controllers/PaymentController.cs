@@ -11,12 +11,12 @@ namespace AirlineAPI.Controllers
     public class PaymentController : ControllerBase
     {
         private readonly AppDbContext _context;
+
         public PaymentController(AppDbContext context)
         {
             _context = context;
         }
 
-        // GET: api/payment
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Payment>>> GetAllPayments()
         {
@@ -24,7 +24,6 @@ namespace AirlineAPI.Controllers
             return Ok(payments);
         }
 
-        // GET: api/payment/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Payment>> GetPaymentById(int id)
         {
@@ -36,13 +35,12 @@ namespace AirlineAPI.Controllers
             return Ok(payment);
         }
 
-        // POST: api/payment
         [HttpPost]
         public async Task<IActionResult> CreatePayment([FromBody] Payment newPayment)
         {
             if (newPayment == null)
                 return BadRequest("Payment data is missing");
-            
+
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
@@ -59,43 +57,44 @@ namespace AirlineAPI.Controllers
 
             return Ok(newPayment);
         }
+
         [Authorize]
-[Authorize]
-[HttpPut("{id}/complete")]
-public async Task<IActionResult> CompletePayment(int id, [FromBody] CompletePaymentRequest dto)
-{
-    var payment = await _context.Payments.FindAsync(id);
+        [HttpPut("{id}/complete")]
+        public async Task<IActionResult> CompletePayment(int id, [FromBody] CompletePaymentRequest dto)
+        {
+            var payment = await _context.Payments.FindAsync(id);
 
-    if (payment == null)
-        return NotFound(new { message = "Payment not found" });
+            if (payment == null)
+                return NotFound(new { message = "Payment not found" });
 
-    payment.paymentMethod = dto.PaymentMethod;
-    payment.paymentStatus = PaymentStatus.Sucess;
+            payment.paymentMethod = dto.PaymentMethod;
+            payment.paymentStatus = PaymentStatus.Sucess;
 
-    var ticket = await _context.Ticket
-        .FirstOrDefaultAsync(t => t.bookingId == payment.bookingId);
+            var ticket = await _context.Ticket
+                .FirstOrDefaultAsync(t => t.bookingId == payment.bookingId);
 
-    if (ticket != null)
-        ticket.status = TicketStatus.Booked;
+            if (ticket != null)
+                ticket.status = TicketStatus.Booked;
 
-    var booking = await _context.Bookings
-        .FirstOrDefaultAsync(b => b.bookingId == payment.bookingId);
+            var booking = await _context.Bookings
+                .FirstOrDefaultAsync(b => b.bookingId == payment.bookingId);
 
-    if (booking != null)
-        booking.bookingStatus = BookingStatus.Confirmed;
+            if (booking != null)
+                booking.bookingStatus = BookingStatus.Confirmed;
 
-    await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync();
 
-    return Ok(new
-    {
-        message = "Payment completed successfully.",
-        bookingId = payment.bookingId,
-        transactionId = payment.transactionId
-    });
-}
+            return Ok(new
+            {
+                message = "Payment completed successfully.",
+                bookingId = payment.bookingId,
+                transactionId = payment.transactionId
+            });
+        }
     }
+
     public class CompletePaymentRequest
-{
-    public string PaymentMethod { get; set; } = "";
-}
+    {
+        public string PaymentMethod { get; set; } = "";
+    }
 }

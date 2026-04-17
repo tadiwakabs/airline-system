@@ -3,8 +3,6 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Card from "../../components/common/Card.jsx";
 import Button from "../../components/common/Button.jsx";
 
-// ─── helpers ────────────────────────────────────────────────────────────────
-
 function capitalize(value) {
     if (!value) return "";
     if (value === "first") return "First Class";
@@ -32,43 +30,29 @@ function formatCurrency(amount) {
     return new Intl.NumberFormat("en-US", {
         style: "currency",
         currency: "USD",
-    }).format(amount);
+    }).format(amount ?? 0);
 }
-
 
 function buildPassengerLabel(type, indexWithinType) {
     return `${type} ${indexWithinType + 1}`;
 }
 
-// ─── price calculation ───────────────────────────────────────────────────────
-// Rates mirror the backend constants in FlightsController.cs:
-//   ChildMultiplier  = 0.8
-//   InfantMultiplier = 0.1
-// The backend already computes these in BuildQuote and returns them as
-// selectedItinerary.quote[cabinClass].{ perAdult, perChild, perInfant, total }
-// We use those values directly so the review page always matches what the
-// backend calculated — no risk of drift if the multipliers ever change.
-
 function usePriceBreakdown(selectedItinerary, searchParams) {
     return useMemo(() => {
         const cabinClass = searchParams?.cabinClass ?? "economy";
         const { adults = 0, children = 0, infants = 0 } =
-        searchParams?.passengers ?? {};
+            searchParams?.passengers ?? {};
 
-        // quote is shaped as: { economy, business, first }
-        // each cabin object: { perAdult, perChild, perInfant, total }
         const fareBreakdown = selectedItinerary?.quote?.[cabinClass] ?? {};
 
-        const perAdult  = fareBreakdown.perAdult  ?? 0;
-        const perChild  = fareBreakdown.perChild  ?? 0;
+        const perAdult = fareBreakdown.perAdult ?? 0;
+        const perChild = fareBreakdown.perChild ?? 0;
         const perInfant = fareBreakdown.perInfant ?? 0;
 
-        const adultFare  = perAdult  * adults;
-        const childFare  = perChild  * children;
+        const adultFare = perAdult * adults;
+        const childFare = perChild * children;
         const infantFare = perInfant * infants;
 
-        // Use the backend's pre-calculated total as the source of truth.
-        // It equals adultFare + childFare + infantFare already rounded.
         const total = fareBreakdown.total ?? (adultFare + childFare + infantFare);
 
         return {
@@ -86,8 +70,6 @@ function usePriceBreakdown(selectedItinerary, searchParams) {
         };
     }, [selectedItinerary, searchParams]);
 }
-
-// ─── sub-components ──────────────────────────────────────────────────────────
 
 function SectionTitle({ children }) {
     return (
@@ -110,13 +92,11 @@ function Divider() {
     return <hr className="border-gray-100 my-4" />;
 }
 
-function FlightSegment({ flight, index }) {
+function FlightSegment({ flight }) {
     return (
         <div className="flex items-start gap-4">
-            {/* step indicator */}
             <div className="flex flex-col items-center pt-1">
                 <div className="w-2.5 h-2.5 rounded-full bg-blue-500 ring-2 ring-blue-100" />
-                {/* connector line — only shown between segments, handled by parent */}
             </div>
 
             <div className="flex-1 pb-4">
@@ -194,12 +174,8 @@ function PassengerCard({ passenger, indexWithinType, isDomestic }) {
                 />
                 <LabelValue label="Date of Birth" value={formatDate(passenger.dateOfBirth)} />
                 <LabelValue label="Gender" value={capitalize(passenger.gender)} />
-                {passenger.email && (
-                    <LabelValue label="Email" value={passenger.email} />
-                )}
-                {passenger.phoneNumber && (
-                    <LabelValue label="Phone" value={passenger.phoneNumber} />
-                )}
+                {passenger.email && <LabelValue label="Email" value={passenger.email} />}
+                {passenger.phoneNumber && <LabelValue label="Phone" value={passenger.phoneNumber} />}
             </div>
 
             {hasPassport && (
@@ -248,9 +224,7 @@ function PriceRow({ label, value, sub, bold }) {
                 <span className={`${bold ? "text-gray-900" : "text-gray-600"} text-sm`}>
                     {label}
                 </span>
-                {sub && (
-                    <span className="ml-1.5 text-xs text-gray-400">{sub}</span>
-                )}
+                {sub && <span className="ml-1.5 text-xs text-gray-400">{sub}</span>}
             </div>
             <span className={`text-sm ${bold ? "text-gray-900 text-base" : "text-gray-700"}`}>
                 {value}
@@ -259,30 +233,28 @@ function PriceRow({ label, value, sub, bold }) {
     );
 }
 
-// ─── main page ───────────────────────────────────────────────────────────────
-
 export default function BookingReview() {
     const { state } = useLocation();
     const navigate = useNavigate();
 
-    const selectedItinerary = state?.selectedItinerary;
-    const searchParams      = state?.searchParams;
-    const passengers        = state?.passengers ?? [];
+    const standbyBooking = state?.standbyBooking ?? null;
+    const isStandbyBooking = !!standbyBooking;
 
-    // Guard: if state is missing, send user back
+    const selectedItinerary = state?.selectedItinerary;
+    const searchParams = state?.searchParams;
+    const passengers = state?.passengers ?? [];
+    const returnItinerary = state?.returnItinerary ?? null;
+
     useEffect(() => {
-        if (!selectedItinerary || !searchParams || !passengers.length) {
+        if (!isStandbyBooking && (!selectedItinerary || !searchParams || !passengers.length)) {
             navigate("/flight-search");
         }
-    }, [selectedItinerary, searchParams, passengers, navigate]);
-
-    const returnItinerary = state?.returnItinerary ?? null;
+    }, [isStandbyBooking, selectedItinerary, searchParams, passengers, navigate]);
 
     const pricing = usePriceBreakdown(selectedItinerary, searchParams);
     const returnPricing = usePriceBreakdown(returnItinerary, searchParams);
     const combinedTotal = pricing.total + (returnItinerary ? returnPricing.total : 0);
 
-    // Group passengers by type for labelling
     const passengersWithIndex = useMemo(() => {
         const counters = {};
         return passengers.map((p) => {
@@ -298,12 +270,28 @@ export default function BookingReview() {
         selectedItinerary?.flights?.every((f) => f.isDomestic) ?? true;
 
     const handleBack = () => {
+        if (isStandbyBooking) {
+            navigate("/profile", {
+                state: { defaultTab: "standby" },
+            });
+            return;
+        }
+
         navigate("/booking/passengers", {
             state: { selectedItinerary, searchParams, passengers },
         });
     };
 
     const handleConfirm = () => {
+        if (isStandbyBooking) {
+            navigate("/booking/payment", {
+                state: {
+                    standbyBooking,
+                },
+            });
+            return;
+        }
+
         navigate("/booking/seat-selection", {
             state: {
                 selectedItinerary,
@@ -315,6 +303,60 @@ export default function BookingReview() {
         });
     };
 
+    if (isStandbyBooking) {
+        return (
+            <div className="min-h-screen bg-gray-50">
+                <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+                    <h1 className="text-2xl font-semibold text-gray-900">Review Your Booking</h1>
+
+                    <Card className="p-5">
+                        <SectionTitle>Standby Flight</SectionTitle>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            <LabelValue label="Flight" value={standbyBooking.flightNum} />
+                            <LabelValue label="Seat" value={standbyBooking.seatNumber} />
+                            <LabelValue label="From" value={standbyBooking.origin} />
+                            <LabelValue label="To" value={standbyBooking.destination} />
+                        </div>
+                    </Card>
+
+                    <Card className="p-5">
+                        <SectionTitle>Passenger</SectionTitle>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                            <LabelValue label="Passenger ID" value={standbyBooking.passengerId} />
+                            <LabelValue label="Status" value="Standby Accepted" />
+                            <LabelValue label="Seat Hold" value="Reserved" />
+                        </div>
+                    </Card>
+
+                    <Card className="p-5">
+                        <SectionTitle>Price Breakdown</SectionTitle>
+                        <div className="space-y-2.5">
+                            <PriceRow
+                                label="Standby Fare"
+                                value={formatCurrency(Number(standbyBooking.totalPrice ?? 0))}
+                            />
+                            <Divider />
+                            <PriceRow
+                                label="Total"
+                                value={formatCurrency(Number(standbyBooking.totalPrice ?? 0))}
+                                bold
+                            />
+                        </div>
+                    </Card>
+
+                    <div className="flex justify-between items-center">
+                        <Button variant="outline" onClick={handleBack}>
+                            Back
+                        </Button>
+                        <Button onClick={handleConfirm}>
+                            Continue to Payment
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     if (!selectedItinerary || !searchParams) return null;
 
     const flights = selectedItinerary.flights ?? [];
@@ -324,24 +366,19 @@ export default function BookingReview() {
             <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
                 <h1 className="text-2xl font-semibold text-gray-900">Review Your Booking</h1>
 
-                {/* ── Flight summary ── */}
                 <Card className="p-5">
                     <SectionTitle>
-                        {selectedItinerary.type === "connecting"
-                                ? "Connecting"
-                                : "Direct"}
-                        
-                        
+                        {selectedItinerary.type === "connecting" ? "Connecting" : "Direct"}
                     </SectionTitle>
 
                     <div className="space-y-0">
                         {flights.map((flight, i) => (
                             <div key={i} className="relative">
-                                <FlightSegment flight={flight} index={i} />
-                                {/* connector line between segments */}
+                                <FlightSegment flight={flight} />
                                 {i < flights.length - 1 && (
-                                    <div className="absolute left-1 top-5.5 w-px bg-gray-200"
-                                         style={{ height: "calc(100% - 10px)" }}
+                                    <div
+                                        className="absolute left-1 top-5.5 w-px bg-gray-200"
+                                        style={{ height: "calc(100% - 10px)" }}
                                     />
                                 )}
                             </div>
@@ -363,10 +400,12 @@ export default function BookingReview() {
                         <div className="space-y-0">
                             {returnItinerary.flights.map((flight, i) => (
                                 <div key={i} className="relative">
-                                    <FlightSegment flight={flight} index={i} />
+                                    <FlightSegment flight={flight} />
                                     {i < returnItinerary.flights.length - 1 && (
-                                        <div className="absolute left-1 top-5.5 w-px bg-gray-200"
-                                             style={{ height: "calc(100% - 10px)" }} />
+                                        <div
+                                            className="absolute left-1 top-5.5 w-px bg-gray-200"
+                                            style={{ height: "calc(100% - 10px)" }}
+                                        />
                                     )}
                                 </div>
                             ))}
@@ -375,16 +414,12 @@ export default function BookingReview() {
                             <LabelValue label="Cabin" value={capitalize(searchParams.cabinClass)} />
                             <LabelValue label="Trip Type" value={capitalize(searchParams.flightType)} />
                             {searchParams.flightType === "return" && searchParams.dateReturn && (
-                                <LabelValue
-                                    label="Date"
-                                    value={formatDate(searchParams.dateReturn)}
-                                />
+                                <LabelValue label="Date" value={formatDate(searchParams.dateReturn)} />
                             )}
                         </div>
                     </Card>
                 )}
 
-                {/* ── Passengers ── */}
                 <Card className="p-5">
                     <SectionTitle>Passengers</SectionTitle>
                     <div className="space-y-3">
@@ -399,22 +434,61 @@ export default function BookingReview() {
                     </div>
                 </Card>
 
-                {/* ── Price breakdown ── */}
                 <Card className="p-5">
                     <SectionTitle>Price Breakdown</SectionTitle>
                     <div className="space-y-2.5">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Outbound</p>
-                        {pricing.adults   > 0 && <PriceRow label={`Adults × ${pricing.adults}`}     sub={`${formatCurrency(pricing.perAdult)} each`}          value={formatCurrency(pricing.adultFare)} />}
-                        {pricing.children > 0 && <PriceRow label={`Children × ${pricing.children}`} sub={`${formatCurrency(pricing.perChild)} each (80%)`}    value={formatCurrency(pricing.childFare)} />}
-                        {pricing.infants  > 0 && <PriceRow label={`Infants × ${pricing.infants}`}   sub={`${formatCurrency(pricing.perInfant)} each (10%)`}   value={formatCurrency(pricing.infantFare)} />}
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                            Outbound
+                        </p>
+                        {pricing.adults > 0 && (
+                            <PriceRow
+                                label={`Adults × ${pricing.adults}`}
+                                sub={`${formatCurrency(pricing.perAdult)} each`}
+                                value={formatCurrency(pricing.adultFare)}
+                            />
+                        )}
+                        {pricing.children > 0 && (
+                            <PriceRow
+                                label={`Children × ${pricing.children}`}
+                                sub={`${formatCurrency(pricing.perChild)} each (80%)`}
+                                value={formatCurrency(pricing.childFare)}
+                            />
+                        )}
+                        {pricing.infants > 0 && (
+                            <PriceRow
+                                label={`Infants × ${pricing.infants}`}
+                                sub={`${formatCurrency(pricing.perInfant)} each (10%)`}
+                                value={formatCurrency(pricing.infantFare)}
+                            />
+                        )}
 
                         {returnItinerary && (
                             <>
                                 <Divider />
-                                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Return</p>
-                                {returnPricing.adults   > 0 && <PriceRow label={`Adults × ${returnPricing.adults}`}     sub={`${formatCurrency(returnPricing.perAdult)} each`}        value={formatCurrency(returnPricing.adultFare)} />}
-                                {returnPricing.children > 0 && <PriceRow label={`Children × ${returnPricing.children}`} sub={`${formatCurrency(returnPricing.perChild)} each (80%)`}  value={formatCurrency(returnPricing.childFare)} />}
-                                {returnPricing.infants  > 0 && <PriceRow label={`Infants × ${returnPricing.infants}`}   sub={`${formatCurrency(returnPricing.perInfant)} each (10%)`} value={formatCurrency(returnPricing.infantFare)} />}
+                                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                                    Return
+                                </p>
+                                {returnPricing.adults > 0 && (
+                                    <PriceRow
+                                        label={`Adults × ${returnPricing.adults}`}
+                                        sub={`${formatCurrency(returnPricing.perAdult)} each`}
+                                        value={formatCurrency(returnPricing.adultFare)}
+                                    />
+                                )}
+                                {returnPricing.children > 0 && (
+                                    <PriceRow
+                                        label={`Children × ${returnPricing.children}`}
+                                        sub={`${formatCurrency(returnPricing.perChild)} each (80%)`}
+                                        value={formatCurrency(returnPricing.childFare)}
+                                    />
+                                )}
+                                {returnPricing.infants > 0 && (
+                                    <PriceRow
+                                        label={`Infants × ${returnPricing.infants}`}
+                                        sub={`${formatCurrency(returnPricing.perInfant)} each (10%)`}
+                                        value={formatCurrency(returnPricing.infantFare)}
+                                    />
+                                )}
                             </>
                         )}
 
@@ -423,7 +497,6 @@ export default function BookingReview() {
                     </div>
                 </Card>
 
-                {/* ── Actions ── */}
                 <div className="flex justify-between items-center">
                     <Button variant="outline" onClick={handleBack}>
                         Back
