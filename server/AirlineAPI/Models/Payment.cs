@@ -6,7 +6,7 @@ namespace AirlineAPI.Models
     public enum PaymentStatus
     {
         Pending,
-        Sucess,
+        Success,
         Failed,
         Cancelled,
         Refunded

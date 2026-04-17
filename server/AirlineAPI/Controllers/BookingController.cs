@@ -60,7 +60,7 @@ namespace AirlineAPI.Controllers
                     bookingPrice  = (double)request.TotalPrice,
                     totalPrice    = (double)request.TotalPrice,
                     paymentMethod = request.PaymentMethod,
-                    paymentStatus = PaymentStatus.Sucess
+                    paymentStatus = PaymentStatus.Success
                 };
                 _context.Payments.Add(payment);
                 await _context.SaveChangesAsync();

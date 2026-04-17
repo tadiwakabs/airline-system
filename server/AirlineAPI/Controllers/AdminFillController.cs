@@ -200,7 +200,7 @@ namespace AirlineAPI.Controllers
                         bookingPrice = (double)pricing.Price,
                         totalPrice = (double)pricing.Price,
                         paymentMethod = "Internal Fill",
-                        paymentStatus = PaymentStatus.Sucess
+                        paymentStatus = PaymentStatus.Success
                     };
 
                     _context.Payments.Add(payment);
