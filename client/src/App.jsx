@@ -34,7 +34,8 @@ import Admin from './pages/admin/AdminDashboard.jsx';
 import Employee from './pages/employee/EmployeeDashboard.jsx';
 import Reports from './pages/admin/Reports'
 
-
+// Other
+import FlightAutoFill from "./pages/admin/FlightAutoFill";
 
 function App() {
     return (
@@ -151,6 +152,15 @@ function App() {
                             <Reports />
                         </RoleProtectedRoute>} />
 
+
+                    <Route
+                        path="/internal/flight-auto-fill"
+                        element={
+                            <RoleProtectedRoute allowedRoles={["Administrator"]}>
+                                <FlightAutoFill />
+                            </RoleProtectedRoute>
+                        }
+                    />
                 </Routes>
             </AppLayout>
         </AuthProvider>

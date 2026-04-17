@@ -7,8 +7,7 @@ import FlightSearchPanel from "../components/home/FlightSearchPanel.jsx";
 import Hero from "../components/home/HeroSection.jsx";
 import FeaturedFlights from "../components/home/FeaturedFlights.jsx";
 import Card from "../components/common/Card.jsx";
-import { getFlightById } from "../services/flightService";
-import { getFlightsByBooking } from "../services/bookingService";
+import { getStatusByBooking } from "../services/bookingService";
 
 function getStatusBadgeClass(status) {
     switch ((status || "").toLowerCase()) {
@@ -29,8 +28,18 @@ function getStatusBadgeClass(status) {
 
 function formatDateTime(value) {
     if (!value) return "—";
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return value;
+
+    const raw = String(value).trim();
+    const [datePart, timePart = ""] = raw.split("T");
+    if (!datePart) return value;
+
+    const [year, month, day] = datePart.split("-").map(Number);
+    const [hour = 0, minute = 0] = timePart.split(":").map(Number);
+
+    if (!year || !month || !day) return value;
+
+    const d = new Date(year, month - 1, day, hour, minute);
+
     return d.toLocaleString([], {
         month: "short",
         day: "numeric",
@@ -38,6 +47,34 @@ function formatDateTime(value) {
         hour: "numeric",
         minute: "2-digit",
     });
+}
+
+function parseLocalDateTime(value) {
+    if (!value) return null;
+
+    const raw = String(value).trim();
+    const [datePart, timePart = ""] = raw.split("T");
+    if (!datePart) return null;
+
+    const [year, month, day] = datePart.split("-").map(Number);
+    const [hour = 0, minute = 0] = timePart.split(":").map(Number);
+
+    if (!year || !month || !day) return null;
+
+    return new Date(year, month - 1, day, hour, minute);
+}
+
+function arrivesNextDay(departValue, arrivalValue) {
+    const depart = parseLocalDateTime(departValue);
+    const arrival = parseLocalDateTime(arrivalValue);
+
+    if (!depart || !arrival) return false;
+
+    return (
+        arrival.getFullYear() > depart.getFullYear() ||
+        arrival.getMonth() > depart.getMonth() ||
+        arrival.getDate() > depart.getDate()
+    );
 }
 
 function getAirportCode(flight, type) {
@@ -85,29 +122,13 @@ export default function Home() {
                 return;
             }
 
-            // Booking IDs are GUIDs, flight nums are numeric
-            const isBookingId = input.includes("-") || isNaN(Number(input));
+            const res = await getStatusByBooking(input);
+            const data = res.data;
 
-            if (isBookingId) {
-                const res = await getFlightsByBooking(input);
-                const flights = res.data;
-                if (!flights?.length) {
-                    setStatusError("No flights found for that booking.");
-                    return;
-                }
-                setStatusResult({ bookingFlights: flights });
+            if (Array.isArray(data)) {
+                setStatusResult({ bookingFlights: data });
             } else {
-                const res = await getFlightById(input);
-                const flight = res.data;
-                setStatusResult({
-                    flightNum: flight.flightNum,
-                    status: flight.status,
-                    departingPort: getAirportCode(flight, "depart"),
-                    arrivingPort: getAirportCode(flight, "arrive"),
-                    departTime: flight.departTime,
-                    arrivalTime: flight.arrivalTime,
-                    aircraftUsed: flight.aircraftUsed,
-                });
+                setStatusResult(data);
             }
         } catch (err) {
             console.error("Error checking status:", err);
@@ -129,7 +150,7 @@ export default function Home() {
                         <FlightSearchPanel onSearch={handleSearch} />
                     ) : (
                         <>
-                            <FlightStatusPanel onCheck={handleStatusCheck} />
+                            <FlightStatusPanel onCheck={handleStatusCheck} result={statusResult} />
 
                             {statusLoading && (
                                 <Card className="p-5">
@@ -155,6 +176,9 @@ export default function Home() {
                                             </h3>
                                             <p className="mt-1 text-sm text-gray-600">
                                                 {statusResult.departingPort} → {statusResult.arrivingPort}
+                                            </p>
+                                            <p className="text-xs text-gray-500">
+                                                {statusResult.departingCity || "—"} → {statusResult.arrivingCity || "—"}
                                             </p>
                                         </div>
 
@@ -183,6 +207,9 @@ export default function Home() {
                                             </p>
                                             <p className="text-sm font-semibold text-gray-900">
                                                 {formatDateTime(statusResult.arrivalTime)}
+                                                {arrivesNextDay(statusResult.departTime, statusResult.arrivalTime) && (
+                                                    <span className="ml-2 text-xs font-semibold text-blue-600">+1</span>
+                                                )}
                                             </p>
                                         </div>
 
@@ -218,10 +245,13 @@ export default function Home() {
                                                     <p className="mt-1 text-sm text-gray-600">
                                                         {getAirportCode(flight, "depart")} → {getAirportCode(flight, "arrive")}
                                                     </p>
+                                                    <p className="text-xs text-gray-500">
+                                                        {flight.departingCity || "—"} → {flight.arrivingCity || "—"}
+                                                    </p>
                                                 </div>
                                                 <span className={`inline-flex w-fit rounded-full px-3 py-1 text-sm font-semibold ${getStatusBadgeClass(flight.status)}`}>
-                        {flight.status || "Unknown"}
-                    </span>
+                                                    {flight.status || "Unknown"}
+                                                </span>
                                             </div>
                                             <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                                                 <div>

@@ -51,7 +51,7 @@ namespace AirlineAPI.Controllers
             if (!bookingExists)
                 return BadRequest(new { message = "Invalid bookingId" });
 
-            newPayment.paymentStatus = PaymentStatus.Sucess;
+            newPayment.paymentStatus = PaymentStatus.Success;
 
             _context.Payments.Add(newPayment);
             await _context.SaveChangesAsync();

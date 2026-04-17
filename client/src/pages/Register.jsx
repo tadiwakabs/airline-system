@@ -64,7 +64,7 @@ export default function Register() {
             const data = await registerUser(payload);
             loginWithToken(data);
             navigate("/"); // redirect after success
-            
+
         } catch (err) {
             setErrors(err);
         } finally {
@@ -86,7 +86,7 @@ export default function Register() {
 
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4">
 
-                    {/* Title */}
+                    {/* Title — optional (DEFAULT NULL) */}
                     <Dropdown
                         label="Title"
                         value={formData.title}
@@ -104,10 +104,10 @@ export default function Register() {
                         placeholder="Select title"
                     />
 
-                    {/* Name */}
+                    {/* Name — both NOT NULL */}
                     <div className="flex gap-3">
                         <TextInput
-                            label="First Name"
+                            label={<>First Name <span className="text-red-500">*</span></>}
                             value={formData.firstName}
                             onChange={(e) =>
                                 updateField("firstName", e.target.value)
@@ -115,7 +115,7 @@ export default function Register() {
                             required
                         />
                         <TextInput
-                            label="Last Name"
+                            label={<>Last Name <span className="text-red-500">*</span></>}
                             value={formData.lastName}
                             onChange={(e) =>
                                 updateField("lastName", e.target.value)
@@ -124,9 +124,9 @@ export default function Register() {
                         />
                     </div>
 
-                    {/* Username */}
+                    {/* Username — NOT NULL, UNIQUE */}
                     <TextInput
-                        label="Username"
+                        label={<>Username <span className="text-red-500">*</span></>}
                         value={formData.username}
                         onChange={(e) =>
                             updateField("username", e.target.value)
@@ -134,9 +134,9 @@ export default function Register() {
                         required
                     />
 
-                    {/* Email */}
+                    {/* Email — NOT NULL, UNIQUE */}
                     <TextInput
-                        label="Email"
+                        label={<>Email <span className="text-red-500">*</span></>}
                         type="email"
                         value={formData.email}
                         onChange={(e) =>
@@ -145,9 +145,9 @@ export default function Register() {
                         required
                     />
 
-                    {/* DOB */}
+                    {/* DOB — NOT NULL */}
                     <DatePicker
-                        label="Date of Birth"
+                        label={<>Date of Birth <span className="text-red-500">*</span></>}
                         value={formData.dateOfBirth}
                         onChange={(val) =>
                             updateField("dateOfBirth", val)
@@ -155,7 +155,7 @@ export default function Register() {
                         required
                     />
 
-                    {/* Gender */}
+                    {/* Gender — optional (DEFAULT NULL) */}
                     <Dropdown
                         label="Gender"
                         value={formData.gender}
@@ -169,9 +169,9 @@ export default function Register() {
                         placeholder="Select gender"
                     />
 
-                    {/* Password */}
+                    {/* Password — NOT NULL (passwordHash) */}
                     <TextInput
-                        label="Password"
+                        label={<>Password <span className="text-red-500">*</span></>}
                         type="password"
                         value={formData.password}
                         onChange={(e) =>
@@ -180,8 +180,9 @@ export default function Register() {
                         required
                     />
 
+                    {/* Confirm Password — UI validation only */}
                     <TextInput
-                        label="Confirm Password"
+                        label={<>Confirm Password <span className="text-red-500">*</span></>}
                         type="password"
                         value={formData.confirmPassword}
                         onChange={(e) =>

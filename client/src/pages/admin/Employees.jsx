@@ -514,7 +514,7 @@ export default function Employees() {
                                                     On Leave
                                                 </Button>
                                             )}
-                                            {emp.status !== "Terminated" && (
+                                            {emp.status !== "Terminated" && !emp.isAdmin && (
                                                 <Button
                                                     size="sm"
                                                     variant="outline"
