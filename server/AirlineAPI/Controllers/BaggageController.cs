@@ -16,8 +16,6 @@ namespace AirlineAPI.Controllers
             _context = context;
         }
 
-        // 1. VIEW ALL BAGS ON A SPECIFIC FLIGHT
-        // This requires joining with the Ticket table since Baggage only has ticketCode
         [HttpGet("flight/{flightId}")]
         public async Task<ActionResult<IEnumerable<Baggage>>> GetBaggageByFlight(string flightId)
         {
@@ -34,11 +32,9 @@ namespace AirlineAPI.Controllers
             return Ok(flightBaggage);
         }
 
-        // 2. ADD A BAG
         [HttpPost]
         public async Task<ActionResult<Baggage>> PostBaggage(Baggage baggage)
         {
-            // Ensure a unique ID is set if the frontend doesn't provide one
             if (string.IsNullOrEmpty(baggage.baggageID))
             {
                 baggage.baggageID = Guid.NewGuid().ToString().Substring(0, 30);
@@ -62,7 +58,6 @@ namespace AirlineAPI.Controllers
             return CreatedAtAction(nameof(GetBaggageByFlight), new { flightId = baggage.ticketCode }, baggage);
         }
 
-        // 3. DELETE A BAG
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteBaggage(string id)
         {
