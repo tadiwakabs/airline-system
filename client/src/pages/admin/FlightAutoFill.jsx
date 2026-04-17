@@ -12,10 +12,25 @@ const fillOptions = [
     { label: "First", value: "first" },
 ];
 
+const fillModeOptions = [
+    { label: "Seat Count", value: "seats" },
+    { label: "Fill %", value: "percent" },
+];
+
+const paymentMethodOptions = [
+    { label: "Visa", value: "Visa" },
+    { label: "Mastercard", value: "Mastercard" },
+    { label: "American Express", value: "American Express" },
+    { label: "Discover", value: "Discover" },
+];
+
 export default function FlightAutoFill() {
     const [flightNum, setFlightNum] = useState("");
+    const [fillMode, setFillMode] = useState("seats");
     const [seatCount, setSeatCount] = useState("");
+    const [fillPercent, setFillPercent] = useState("70");
     const [fillClass, setFillClass] = useState("all");
+    const [paymentMethod, setPaymentMethod] = useState("Visa");
     const [summary, setSummary] = useState(null);
     const [result, setResult] = useState(null);
     const [loadingSummary, setLoadingSummary] = useState(false);
@@ -36,7 +51,10 @@ export default function FlightAutoFill() {
             );
 
             setSummary(res.data);
-            setSeatCount(String(res.data.availableSeats));
+
+            if (fillMode === "seats") {
+                setSeatCount(String(res.data.availableSeats));
+            }
         } catch (err) {
             setSummary(null);
             setError(err?.response?.data?.message || "Failed to load flight summary.");
@@ -55,8 +73,11 @@ export default function FlightAutoFill() {
 
             const payload = {
                 flightNum: Number(flightNum),
-                seatCount: Number(seatCount),
+                fillMode,
+                seatCount: fillMode === "seats" ? Number(seatCount) : null,
+                fillPercent: fillMode === "percent" ? Number(fillPercent) : null,
                 fillClass,
+                paymentMethod,
             };
 
             const res = await api.post("/admin/fill-flight", payload);
@@ -112,19 +133,50 @@ export default function FlightAutoFill() {
                     </div>
 
                     <div className="grid gap-4 md:grid-cols-3">
-                        <TextInput
-                            label="# of Seats"
-                            type="number"
-                            min="1"
-                            value={seatCount}
-                            onChange={(e) => setSeatCount(e.target.value)}
+                        <Dropdown
+                            label="Fill Mode"
+                            value={fillMode}
+                            onChange={(val) => setFillMode(val)}
+                            options={fillModeOptions}
+                        />
+
+                        {fillMode === "seats" ? (
+                            <TextInput
+                                label="# of Seats"
+                                type="number"
+                                min="1"
+                                value={seatCount}
+                                onChange={(e) => setSeatCount(e.target.value)}
+                            />
+                        ) : (
+                            <TextInput
+                                label="Fill %"
+                                type="number"
+                                min="1"
+                                max="100"
+                                value={fillPercent}
+                                onChange={(e) => setFillPercent(e.target.value)}
+                                placeholder="e.g. 70"
+                            />
+                        )}
+
+                        <Dropdown
+                            label="Payment Method"
+                            value={paymentMethod}
+                            onChange={(val) => setPaymentMethod(val)}
+                            options={paymentMethodOptions}
                         />
                     </div>
 
                     <div className="pt-2">
                         <Button
                             type="submit"
-                            disabled={!summary || !seatCount || submitting}
+                            disabled={
+                                !summary ||
+                                submitting ||
+                                (fillMode === "seats" && !seatCount) ||
+                                (fillMode === "percent" && !fillPercent)
+                            }
                         >
                             {submitting ? "Submitting..." : "Fill Flight"}
                         </Button>
@@ -164,6 +216,10 @@ export default function FlightAutoFill() {
                         <div className="rounded-lg bg-gray-50 p-3">
                             <p className="font-medium">Available</p>
                             <p>{summary.availableSeats}</p>
+                        </div>
+                        <div className="rounded-lg bg-gray-50 p-3">
+                            <p className="font-medium">Mode</p>
+                            <p>{fillMode === "percent" ? `${fillPercent}%` : `${seatCount || 0} seats`}</p>
                         </div>
                     </div>
                 </Card>

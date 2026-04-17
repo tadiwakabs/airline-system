@@ -110,8 +110,13 @@ namespace AirlineAPI.Controllers
             if (request.FillClass == "")
                 return BadRequest(new { message = "Invalid fill class." });
 
-            if (request.SeatCount <= 0)
-                return BadRequest(new { message = "Seat count must be greater than zero." });
+            request.FillMode = NormalizeFillMode(request.FillMode);
+            if (request.FillMode == "")
+                return BadRequest(new { message = "Invalid fill mode. Use 'seats' or 'percent'." });
+
+            request.PaymentMethod = NormalizePaymentMethod(request.PaymentMethod);
+            if (string.IsNullOrWhiteSpace(request.PaymentMethod))
+                return BadRequest(new { message = "Invalid payment method." });
 
             var fillUserExists = await _context.Users.AnyAsync(u => u.UserId == FillUserId);
             if (!fillUserExists)
@@ -133,13 +138,39 @@ namespace AirlineAPI.Controllers
                 seatsQuery = seatsQuery.Where(s => s.seatclass == seatClass);
             }
 
-            // For "all", this fills in row/seat order across all available seats.
+            var totalAvailable = await seatsQuery.CountAsync();
+
+            if (totalAvailable == 0)
+            {
+                return BadRequest(new { message = "No available seats match the selected fill class." });
+            }
+
+            int requestedSeatCount;
+
+            if (request.FillMode == "percent")
+            {
+                if (!request.FillPercent.HasValue || request.FillPercent.Value <= 0 || request.FillPercent.Value > 100)
+                    return BadRequest(new { message = "Fill percent must be between 1 and 100." });
+
+                requestedSeatCount = (int)Math.Ceiling(totalAvailable * (request.FillPercent.Value / 100.0));
+
+                if (requestedSeatCount <= 0)
+                    requestedSeatCount = 1;
+            }
+            else
+            {
+                if (!request.SeatCount.HasValue || request.SeatCount.Value <= 0)
+                    return BadRequest(new { message = "Seat count must be greater than zero." });
+
+                requestedSeatCount = request.SeatCount.Value;
+            }
+
             var seatsToUse = await seatsQuery
                 .OrderBy(s => s.seatNumber)
-                .Take(request.SeatCount)
+                .Take(requestedSeatCount)
                 .ToListAsync();
 
-            if (seatsToUse.Count < request.SeatCount)
+            if (seatsToUse.Count < requestedSeatCount)
             {
                 return BadRequest(new
                 {
@@ -199,7 +230,7 @@ namespace AirlineAPI.Controllers
                         bookingId = booking.bookingId,
                         bookingPrice = (double)pricing.Price,
                         totalPrice = (double)pricing.Price,
-                        paymentMethod = "Visa",
+                        paymentMethod = request.PaymentMethod,
                         paymentStatus = PaymentStatus.Success
                     };
 
@@ -249,7 +280,9 @@ namespace AirlineAPI.Controllers
 
                 return Ok(new FillFlightResultDto
                 {
-                    Message = $"Created {created.Count} passenger booking(s).",
+                    Message = request.FillMode == "percent"
+                        ? $"Created {created.Count} passenger booking(s) using {request.FillPercent}% fill."
+                        : $"Created {created.Count} passenger booking(s).",
                     FlightNum = flight.flightNum,
                     FillClass = request.FillClass,
                     CreatedCount = created.Count,
@@ -311,13 +344,50 @@ namespace AirlineAPI.Controllers
             var suffix = Guid.NewGuid().ToString("N")[..4].ToUpper();
             return $"{flightNum}{seatNumber}{Guid.NewGuid().ToString("N")[..10]}";
         }
+        
+        private static string NormalizeFillMode(string? fillMode)
+        {
+            if (string.IsNullOrWhiteSpace(fillMode)) return "";
+
+            return fillMode.Trim().ToLower() switch
+            {
+                "seats" => "seats",
+                "percent" => "percent",
+                _ => ""
+            };
+        }
+
+        private static string NormalizePaymentMethod(string? paymentMethod)
+        {
+            if (string.IsNullOrWhiteSpace(paymentMethod)) return "";
+
+            return paymentMethod.Trim() switch
+            {
+                "Visa" => "Visa",
+                "Mastercard" => "Mastercard",
+                "American Express" => "American Express",
+                "Discover" => "Discover",
+                "PayPal" => "PayPal",
+                _ => ""
+            };
+        }
     }
 
     public class FillFlightRequestDto
     {
         public int FlightNum { get; set; }
-        public int SeatCount { get; set; }
+
+        // mode: "seats" or "percent"
+        public string FillMode { get; set; } = "seats";
+
+        // used when FillMode = "seats"
+        public int? SeatCount { get; set; }
+
+        // used when FillMode = "percent"
+        public int? FillPercent { get; set; }
+
         public string FillClass { get; set; } = "all";
+        public string PaymentMethod { get; set; } = "Visa";
     }
 
     public class FlightFillSummaryDto
