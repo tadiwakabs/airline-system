@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import './globals.css'
 import AppLayout from "./components/layout/AppLayout.jsx";
 import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
@@ -33,13 +33,27 @@ import Admin from './pages/admin/AdminDashboard.jsx';
 import Employee from './pages/employee/EmployeeDashboard.jsx';
 import Reports from './pages/admin/Reports'
 
-
-
 function App() {
+    const location = useLocation();
+
+    const animatedPaths = ["/", "/login", "/register", "/book"];
+    const isAnimatedPage = animatedPaths.includes(location.pathname);
+
     return (
         <AuthProvider>
-            <AppLayout>
+            {isAnimatedPage ? (
                 <BackgroundSlider />
+            ) : (
+                <div 
+                    className="fixed inset-0 -z-10 bg-cover bg-center"
+                    style={{ 
+                        backgroundImage: `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('https://images.unsplash.com/photo-1542296332-2e4473faf563?q=80&w=1920&auto=format&fit=crop')`,
+                        backgroundAttachment: 'fixed'
+                    }}
+                />
+            )}
+
+            <AppLayout>
                 <Routes>
                     {/* Open Routes */}
                     <Route path="/" element={<Home />} />

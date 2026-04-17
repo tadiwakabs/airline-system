@@ -53,7 +53,7 @@ function Admin() {
         <div className="max-w-6xl mx-auto px-4 py-10">
             <header className="mb-8">
                 <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-                <p className="font-semibold text-gray-500 mt-2">Welcome back. Select an operation below to get started.</p>
+                <p className="font-bold text-white mt-2 drop-shadow-md">Welcome back. Select an operation below to get started.</p>
             </header>
 
             <div className="flex flex-wrap justify-center gap-6">
