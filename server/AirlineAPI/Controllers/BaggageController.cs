@@ -16,12 +16,23 @@ namespace AirlineAPI.Controllers
             _context = context;
         }
 
-        [HttpGet("flight/{flightId}")]
-        public async Task<ActionResult<IEnumerable<Baggage>>> GetBaggageByFlight(string flightId)
+        [HttpGet("{id}")]
+        public async Task<ActionResult<Baggage>> GetBaggage(string id)
+        {
+            var baggage = await _context.Baggage.FindAsync(id);
+
+            if (baggage == null)
+            {
+                return NotFound();
+            }
+            return Ok(baggage);
+        }
+
+        [HttpGet("ticket/{ticketCode}")]
+        public async Task<ActionResult<IEnumerable<Baggage>>> GetBaggageByFlight(string ticketCode)
         {
             var flightBaggage = await _context.Baggage
-                .Include(b => b.Ticket)
-                .Where(b => b.Ticket != null && b.Ticket.ticketCode == flightId)
+                .Where(b => b.ticketCode == ticketCode)
                 .ToListAsync();
 
             return Ok(flightBaggage);
@@ -50,7 +61,7 @@ namespace AirlineAPI.Controllers
                 throw;
             }
 
-            return CreatedAtAction(nameof(GetBaggageByFlight), new { flightId = baggage.ticketCode }, baggage);
+            return CreatedAtAction(nameof(GetBaggage), new { id = baggage.baggageID }, baggage);
         }
 
         [HttpDelete("{id}")]
