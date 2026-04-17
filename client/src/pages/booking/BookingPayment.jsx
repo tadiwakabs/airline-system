@@ -232,10 +232,11 @@ export default function BookingPayment() {
                     );
                     const resolvedTicketCode = matchedTicket?.ticketCode || matchedTicket?.TicketCode;
                     return {
+                        baggageId: crypto.randomUUID(),
                         ticketCode: resolvedTicketCode,
                         passengerId: bag.passengerId,
-                        additionalBaggage: bag.additionalBaggage,
-                        additionalFare: bag.additionalFare,
+                        additionalBaggage: Number(bag.additionalBaggage),
+                        additionalFare: Number(bag.additionalFare),
                         isChecked: false,
                     };
                 }).filter(b => b.ticketCode);
