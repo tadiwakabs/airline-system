@@ -26,6 +26,18 @@ namespace AirlineAPI.Controllers
                 .OrderBy(f => f.departTime)
                 .ToListAsync();
 
+            var flightNums = flights.Select(f => f.flightNum).ToList();
+
+            var bookedCounts = await _context.Ticket
+                .Where(t => flightNums.Contains(t.flightCode) && t.status != TicketStatus.Cancelled)
+                .GroupBy(t => t.flightCode)
+                .Select(g => new
+                {
+                    FlightNum = g.Key,
+                    Count = g.Count()
+                })
+                .ToDictionaryAsync(x => x.FlightNum, x => x.Count);
+
             var response = flights.Select(f => new FlightResponseDto
             {
                 FlightNum             = f.flightNum,
@@ -41,6 +53,7 @@ namespace AirlineAPI.Controllers
                 Distance              = f.distance,
                 FlightChange          = f.flightChange,
                 RecurringScheduleId   = f.recurringScheduleId,
+                BookedPassengerCount  = bookedCounts.TryGetValue(f.flightNum, out var count) ? count : 0,
                 Pricing               = f.Pricing.Select(p => new FlightPricingDto
                 {
                     CabinClass = p.CabinClass.ToString(),
@@ -347,38 +360,146 @@ namespace AirlineAPI.Controllers
         }
 
         [HttpPut("{id}/cancel")]
-public async Task<IActionResult> CancelFlight(int id)
-{
-    var flight = await _context.Flights.FindAsync(id);
-
-    if (flight == null)
-    {
-        return NotFound(new { message = "Flight not found." });
-    }
-
-    if (flight.status == "Cancelled")
-    {
-        return BadRequest(new { message = "Flight is already cancelled." });
-    }
-
-    flight.status = "Cancelled";
-
-    await _context.SaveChangesAsync();
-
-    return Ok(new { message = "Flight cancelled successfully." });
-}
-
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteFlight(int id)
+        public async Task<IActionResult> CancelFlight(int id)
         {
             var flight = await _context.Flights.FindAsync(id);
 
             if (flight == null)
+            {
                 return NotFound(new { message = "Flight not found." });
+            }
 
-            _context.Flights.Remove(flight);
+            if (flight.status == "Cancelled")
+            {
+                return BadRequest(new { message = "Flight is already cancelled." });
+            }
+
+            flight.status = "Cancelled";
+
             await _context.SaveChangesAsync();
-            return Ok(new { message = "Flight deleted." });
+
+            return Ok(new { message = "Flight cancelled successfully." });
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteFlight(int id)
+        {
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
+            try
+            {
+                var flight = await _context.Flights.FindAsync(id);
+
+                if (flight == null)
+                    return NotFound(new { message = "Flight not found." });
+
+                // Tickets affected by this deleted flight
+                var ticketsToDelete = await _context.Ticket
+                    .Where(t => t.flightCode == id)
+                    .ToListAsync();
+
+                var affectedBookingIds = ticketsToDelete
+                    .Select(t => t.bookingId)
+                    .Distinct()
+                    .ToList();
+
+                var bookings = await _context.Bookings
+                    .Where(b => affectedBookingIds.Contains(b.bookingId))
+                    .ToDictionaryAsync(b => b.bookingId);
+
+                var payments = await _context.Payments
+                    .Where(p => affectedBookingIds.Contains(p.bookingId))
+                    .ToDictionaryAsync(p => p.bookingId);
+
+                // Calculate refund totals per booking for only the deleted flight's tickets
+                var refundByBooking = ticketsToDelete
+                    .GroupBy(t => t.bookingId)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.Sum(t => (double)t.price * 1.10)
+                    );
+
+                // Delete only the tickets for this flight
+                if (ticketsToDelete.Any())
+                {
+                    _context.Ticket.RemoveRange(ticketsToDelete);
+                    await _context.SaveChangesAsync();
+                }
+
+                // Check which bookings still have tickets left
+                var remainingTicketCounts = await _context.Ticket
+                    .Where(t => affectedBookingIds.Contains(t.bookingId))
+                    .GroupBy(t => t.bookingId)
+                    .Select(g => new
+                    {
+                        BookingId = g.Key,
+                        Count = g.Count()
+                    })
+                    .ToDictionaryAsync(x => x.BookingId, x => x.Count);
+
+                foreach (var bookingId in affectedBookingIds)
+                {
+                    var hasRemainingTickets =
+                        remainingTicketCounts.TryGetValue(bookingId, out var count) && count > 0;
+
+                    var remainingBookingTotal = await _context.Ticket
+                        .Where(t => t.bookingId == bookingId)
+                        .SumAsync(t => (decimal?)t.price) ?? 0m;
+
+                    if (payments.TryGetValue(bookingId, out var payment))
+                    {
+                        var refundAmount = refundByBooking.GetValueOrDefault(bookingId, 0);
+
+                        payment.bookingPrice = (double)remainingBookingTotal;
+                        payment.totalPrice = (double)remainingBookingTotal;
+                        payment.refundAmount = (payment.refundAmount ?? 0) + refundAmount;
+                        payment.paymentStatus = hasRemainingTickets
+                            ? PaymentStatus.Success
+                            : PaymentStatus.Refunded;
+                    }
+
+                    if (bookings.TryGetValue(bookingId, out var booking))
+                    {
+                        booking.totalPrice = remainingBookingTotal;
+                        booking.bookingStatus = hasRemainingTickets
+                            ? BookingStatus.Confirmed
+                            : BookingStatus.Cancelled;
+                    }
+                }
+
+                // Delete seats for this flight
+                var seats = await _context.Seating
+                    .Where(s => s.flightNum == id)
+                    .ToListAsync();
+
+                if (seats.Any())
+                {
+                    _context.Seating.RemoveRange(seats);
+                }
+
+                // Delete flight
+                _context.Flights.Remove(flight);
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return Ok(new
+                {
+                    message = "Flight deleted successfully. Affected tickets were refunded and removed.",
+                    refundedPassengerCount = ticketsToDelete.Count,
+                    affectedBookingCount = affectedBookingIds.Count,
+                    totalRefundAmount = refundByBooking.Values.Sum()
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return StatusCode(500, new
+                {
+                    message = "Failed to delete flight.",
+                    error = ex.Message
+                });
+            }
         }
 
         [HttpGet("search")]
