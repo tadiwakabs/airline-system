@@ -332,7 +332,6 @@ export default function BookingReview() {
 
     const handleAddBag = () => setBaggageCount(prev => prev + 1);
     const handleRemoveBag = () => setBaggageCount(prev => Math.max(0, prev - 1));
-    // Group passengers by type for labelling
     const passengersWithIndex = useMemo(() => {
         const counters = {};
         return passengers.map((p) => {
