@@ -44,7 +44,7 @@ export default function Register() {
         clearErrors();
 
         if (formData.password !== formData.confirmPassword) {
-            setErrors({response:{data:"Password do not match"}})
+            setErrors({response:{data:"Passwords do not match"}})
             return;
         }
 
