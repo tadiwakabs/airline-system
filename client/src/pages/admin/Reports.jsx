@@ -77,12 +77,30 @@ export default function Reports() {
 
     const processedData = useMemo(() => {
         let items = [...data];
+        
+        // Filter logic for toggling "Show All"
         if (!activeShowAll) {
-            items = items.filter(row => (Number(row.totalRevenue || 0) > 0 || Number(row.totalActiveBookings || 0) > 0));
+            items = items.filter(row => {
+                if (activeReportType === 'revenue') {
+                    // Only show routes that made money
+                    return Number(row.totalRevenue || 0) > 0;
+                }
+                if (activeReportType === 'popularity') {
+                    // Only show routes with bookings
+                    return Number(row.totalActiveBookings || 0) > 0;
+                }
+                if (activeReportType === 'activity') {
+                    // Only show planes with purchased tickets (Load Factor > 0)
+                    return Number(row.avgLoadFactorPercent || 0) > 0;
+                }
+                return true;
+            });
         }
+
         if (activeSearch) {
             items = items.filter(row => Object.values(row).some(v => v?.toString().toLowerCase().includes(activeSearch.toLowerCase())));
         }
+
         if (activeSort.key) {
             items.sort((a, b) => {
                 const aVal = a[activeSort.key];
@@ -93,7 +111,7 @@ export default function Reports() {
             });
         }
         return items;
-    }, [data, activeSearch, activeSort, activeShowAll]);
+    }, [data, activeSearch, activeSort, activeShowAll, activeReportType]);
 
     const formatValue = (key, val) => {
         const k = key.toLowerCase();
@@ -151,6 +169,7 @@ export default function Reports() {
                     <input type="text" placeholder="Filter..." value={stagedSearch} onChange={(e) => setStagedSearch(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()} className="w-full px-2 py-1 bg-white border border-[#e2e8f0] text-[12px] outline-none" />
                 </div>
 
+                {/* Show All Toggle */}
                 <div className="flex items-center px-4 border-r border-[#e2e8f0] cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => setStagedShowAll(!stagedShowAll)}>
                     <div className={`w-4 h-4 border border-[#94a3b8] mr-2 flex items-center justify-center ${stagedShowAll ? 'bg-[#0f172a] border-[#0f172a]' : 'bg-white'}`}>
                         {stagedShowAll && <div className="w-1.5 h-1.5 bg-white"></div>}
