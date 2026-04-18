@@ -12,8 +12,10 @@ namespace AirlineAPI.Models
         [StringLength(30)]
         public string baggageID { get; set; } = string.Empty;
 
-        [ForeignKey("baggageId")]
-        public Passenger? Passengers { get; set; }
+        public string PassengerId { get; set; } = string.Empty;
+
+        [ForeignKey(nameof(PassengerId))]
+        public Passenger? Passenger { get; set; }
 
         public bool additionalBaggage { get; set; } = false;
 
