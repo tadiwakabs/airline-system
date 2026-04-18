@@ -40,7 +40,7 @@ export default function Reports() {
     };
 
     const reportColumnsMap = {
-        revenue: ["origin", "destination", "passengers", "totalRevenue", "profit", "avgFare", "cabinDriver"],
+        revenue: ["origin", "destination", "passengers", "totalRevenue", "avgFare", "cabinDriver"],
         popularity: ["destination", "totalActiveBookings", "passengersPerWeek", "revenueContributionPercent", "peakMonth", "peakDay"],
         activity: ["origin", "destination", "tailNumber", "planeModel", "weeklyFrequency", "avgLoadFactorPercent"]
     };
@@ -98,7 +98,7 @@ export default function Reports() {
     const formatValue = (key, val) => {
         const k = key.toLowerCase();
         if (k === 'cabindriver' || k === 'peakmonth' || k === 'peakday') return val?.toString().toUpperCase();
-        if (['totalrevenue', 'profit', 'avgfare'].includes(k)) {
+        if (['totalrevenue', 'avgfare'].includes(k)) {
             return `$${Number(val || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         }
         if (k.includes('percent') || k.includes('factor')) return `${Number(val || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
