@@ -138,6 +138,10 @@ function useFlightSearch(from, to, date, passengers, enabled) {
 }
 
 export default function FlightSearch() {
+    useEffect(() => {
+        window.scrollTo({ top: 0, behavior: "instant" });
+    }, []);
+    
     const { state } = useLocation();
     const navigate = useNavigate();
     const { isAuthenticated } = useAuth();
