@@ -416,7 +416,7 @@ export default function Employees() {
     // Render
     // ─────────────────────────────────────────────────────────────────────────
     return (
-        <div className="mx-auto max-w-7xl px-4 py-10">
+        <div className="mx-auto max-w-7xl xl:max-w-[80vw] px-4 py-10">
 
             {/* Page header */}
             <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
