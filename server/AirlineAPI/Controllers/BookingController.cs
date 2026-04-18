@@ -255,50 +255,87 @@ namespace AirlineAPI.Controllers
         [HttpDelete("{id}/cancel")]
         public async Task<IActionResult> CancelBooking(string id)
         {
-            var booking = await _context.Bookings.FindAsync(id);
-            if (booking == null) return NotFound("Booking not found");
+            await using var transaction = await _context.Database.BeginTransactionAsync();
 
-
-            var currentUserId = User.FindFirst("sub")?.Value
-                    ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (booking.userId != currentUserId && !User.IsInRole("Admin")) return Forbid();
-
-            var tickets = await _context.Ticket
-                .Include(t => t.Flight)
-                .Where(t => t.bookingId == booking.bookingId)
-                .ToListAsync();
-
-            if (!tickets.Any())
-                return BadRequest("No tickets found for this booking.");
-
-            if (tickets.Any(t => t.Flight == null))
-                return BadRequest("Flight information not found for one or more tickets.");
-
-            if (tickets.Any(t => t.Flight!.departTime <= DateTime.UtcNow))
+            try
             {
-                return BadRequest("Cannot cancel a flight that has already departed or is currently in the air.");
-            }
+                var booking = await _context.Bookings.FindAsync(id);
+                if (booking == null)
+                    return NotFound("Booking not found");
 
-            foreach (var ticket in tickets)
-            {
-                var seat = await _context.Seating
-                    .FirstOrDefaultAsync(s => s.flightNum == ticket.flightCode && s.seatNumber == ticket.seatNumber);
+                var currentUserId = User.FindFirst("sub")?.Value
+                        ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-                if (seat != null)
+                if (booking.userId != currentUserId && !User.IsInRole("Admin"))
+                    return Forbid();
+
+                var tickets = await _context.Ticket
+                    .Include(t => t.Flight)
+                    .Where(t => t.bookingId == booking.bookingId)
+                    .ToListAsync();
+
+                if (!tickets.Any())
+                    return BadRequest("No tickets found for this booking.");
+
+                if (tickets.Any(t => t.Flight == null))
+                    return BadRequest("Flight information not found for one or more tickets.");
+
+                if (tickets.Any(t => t.Flight!.departTime <= DateTime.UtcNow))
                 {
-                    seat.seatStatus = SeatStatus.Available;
-                    seat.passengerId = null;
-                    seat.holdExpiresAt = null;
+                    return BadRequest("Cannot cancel a flight that has already departed or is currently in the air.");
                 }
+
+                foreach (var ticket in tickets)
+                {
+                    if (!string.IsNullOrEmpty(ticket.seatNumber))
+                    {
+                        var seat = await _context.Seating
+                            .FirstOrDefaultAsync(s => s.flightNum == ticket.flightCode && s.seatNumber == ticket.seatNumber);
+
+                        if (seat != null)
+                        {
+                            seat.seatStatus = SeatStatus.Available;
+                            seat.passengerId = null;
+                            seat.holdExpiresAt = null;
+                        }
+                    }
+
+                    ticket.seatNumber = null;
+                    ticket.status = TicketStatus.Cancelled;
+                    ticket.reservationTime = null;
+                    ticket.expiresAt = null;
+                }
+
+                booking.bookingStatus = BookingStatus.Cancelled;
+
+                var payment = await _context.Payments
+                    .FirstOrDefaultAsync(p => p.bookingId == booking.bookingId);
+
+                if (payment != null)
+                {
+                    var refundAmount = tickets.Sum(t => (double)t.price * 1.10); // keep your existing refund logic
+                    payment.refundAmount = (payment.refundAmount ?? 0) + refundAmount;
+                    payment.paymentStatus = PaymentStatus.Refunded;
+                    payment.bookingPrice = 0;
+                    payment.totalPrice = 0;
+                }
+
+                booking.totalPrice = 0;
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return Ok("Booking successfully cancelled. Tickets retained, seat numbers cleared, and seats released.");
             }
-
-            _context.Ticket.RemoveRange(tickets);
-
-            booking.bookingStatus = BookingStatus.Cancelled;
-
-            await _context.SaveChangesAsync();
-
-            return Ok("Booking successfully cancelled. Tickets deleted and seats released.");
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return StatusCode(500, new
+                {
+                    message = "Failed to cancel booking.",
+                    error = ex.Message
+                });
+            }
         }
         
         /// <summary>
