@@ -230,27 +230,25 @@ export default function BookingPayment() {
                     const ticketList = confirmation.tickets || [];
 
                     const matchedTicket = (confirmation.tickets ?? []).find( t => {
-                        const tPid = t.passengerid || t.passengerId || t.PassengerId;
-                        const bPid = bag.passengerId || bag.PassengerId;
-                        return tPid === bPid && tPid;
+                        const serverPid = (t.passengerid || t.passengerId || t.PassengerId || "").toString().toLowerCase();
+                        const localPid = (bag.passengerId || bag.PassengerId || "").toString().toLowerCase();
+                        return serverPid === localPid && serverPid !== "";
                     });
                     const resolvedTicketCode = matchedTicket?.ticketCode || matchedTicket?.TicketCode;
                     return {
                         baggageID: crypto.randomUUID().substring(0, 30),
                         ticketCode: resolvedTicketCode,
-                        PassengerId: bag.passengerId || bag.PassengerId,
+                        baggageId: (bag.passengerId || bag.PassengerId).substring(0, 30),
                         additionalBaggage: bag.additionalBaggage === true || bag.additionalBaggage === 1,
                         additionalFare: Number(bag.additionalFare),
                         isChecked: false,
                     };
-                }).filter(b => b.ticketCode && b.PassengerId);
+                }).filter(b => b.ticketCode && b.baggageId);
                 try {
                     if (finalizedBaggage.length > 0) {
-                        console.log("Attempting to save baggage:", finalizedBaggage);
-        
-                        await api.post("/Baggage/bulk", finalizedBaggage); 
-        
-                        console.log("Baggage saved successfully!");
+                        console.log("Sending to bulk save:", finalizedBaggage);
+                        await api.post("/Baggage/bulk", finalizedBaggage);
+                        console.log("Baggage saved!");
                     } else {
                         console.warn("No baggage linked: No matching ticketCodes found.");
                     }
