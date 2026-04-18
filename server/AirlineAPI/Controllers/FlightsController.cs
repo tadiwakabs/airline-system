@@ -225,6 +225,26 @@ namespace AirlineAPI.Controllers
                 if (dto.EconomyPrice >= dto.BusinessPrice || dto.BusinessPrice >= dto.FirstPrice)
                     return BadRequest(new { message = "Prices must follow the order: Economy < Business < First." });
             }
+
+            // ── Return-trip validation ────────────────────────────────────────
+            if (dto.IsReturn)
+            {
+                if (!dto.LayoverHours.HasValue || dto.LayoverHours.Value < 1)
+                    return BadRequest(new { message = "Layover hours must be at least 1 when creating a return schedule." });
+
+                // Total round-trip time = outbound duration + layover + return duration (same as outbound).
+                // Return departs from arr and arrives at dep, so duration is identical to outbound.
+                var outboundDuration = dto.ArrivalTimeOfDay - dto.DepartureTimeOfDay;
+                if (outboundDuration <= TimeSpan.Zero)
+                    outboundDuration = outboundDuration.Add(TimeSpan.FromHours(24)); // overnight outbound
+
+                var totalRoundTripHours = outboundDuration.TotalHours * 2 + dto.LayoverHours.Value;
+                if (totalRoundTripHours > 24)
+                    return BadRequest(new
+                    {
+                        message = $"The total round-trip time ({totalRoundTripHours:F1} hrs: outbound {outboundDuration.TotalHours:F1} h + {dto.LayoverHours.Value} h layover + return {outboundDuration.TotalHours:F1} h) exceeds 24 hours. Reduce the layover or choose a shorter route."
+                    });
+            }
             
             var airports = await GetFlightAirportsAsync(dto.DepartingPortCode, dto.ArrivingPortCode);
             if (airports == null)
@@ -305,7 +325,54 @@ namespace AirlineAPI.Controllers
                     flightChange = dto.FlightChange,
                     recurringScheduleId = schedule.Id
                 });
-            }
+
+                // ── Return leg ────────────────────────────────────────────────
+                if (dto.IsReturn && dto.LayoverHours.HasValue)
+                {
+                    var outboundDuration = scheduledArrivalLocal - scheduledDepartLocal;
+
+                    // Return departs after layover; arrives after the same flight duration
+                    var returnDepartLocal  = scheduledArrivalLocal.AddHours(dto.LayoverHours.Value);
+                    var returnArrivalLocal = returnDepartLocal.Add(outboundDuration);
+
+                    var returnDepartUtc  = ConvertLocalToUtc(returnDepartLocal,  airports.Value.arr.timezone!);
+                    var returnArrivalUtc = ConvertLocalToUtc(returnArrivalLocal, airports.Value.dep.timezone!);
+
+                    var returnValidationError = await ValidateFlightAsync(
+                        dto.AircraftUsed,
+                        returnDepartUtc,
+                        returnArrivalUtc,
+                        dto.ArrivingPortCode,   // reversed
+                        dto.DepartingPortCode,  // reversed
+                        null
+                    );
+
+                    if (returnValidationError != null)
+                    {
+                        return BadRequest(new
+                        {
+                            message = $"Could not create return flight on {date:yyyy-MM-dd}: {returnValidationError}"
+                        });
+                    }
+
+                    flightsToCreate.Add(new Flight
+                    {
+                        flightNum = nextFlightNum++,
+                        departTime = returnDepartUtc,
+                        arrivalTime = returnArrivalUtc,
+                        scheduledDepartLocal = returnDepartLocal,
+                        scheduledArrivalLocal = returnArrivalLocal,
+                        aircraftUsed = dto.AircraftUsed,
+                        status = dto.Status,
+                        departingPort = dto.ArrivingPortCode,   // reversed
+                        arrivingPort = dto.DepartingPortCode,   // reversed
+                        isDomestic = dto.IsDomestic,
+                        distance = dto.Distance,
+                        flightChange = dto.FlightChange,
+                        recurringScheduleId = schedule.Id
+                    });
+                }
+            } // end date loop
 
             if (flightsToCreate.Count == 0)
             {

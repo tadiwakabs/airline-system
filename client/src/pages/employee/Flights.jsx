@@ -130,6 +130,8 @@ const emptyRecurringForm = {
     economyPrice: "",
     businessPrice: "",
     firstPrice: "",
+    isReturn: false,
+    layoverHours: "",
 };
 
 // ── Small shared sub-component ────────────────────────────────────────────────
@@ -429,6 +431,35 @@ export default function Flights() {
         e.preventDefault();
         setError("");
         setSuccessMessage("");
+
+        // ── Frontend validation ───────────────────────────────────────────────
+        if (recurringData.isReturn) {
+            const layover = parseInt(recurringData.layoverHours, 10);
+            if (!recurringData.layoverHours || isNaN(layover) || layover < 1) {
+                setError("Layover hours must be a whole number of at least 1.");
+                return;
+            }
+
+            // Compute outbound duration in hours to check the 24h cap
+            if (recurringData.departureTimeOfDay && recurringData.arrivalTimeOfDay) {
+                const [dh, dm] = recurringData.departureTimeOfDay.split(":").map(Number);
+                const [ah, am] = recurringData.arrivalTimeOfDay.split(":").map(Number);
+                let outboundMins = (ah * 60 + am) - (dh * 60 + dm);
+                if (outboundMins <= 0) outboundMins += 24 * 60; // overnight flight
+                const totalHours = (outboundMins / 60) * 2 + layover;
+                if (totalHours > 24) {
+                    setError(
+                        `Total round-trip time (${totalHours.toFixed(1)} hrs: ` +
+                        `outbound ${(outboundMins / 60).toFixed(1)} h + ` +
+                        `${layover} h layover + ` +
+                        `return ${(outboundMins / 60).toFixed(1)} h) exceeds 24 hours. ` +
+                        `Reduce the layover or choose a shorter route.`
+                    );
+                    return;
+                }
+            }
+        }
+
         const payload = {
             ...recurringData,
             distance: Number(recurringData.distance),
@@ -439,6 +470,8 @@ export default function Flights() {
             economyPrice:  recurringData.economyPrice  ? Number(recurringData.economyPrice)  : null,
             businessPrice: recurringData.businessPrice ? Number(recurringData.businessPrice) : null,
             firstPrice:    recurringData.firstPrice    ? Number(recurringData.firstPrice)    : null,
+            isReturn:      recurringData.isReturn,
+            layoverHours:  recurringData.isReturn ? parseInt(recurringData.layoverHours, 10) : null,
         };
         try {
             await createRecurringFlights(payload);
@@ -496,6 +529,8 @@ export default function Flights() {
             economyPrice:       schedule.economyPrice ?? "",
             businessPrice:      schedule.businessPrice ?? "",
             firstPrice:         schedule.firstPrice ?? "",
+            isReturn:           !!schedule.isReturn,
+            layoverHours:       schedule.layoverHours ?? "",
         });
         setIsScheduleModalOpen(true);
     };
@@ -1057,6 +1092,78 @@ export default function Flights() {
                         {renderDistanceField(recurringData.distance, handleRecurringChange)}
                         {renderCheckboxes(recurringData, handleRecurringChange)}
                         {renderDaysOfWeek(recurringData.daysOfWeek, toggleDay)}
+
+                        {/* ── Trip type ───────────────────────────────────── */}
+                        <div className="space-y-3">
+                            <p className="text-sm font-medium text-gray-700">Trip Type <span className="text-red-500">*</span></p>
+                            <div className="flex gap-4">
+                                <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                                    <input
+                                        type="radio"
+                                        name="recurringTripType"
+                                        checked={!recurringData.isReturn}
+                                        onChange={() => setRecurringData((p) => ({ ...p, isReturn: false, layoverHours: "" }))}
+                                    />
+                                    One-way
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                                    <input
+                                        type="radio"
+                                        name="recurringTripType"
+                                        checked={recurringData.isReturn}
+                                        onChange={() => setRecurringData((p) => ({ ...p, isReturn: true }))}
+                                    />
+                                    Return
+                                </label>
+                            </div>
+
+                            {recurringData.isReturn && (
+                                <div className="space-y-1">
+                                    <TextInput
+                                        label={<>Layover Hours at Destination <span className="text-red-500">*</span></>}
+                                        name="layoverHours"
+                                        type="number"
+                                        min="1"
+                                        step="1"
+                                        placeholder="e.g. 3"
+                                        value={recurringData.layoverHours}
+                                        onChange={(e) => {
+                                            // Only allow positive integers
+                                            const val = e.target.value.replace(/[^0-9]/g, "");
+                                            setRecurringData((p) => ({ ...p, layoverHours: val }));
+                                        }}
+                                    />
+                                    <p className="text-xs text-gray-500">
+                                        Minimum 1 hour. The return flight departs this many hours after the outbound arrives.
+                                    </p>
+                                    {recurringData.layoverHours &&
+                                        recurringData.departureTimeOfDay &&
+                                        recurringData.arrivalTimeOfDay && (() => {
+                                            const layover = parseInt(recurringData.layoverHours, 10);
+                                            const [dh, dm] = recurringData.departureTimeOfDay.split(":").map(Number);
+                                            const [ah, am] = recurringData.arrivalTimeOfDay.split(":").map(Number);
+                                            let outboundMins = (ah * 60 + am) - (dh * 60 + dm);
+                                            if (outboundMins <= 0) outboundMins += 24 * 60;
+                                            const totalHours = (outboundMins / 60) * 2 + layover;
+                                            const returnDepart = new Date(0, 0, 0, ah, am);
+                                            returnDepart.setHours(returnDepart.getHours() + layover);
+                                            const returnDepartStr = returnDepart.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                                            const returnArrive = new Date(returnDepart);
+                                            returnArrive.setMinutes(returnArrive.getMinutes() + outboundMins);
+                                            const returnArriveStr = returnArrive.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+                                            return (
+                                                <div className={`rounded-lg px-3 py-2 text-xs mt-1 ${totalHours > 24 ? "bg-red-50 border border-red-200 text-red-700" : "bg-blue-50 border border-blue-100 text-blue-700"}`}>
+                                                    {totalHours > 24
+                                                        ? `⚠ Total round-trip time (${totalHours.toFixed(1)} hrs) exceeds 24 hours.`
+                                                        : `Return leg: departs ${returnDepartStr} → arrives ${returnArriveStr} · total round-trip ${totalHours.toFixed(1)} hrs`
+                                                    }
+                                                </div>
+                                            );
+                                        })()}
+                                </div>
+                            )}
+                        </div>
                         <Separator />
                         <div>
                             <p className="text-sm font-medium text-gray-700 mb-2">Pricing</p>
@@ -1131,6 +1238,14 @@ export default function Flights() {
                     {renderDistanceField(scheduleForm.distance, handleScheduleFormChange)}
                     {renderCheckboxes(scheduleForm, handleScheduleFormChange)}
                     {renderDaysOfWeek(scheduleForm.daysOfWeek, toggleScheduleDay)}
+
+                    {/* ── Trip type (read-only in edit) ────────────────────── */}
+                    <div className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 text-sm text-gray-600">
+                        <span className="font-medium">Trip Type:</span>{" "}
+                        {scheduleForm.isReturn
+                            ? `Return · ${scheduleForm.layoverHours} hr layover`
+                            : "One-way"}
+                    </div>
                     <Separator />
                     <div>
                         <p className="text-sm font-medium text-gray-700 mb-2">Pricing</p>
