@@ -391,18 +391,6 @@ export default function FlightSearch() {
                     </p>
                 )}
 
-                {activeResults.loading && (
-                    <Card className="p-6">
-                        <p>Loading flights...</p>
-                    </Card>
-                )}
-
-                {activeResults.error && (
-                    <Card className="p-6 border-red-200">
-                        <p className="text-red-600">{activeResults.error}</p>
-                    </Card>
-                )}
-
                 {standbyMessage && (
                     <Card className="p-4 border-green-200">
                         <p className="text-green-600">{standbyMessage}</p>
