@@ -670,12 +670,6 @@ export default function Profile() {
                             <h1 className="text-lg font-semibold">Account Details</h1>
                             <div className="grid gap-4 md:grid-cols-2">
                                 <TextInput
-                                    label="User ID"
-                                    value={profile.userId}
-                                    disabled
-                                    className="bg-gray-50"
-                                />
-                                <TextInput
                                     label="Username"
                                     value={profile.username}
                                     disabled
@@ -781,12 +775,6 @@ export default function Profile() {
 
                             <form onSubmit={handlePassengerSubmit} className="space-y-4">
                                 <div className="grid gap-4 md:grid-cols-2">
-                                    <TextInput
-                                        label="Passenger ID"
-                                        value={passenger?.passengerId || ""}
-                                        disabled
-                                        className="bg-gray-50"
-                                    />
                                     <TextInput
                                         label="First Name"
                                         value={profile.firstName || ""}
