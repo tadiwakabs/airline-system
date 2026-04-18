@@ -227,28 +227,35 @@ export default function BookingPayment() {
             if (rawBaggageData.length > 0)
             {
                 const finalizedBaggage = rawBaggageData.map(bag => {
-                    const matchedTicket = (confirmation.tickets ?? []).find(
-                        t => (t.passengerId || t.PassengerId) === bag.passengerId
-                    );
+                    const ticketList = confirmation.tickets || [];
+
+                    const matchedTicket = (confirmation.tickets ?? []).find( t => {
+                        const tPid = t.passengerid || t.passengerId || t.PassengerId;
+                        const bPid = bag.passengerId || bag.PassengerId;
+                        return tPid === bPid && tPid;
+                    });
                     const resolvedTicketCode = matchedTicket?.ticketCode || matchedTicket?.TicketCode;
                     return {
                         baggageID: crypto.randomUUID().substring(0, 30),
                         ticketCode: resolvedTicketCode,
-                        PassengerId: bag.passengerId,
-                        additionalBaggage: Number(bag.additionalBaggage) > 0,
+                        PassengerId: bag.passengerId || bag.PassengerId,
+                        additionalBaggage: bag.additionalBaggage === true || bag.additionalBaggage === 1,
                         additionalFare: Number(bag.additionalFare),
                         isChecked: false,
                     };
-                }).filter(b => b.ticketCode);
+                }).filter(b => b.ticketCode && b.PassengerId);
                 try {
                     if (finalizedBaggage.length > 0) {
                         console.log("Attempting to save baggage:", finalizedBaggage);
-                        await api.post("/Baggage/bulk", { baggageList: finalizedBaggage });
+        
+                        await api.post("/Baggage/bulk", finalizedBaggage); 
+        
+                        console.log("Baggage saved successfully!");
                     } else {
-                        console.warn("No baggage linked: No matching ticketCodes found for the passengers.");
+                        console.warn("No baggage linked: No matching ticketCodes found.");
                     }
                 } catch (baggageErr) {
-                    console.error("Baggage failed to save, but booking is preserved:", baggageErr);
+                    console.error("Baggage failed to save:", baggageErr);
                 }
             }
             const cabinClassLabel =
