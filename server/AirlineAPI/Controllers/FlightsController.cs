@@ -445,7 +445,6 @@ namespace AirlineAPI.Controllers
                     }
 
                     ticket.seatNumber = null;
-                    ticket.flightCode = null;
                     ticket.status = TicketStatus.Cancelled;
                     ticket.reservationTime = null;
                     ticket.expiresAt = null;
@@ -491,24 +490,14 @@ namespace AirlineAPI.Controllers
                             : BookingStatus.Cancelled;
                     }
                 }
-
-                var seats = await _context.Seating
-                    .Where(s => s.flightNum == id)
-                    .ToListAsync();
-
-                if (seats.Any())
-                {
-                    _context.Seating.RemoveRange(seats);
-                }
-
-                _context.Flights.Remove(flight);
+                
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
                 return Ok(new
                 {
-                    message = "Flight deleted successfully. Tickets were retained, cancelled, detached from the flight, and refunds recorded.",
+                    message = "Flight canceled successfully. Tickets were retained, cancelled, detached from the flight, and refunds recorded.",
                     refundedPassengerCount = affectedTickets.Count,
                     affectedBookingCount = affectedBookingIds.Count,
                     totalRefundAmount = compensationByBooking.Values.Sum(x => x.RefundAmount),
