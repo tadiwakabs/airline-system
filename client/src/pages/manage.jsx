@@ -295,11 +295,10 @@ const ManageBooking = () => {
                 JSON.stringify(newSeatNumber), 
                 { headers: { 'Content-Type': 'application/json' } }
             );
-            alert("Seat updated successfully!");
             handleCloseModal();
             fetchBookings(); // Refresh list
         } catch (err) {
-            alert("Failed to update seat.");
+            setError("Failed to update seat. Please try again. ")
         }
     };
 
