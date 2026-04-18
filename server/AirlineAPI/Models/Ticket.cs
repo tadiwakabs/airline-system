@@ -35,11 +35,10 @@ namespace AirlineAPI.Models
         [StringLength(30)]
         public string? boardingTime { get; set; }      // fixed typo
 
-        [Required, StringLength(3)]
+        [StringLength(3)]
         public string? seatNumber { get; set; } = string.Empty;
-
-        [Required]
-        public int flightCode { get; set; }             // matches FK in SQL
+        
+        public int? flightCode { get; set; }             // matches FK in SQL
 
         [ForeignKey("flightCode")]
         public Flight? Flight { get; set; }

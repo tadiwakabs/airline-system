@@ -29,8 +29,10 @@ namespace AirlineAPI.Controllers
             var flightNums = flights.Select(f => f.flightNum).ToList();
 
             var bookedCounts = await _context.Ticket
-                .Where(t => flightNums.Contains(t.flightCode) && t.status != TicketStatus.Cancelled)
-                .GroupBy(t => t.flightCode)
+                .Where(t => t.flightCode.HasValue &&
+                            flightNums.Contains(t.flightCode.Value) &&
+                            t.status != TicketStatus.Cancelled)
+                .GroupBy(t => t.flightCode!.Value)
                 .Select(g => new
                 {
                     FlightNum = g.Key,
@@ -427,13 +429,12 @@ namespace AirlineAPI.Controllers
                         }
                     );
 
-                // Release seats + keep ticket rows, but cancel them and clear seat number
                 foreach (var ticket in affectedTickets)
                 {
                     if (!string.IsNullOrEmpty(ticket.seatNumber))
                     {
                         var seat = await _context.Seating
-                            .FirstOrDefaultAsync(s => s.flightNum == ticket.flightCode && s.seatNumber == ticket.seatNumber);
+                            .FirstOrDefaultAsync(s => s.flightNum == id && s.seatNumber == ticket.seatNumber);
 
                         if (seat != null)
                         {
@@ -444,6 +445,7 @@ namespace AirlineAPI.Controllers
                     }
 
                     ticket.seatNumber = null;
+                    ticket.flightCode = null;
                     ticket.status = TicketStatus.Cancelled;
                     ticket.reservationTime = null;
                     ticket.expiresAt = null;
@@ -451,8 +453,8 @@ namespace AirlineAPI.Controllers
 
                 var remainingActiveTicketTotals = await _context.Ticket
                     .Where(t => affectedBookingIds.Contains(t.bookingId)
-                                && t.flightCode != id
-                                && t.status != TicketStatus.Cancelled)
+                                && t.status != TicketStatus.Cancelled
+                                && t.flightCode != null)
                     .GroupBy(t => t.bookingId)
                     .Select(g => new
                     {
@@ -464,12 +466,8 @@ namespace AirlineAPI.Controllers
 
                 foreach (var bookingId in affectedBookingIds)
                 {
-                    var hasRemainingActiveTickets =
-                        remainingActiveTicketTotals.TryGetValue(bookingId, out var remaining) && remaining.Count > 0;
-
-                    var remainingBookingTotal = hasRemainingActiveTickets
-                        ? remaining!.Total
-                        : 0m;
+                    var remainingBookingTotal = 0m;
+                    var hasRemainingActiveTickets = false;
 
                     if (payments.TryGetValue(bookingId, out var payment))
                     {
@@ -482,9 +480,7 @@ namespace AirlineAPI.Controllers
                         payment.totalPrice = (double)remainingBookingTotal;
                         payment.refundAmount = (payment.refundAmount ?? 0) + comp.RefundAmount;
                         payment.reimbursementAmount = (payment.reimbursementAmount ?? 0) + comp.ReimbursementAmount;
-                        payment.paymentStatus = hasRemainingActiveTickets
-                            ? PaymentStatus.Success
-                            : PaymentStatus.Refunded;
+                        payment.paymentStatus = PaymentStatus.Refunded;
                     }
 
                     if (bookings.TryGetValue(bookingId, out var booking))
@@ -512,7 +508,7 @@ namespace AirlineAPI.Controllers
 
                 return Ok(new
                 {
-                    message = "Flight deleted successfully. Affected tickets were cancelled, seat numbers cleared, and refunds recorded.",
+                    message = "Flight deleted successfully. Tickets were retained, cancelled, detached from the flight, and refunds recorded.",
                     refundedPassengerCount = affectedTickets.Count,
                     affectedBookingCount = affectedBookingIds.Count,
                     totalRefundAmount = compensationByBooking.Values.Sum(x => x.RefundAmount),
