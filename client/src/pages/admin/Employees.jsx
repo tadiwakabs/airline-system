@@ -456,6 +456,7 @@ export default function Employees() {
                             <thead>
                             <tr className="text-left text-sm text-gray-500">
                                 <th className="px-3 py-2">Employee ID</th>
+                                <th className="px-3 py-2">Name</th>
                                 <th className="px-3 py-2">Work Email</th>
                                 <th className="px-3 py-2">Job Title</th>
                                 <th className="px-3 py-2">Department</th>
@@ -470,6 +471,9 @@ export default function Employees() {
                             {pagedEmployees.map((emp) => (
                                 <tr key={emp.employeeId} className="rounded-xl bg-gray-50 text-sm">
                                     <td className="px-3 py-3 font-medium text-gray-900">{emp.employeeId}</td>
+                                    <td className="px-3 py-3">
+                                        {`${emp.firstName || ""} ${emp.lastName || ""}`.trim() || "—"}
+                                    </td>
                                     <td className="px-3 py-3">{emp.workEmail}</td>
                                     <td className="px-3 py-3">{emp.jobTitle ?? "—"}</td>
                                     <td className="px-3 py-3">{emp.department ?? "—"}</td>
@@ -481,8 +485,8 @@ export default function Employees() {
                                     <td className="px-3 py-3">
                                         {emp.isAdmin ? (
                                             <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">
-                                                    Yes
-                                                </span>
+                                                Yes
+                                            </span>
                                         ) : (
                                             <span className="text-gray-400">No</span>
                                         )}
