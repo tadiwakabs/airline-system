@@ -38,14 +38,14 @@ const FEATURED_FLIGHTS = [
 
 function SectionHeader({ eyebrow, title, subtitle }) {
     return (
-        <div className="mb-8">
+        <div className="mb-10">
             {eyebrow && (
-                <p className="text-xs font-bold uppercase tracking-widest text-blue-600 mb-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-400 mb-2">
                     {eyebrow}
                 </p>
             )}
-            <h2 className="text-3xl font-bold text-gray-900">{title}</h2>
-            {subtitle && <p className="mt-1 text-gray-500">{subtitle}</p>}
+            <h2 className="text-4xl font-black text-white tracking-tight">{title}</h2>
+            {subtitle && <p className="mt-2 text-slate-300 font-medium">{subtitle}</p>}
         </div>
     );
 }
@@ -53,31 +53,37 @@ function SectionHeader({ eyebrow, title, subtitle }) {
 export default function FeaturedFlights() {
     
     const handleBookFlight = (flight) => {
-        // TODO: navigate to booking page
         console.log("Book flight:", flight);
         alert(`Opening booking for ${flight.origin} → ${flight.destination}`);
     };
     
     return (
-        <section>
-            <SectionHeader
-                eyebrow="Curated for you"
-                title="Featured Destinations"
-                subtitle="Hand-picked deals departing from Houston this season."
-            />
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {FEATURED_FLIGHTS.map((flight) => (
-                    <FeatureCard
-                        key={`${flight.origin}-${flight.destination}`}
-                        image={flight.image}
-                        origin={flight.origin}
-                        destination={flight.destination}
-                        price={flight.price}
-                        dateRange={flight.dateRange}
-                        isPromotion={flight.isPromotion}
-                        onBook={() => handleBookFlight(flight)}
-                    />
-                ))}
+        <section className="relative bg-slate-900/40 backdrop-blur-2xl rounded-[3rem] p-8 md:p-12 border border-white/10 shadow-2xl overflow-hidden">
+            {/* Subtle glow effect in the corner */}
+            <div className="absolute -top-24 -right-24 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+            
+            <div className="relative z-10">
+                <SectionHeader
+                    eyebrow="Curated for you"
+                    title="Featured Destinations"
+                    subtitle="Hand-picked deals departing from Houston this season."
+                />
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {FEATURED_FLIGHTS.map((flight) => (
+                        <div key={`${flight.origin}-${flight.destination}`} className="transition-transform duration-300 hover:-translate-y-2">
+                            <FeatureCard
+                                image={flight.image}
+                                origin={flight.origin}
+                                destination={flight.destination}
+                                price={flight.price}
+                                dateRange={flight.dateRange}
+                                isPromotion={flight.isPromotion}
+                                onBook={() => handleBookFlight(flight)}
+                            />
+                        </div>
+                    ))}
+                </div>
             </div>
         </section>
     )

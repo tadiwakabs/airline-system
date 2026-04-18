@@ -207,7 +207,7 @@ export default function Home() {
                 </section>
 
                 {/* Featured Flights - Wrapped in a subtle glass container */}
-                <div className="bg-white/40 backdrop-blur-sm rounded-3xl p-6 border border-white/10 shadow-xl">
+                <div className="mt-8">
                     <FeaturedFlights />
                 </div>
             </div>

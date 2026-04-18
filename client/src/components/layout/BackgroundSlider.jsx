@@ -14,9 +14,9 @@ const BackgroundSlider = () => {
     useEffect(() => {
         const interval = setInterval(() => {
             setIndex((prevIndex) => (prevIndex + 1) % images.length);
-        }, 5000); // Changes every 5 seconds
+        }, 5000); 
 
-        return () => clearInterval(interval); // Cleanup timer on unmount
+        return () => clearInterval(interval); 
     }, []);
 
     return (
