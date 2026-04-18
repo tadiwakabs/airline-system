@@ -234,10 +234,21 @@ namespace AirlineAPI.Controllers
 
                 // Total round-trip time = outbound duration + layover + return duration (same as outbound).
                 // Return departs from arr and arrives at dep, so duration is identical to outbound.
-                var outboundDuration = dto.ArrivalTimeOfDay - dto.DepartureTimeOfDay;
-                if (outboundDuration <= TimeSpan.Zero)
-                    outboundDuration = outboundDuration.Add(TimeSpan.FromHours(24)); // overnight outbound
+                var sampleDate = dto.StartDate.Date;
 
+                var sampleDepartLocal = sampleDate.Add(dto.DepartureTimeOfDay);
+                var sampleArrivalLocal = sampleDate.Add(dto.ArrivalTimeOfDay);
+                if (sampleArrivalLocal <= sampleDepartLocal)
+                    sampleArrivalLocal = sampleArrivalLocal.AddDays(1);
+
+                var sampleAirports = await GetFlightAirportsAsync(dto.DepartingPortCode, dto.ArrivingPortCode);
+                if (sampleAirports == null)
+                    return BadRequest(new { message = "One or both airports are invalid, or missing timezone data." });
+
+                var sampleDepartUtc = ConvertLocalToUtc(sampleDepartLocal, sampleAirports.Value.dep.timezone!);
+                var sampleArrivalUtc = ConvertLocalToUtc(sampleArrivalLocal, sampleAirports.Value.arr.timezone!);
+
+                var outboundDuration = sampleArrivalUtc - sampleDepartUtc;
                 var totalRoundTripHours = outboundDuration.TotalHours * 2 + dto.LayoverHours.Value;
                 if (totalRoundTripHours > 24)
                     return BadRequest(new
@@ -329,14 +340,18 @@ namespace AirlineAPI.Controllers
                 // ── Return leg ────────────────────────────────────────────────
                 if (dto.IsReturn && dto.LayoverHours.HasValue)
                 {
-                    var outboundDuration = scheduledArrivalLocal - scheduledDepartLocal;
+                    var outboundDuration = arrivalUtc - departUtc;
 
-                    // Return departs after layover; arrives after the same flight duration
-                    var returnDepartLocal  = scheduledArrivalLocal.AddHours(dto.LayoverHours.Value);
-                    var returnArrivalLocal = returnDepartLocal.Add(outboundDuration);
+                    // Return departs after layover in destination local time
+                    var returnDepartLocal = scheduledArrivalLocal.AddHours(dto.LayoverHours.Value);
+                    var returnDepartUtc = ConvertLocalToUtc(returnDepartLocal, airports.Value.arr.timezone!);
 
-                    var returnDepartUtc  = ConvertLocalToUtc(returnDepartLocal,  airports.Value.arr.timezone!);
-                    var returnArrivalUtc = ConvertLocalToUtc(returnArrivalLocal, airports.Value.dep.timezone!);
+                    // Add true elapsed duration in UTC
+                    var returnArrivalUtc = returnDepartUtc.Add(outboundDuration);
+
+                    // Convert UTC arrival back into origin local time for scheduledArrivalLocal
+                    var originTz = ResolveTimeZone(airports.Value.dep.timezone!);
+                    var returnArrivalLocal = TimeZoneInfo.ConvertTimeFromUtc(returnArrivalUtc, originTz);
 
                     var returnValidationError = await ValidateFlightAsync(
                         dto.AircraftUsed,

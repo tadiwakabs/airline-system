@@ -73,10 +73,23 @@ namespace AirlineAPI.Controllers
                     if (!dto.LayoverHours.HasValue || dto.LayoverHours.Value < 1)
                     { errors.Add(new { index, message = "Layover hours must be at least 1 when creating a return schedule." }); continue; }
 
-                    var outboundDuration = dto.ArrivalTimeOfDay - dto.DepartureTimeOfDay;
-                    if (outboundDuration <= TimeSpan.Zero)
-                        outboundDuration = outboundDuration.Add(TimeSpan.FromHours(24));
+                    var sampleDate = dto.StartDate.Date;
+                    var sampleDepartLocal = sampleDate.Add(dto.DepartureTimeOfDay);
+                    var sampleArrivalLocal = sampleDate.Add(dto.ArrivalTimeOfDay);
+                    if (sampleArrivalLocal <= sampleDepartLocal)
+                        sampleArrivalLocal = sampleArrivalLocal.AddDays(1);
 
+                    var sampleAirports = await GetFlightAirportsAsync(dto.DepartingPortCode, dto.ArrivingPortCode);
+                    if (sampleAirports == null)
+                    {
+                        errors.Add(new { index, message = "One or both airports are invalid, or missing timezone data." });
+                        continue;
+                    }
+
+                    var sampleDepartUtc = ConvertLocalToUtc(sampleDepartLocal, sampleAirports.Value.dep.timezone!);
+                    var sampleArrivalUtc = ConvertLocalToUtc(sampleArrivalLocal, sampleAirports.Value.arr.timezone!);
+
+                    var outboundDuration = sampleArrivalUtc - sampleDepartUtc;
                     var totalRoundTripHours = outboundDuration.TotalHours * 2 + dto.LayoverHours.Value;
                     if (totalRoundTripHours > 24)
                     { errors.Add(new { index, message = $"Total round-trip time ({totalRoundTripHours:F1} hrs) exceeds 24 hours." }); continue; }
@@ -151,11 +164,13 @@ namespace AirlineAPI.Controllers
                     // Return leg
                     if (dto.IsReturn && dto.LayoverHours.HasValue)
                     {
-                        var outboundDuration   = scheduledArrivalLocal - scheduledDepartLocal;
-                        var returnDepartLocal   = scheduledArrivalLocal.AddHours(dto.LayoverHours.Value);
-                        var returnArrivalLocal  = returnDepartLocal.Add(outboundDuration);
-                        var returnDepartUtc     = ConvertLocalToUtc(returnDepartLocal,  airports.Value.arr.timezone!);
-                        var returnArrivalUtc    = ConvertLocalToUtc(returnArrivalLocal, airports.Value.dep.timezone!);
+                        var outboundDuration = arrivalUtc - departUtc;
+                        var returnDepartLocal = scheduledArrivalLocal.AddHours(dto.LayoverHours.Value);
+                        var returnDepartUtc = ConvertLocalToUtc(returnDepartLocal, airports.Value.arr.timezone!);
+                        var returnArrivalUtc = returnDepartUtc.Add(outboundDuration);
+
+                        var originTz = ResolveTimeZone(airports.Value.dep.timezone!);
+                        var returnArrivalLocal = TimeZoneInfo.ConvertTimeFromUtc(returnArrivalUtc, originTz);
 
                         flightsCreated.Add(new Flight
                         {
@@ -226,11 +241,22 @@ namespace AirlineAPI.Controllers
                 if (!dto.LayoverHours.HasValue || dto.LayoverHours.Value < 1)
                     return BadRequest(new { message = "Layover hours must be at least 1 when creating a return schedule." });
 
-                var outboundDuration = dto.ArrivalTimeOfDay - dto.DepartureTimeOfDay;
-                if (outboundDuration <= TimeSpan.Zero)
-                    outboundDuration = outboundDuration.Add(TimeSpan.FromHours(24));
+                var sampleDate = dto.StartDate.Date;
+                var sampleDepartLocal = sampleDate.Add(dto.DepartureTimeOfDay);
+                var sampleArrivalLocal = sampleDate.Add(dto.ArrivalTimeOfDay);
+                if (sampleArrivalLocal <= sampleDepartLocal)
+                    sampleArrivalLocal = sampleArrivalLocal.AddDays(1);
 
-                var totalRoundTripHours = outboundDuration.TotalHours * 2 + dto.LayoverHours.Value;
+                var sampleAirports = await GetFlightAirportsAsync(dto.DepartingPortCode, dto.ArrivingPortCode);
+                if (sampleAirports == null)
+                    return BadRequest(new { message = "One or both airports are invalid, or missing timezone data." });
+
+                var sampleDepartUtc = ConvertLocalToUtc(sampleDepartLocal, sampleAirports.Value.dep.timezone!);
+                var sampleArrivalUtc = ConvertLocalToUtc(sampleArrivalLocal, sampleAirports.Value.arr.timezone!);
+
+                var outboundDuration = sampleArrivalUtc - sampleDepartUtc;
+                var layoverHours = dto.LayoverHours!.Value;
+                var totalRoundTripHours = outboundDuration.TotalHours * 2 + layoverHours;
                 if (totalRoundTripHours > 24)
                     return BadRequest(new
                     {
@@ -311,11 +337,13 @@ namespace AirlineAPI.Controllers
                 // Return leg
                 if (dto.IsReturn && dto.LayoverHours.HasValue)
                 {
-                    var outboundDuration   = scheduledArrivalLocal - scheduledDepartLocal;
-                    var returnDepartLocal   = scheduledArrivalLocal.AddHours(dto.LayoverHours.Value);
-                    var returnArrivalLocal  = returnDepartLocal.Add(outboundDuration);
-                    var returnDepartUtc     = ConvertLocalToUtc(returnDepartLocal,  airports.Value.arr.timezone!);
-                    var returnArrivalUtc    = ConvertLocalToUtc(returnArrivalLocal, airports.Value.dep.timezone!);
+                    var outboundDuration = arrivalUtc - departUtc;
+                    var returnDepartLocal = scheduledArrivalLocal.AddHours(dto.LayoverHours.Value);
+                    var returnDepartUtc = ConvertLocalToUtc(returnDepartLocal, airports.Value.arr.timezone!);
+                    var returnArrivalUtc = returnDepartUtc.Add(outboundDuration);
+
+                    var originTz = ResolveTimeZone(airports.Value.dep.timezone!);
+                    var returnArrivalLocal = TimeZoneInfo.ConvertTimeFromUtc(returnArrivalUtc, originTz);
 
                     flightsToCreate.Add(new Flight
                     {
