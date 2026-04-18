@@ -88,6 +88,20 @@ export function AuthProvider({ children }) {
         setIsAuthenticated(true);
     };
 
+    const updateUser = (updates) => {
+        setUser((prev) => {
+            if (!prev) return prev;
+
+            const nextUser = {
+                ...prev,
+                ...updates,
+            };
+
+            localStorage.setItem("user", JSON.stringify(nextUser));
+            return nextUser;
+        });
+    };
+
     const logout = () => {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
@@ -105,6 +119,7 @@ export function AuthProvider({ children }) {
             loading,
             login,
             loginWithToken,
+            updateUser,
             logout,
         }),
         [user, token, isAuthenticated, loading]
