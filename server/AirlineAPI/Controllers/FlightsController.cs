@@ -17,6 +17,49 @@ namespace AirlineAPI.Controllers
         {
             _context = context;
         }
+        
+        [HttpGet("featured")]
+        public async Task<ActionResult<IEnumerable<FlightResponseDto>>> GetFeaturedFlights(
+            [FromQuery] int count = 8)
+        {
+            var now = DateTime.UtcNow;
+ 
+            var flights = await _context.Flights
+                .Include(f => f.Pricing)
+                .Where(f =>
+                    f.departTime > now &&
+                    f.status != "Cancelled" &&
+                    f.departingPort == "IAH" &&
+                    f.Pricing.Any(p => p.CabinClass == CabinClass.Economy))
+                .OrderBy(f => f.departTime)
+                .Take(count)
+                .ToListAsync();
+ 
+            var response = flights.Select(f => new FlightResponseDto
+            {
+                FlightNum             = f.flightNum,
+                DepartTime            = f.departTime,
+                ArrivalTime           = f.arrivalTime,
+                ScheduledDepartLocal  = f.scheduledDepartLocal ?? f.departTime,
+                ScheduledArrivalLocal = f.scheduledArrivalLocal ?? f.arrivalTime,
+                AircraftUsed          = f.aircraftUsed,
+                Status                = f.status,
+                DepartingPortCode     = f.departingPort,
+                ArrivingPortCode      = f.arrivingPort,
+                IsDomestic            = f.isDomestic,
+                Distance              = f.distance,
+                FlightChange          = f.flightChange,
+                RecurringScheduleId   = f.recurringScheduleId,
+                BookedPassengerCount  = 0,
+                Pricing               = f.Pricing.Select(p => new FlightPricingDto
+                {
+                    CabinClass = p.CabinClass.ToString(),
+                    Price      = p.Price
+                }).ToList()
+            });
+ 
+            return Ok(response);
+        }
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<FlightResponseDto>>> GetFlights()
