@@ -189,7 +189,10 @@ export default function BookingPassengers() {
     const { state } = useLocation();
     const navigate = useNavigate();
 
-    const selectedItinerary = state?.selectedItinerary;
+    const selectedItinerary =
+        state?.selectedItinerary ||
+        state?.itinerary ||
+        state?.selectedOutbound;
     const searchParams = state?.searchParams;
 
     const initialPassengerForms = useMemo(

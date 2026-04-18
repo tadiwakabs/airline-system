@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useFormErrors } from "../utils/useFormErrors";
 import { registerUser } from "../services/authService";
@@ -16,6 +16,7 @@ export default function Register() {
     const navigate = useNavigate();
     const { loginWithToken } = useAuth();
     const {errors,setErrors,clearErrors}= useFormErrors();
+    const location = useLocation();
     
     const [formData, setFormData] = useState({
         username: "",
@@ -63,7 +64,19 @@ export default function Register() {
 
             const data = await registerUser(payload);
             loginWithToken(data);
-            navigate("/"); // redirect after success
+            const pending = location.state?.pendingSelection;
+            const from = location.state?.from || "/";
+            const searchParams = location.state?.searchParams;
+
+            navigate(from, {
+                replace: true,
+                state: pending
+                    ? {
+                        ...pending,
+                        searchParams
+                    }
+                    : undefined
+            });
 
         } catch (err) {
             setErrors(err);
@@ -200,7 +213,11 @@ export default function Register() {
 
                 <p className="text-center text-sm text-gray-500">
                     Already have an account?{" "}
-                    <Link to="/login" className="text-blue-600 hover:underline">
+                    <Link
+                        to="/login"
+                        state={location.state}
+                        className="text-blue-600 hover:underline"
+                    >
                         Login
                     </Link>
                 </p>
