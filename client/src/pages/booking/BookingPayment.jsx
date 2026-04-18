@@ -232,10 +232,10 @@ export default function BookingPayment() {
                     );
                     const resolvedTicketCode = matchedTicket?.ticketCode || matchedTicket?.TicketCode;
                     return {
-                        baggageId: crypto.randomUUID(),
+                        baggageID: crypto.randomUUID().substring(0, 30),
                         ticketCode: resolvedTicketCode,
-                        passengerId: bag.passengerId,
-                        additionalBaggage: Number(bag.additionalBaggage),
+                        PassengerId: bag.passengerId,
+                        additionalBaggage: Number(bag.additionalBaggage) > 0,
                         additionalFare: Number(bag.additionalFare),
                         isChecked: false,
                     };
@@ -243,7 +243,7 @@ export default function BookingPayment() {
                 try {
                     if (finalizedBaggage.length > 0) {
                         console.log("Attempting to save baggage:", finalizedBaggage);
-                        await api.post("/Baggage/bulk", finalizedBaggage);
+                        await api.post("/Baggage/bulk", { baggageList: finalizedBaggage });
                     } else {
                         console.warn("No baggage linked: No matching ticketCodes found for the passengers.");
                     }

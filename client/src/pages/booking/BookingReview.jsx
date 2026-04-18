@@ -357,15 +357,15 @@ export default function BookingReview() {
             const passengerBags = [];
 
             passengerBags.push({
-                passengerId: passenger.passengerId,
-                additionalBaggage: 0,
+                PassengerId: passenger.PassengerId || passenger.passengerId, 
+                additionalBaggage: false,
                 additionalFare: 0.0,
-                isChecked: 0,
+                isChecked: false,
             });
             for (let i = 0; i < baggageCount; i++) {
                 passengerBags.push({
-                    passengerId: passenger.passengerId,
-                    additionalBaggage: 1,
+                    PassengerId: passenger.PassengerId || passenger.passengerId,
+                    additionalBaggage: true,
                     additionalFare: BAGGAGE_FEE_PER_BAG,
                     isChecked: 0,
                 });
