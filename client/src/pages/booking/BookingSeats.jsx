@@ -372,6 +372,7 @@ export default function BookingSeats() {
                 searchParams,
                 passengers,
                 pricingSummary,
+                baggageData,
             },
         });
     };
@@ -390,7 +391,6 @@ export default function BookingSeats() {
                 passengers,
                 pricingSummary,
                 seatSelections,
-                baggageData,
                 baggageData,
             },
         });
