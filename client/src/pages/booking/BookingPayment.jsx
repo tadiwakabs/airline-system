@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { createBooking } from "../../services/bookingService";
 import { useFormErrors } from "../../utils/useFormErrors";
-import api from "../../services/api";
+import { attachBaggageToTickets } from "../../services/baggageService";
 
 import FormError from "../../components/common/FormError";
 import Button from "../../components/common/Button";
@@ -381,7 +381,7 @@ export default function BookingPayment() {
 
                 if (attachPayload.length > 0) {
                     try {
-                        await api.put("/baggage/attach-tickets", attachPayload);
+                        await attachBaggageToTickets(attachPayload);
                     } catch (baggageErr) {
                         // Non-fatal: booking is already confirmed, log and continue.
                         console.error("Failed to attach baggage to tickets:", baggageErr);
