@@ -2,6 +2,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import Card from "../../components/common/Card.jsx";
 import Button from "../../components/common/Button.jsx";
+import api from "../../services/api.js";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -154,8 +155,13 @@ function FlightSegment({ flight }) {
     );
 }
 
-function PassengerCard({ passenger, indexWithinType, isDomestic }) {
+// ─── PassengerCard with inline baggage controls ──────────────────────────────
+
+const BAGGAGE_FEE_PER_BAG = 50.0;
+
+function PassengerCard({ passenger, indexWithinType, isDomestic, extraBags, onAdd, onRemove }) {
     const label = buildPassengerLabel(passenger.passengerType, indexWithinType);
+    const isInfant = passenger.passengerType?.toLowerCase() === "infant";
 
     const hasPassport =
         !isDomestic &&
@@ -218,51 +224,64 @@ function PassengerCard({ passenger, indexWithinType, isDomestic }) {
                     </div>
                 </>
             )}
-        </div>
-    );
-}
 
-function BaggageSection({ count, onAdd, onRemove, fee }) {
-    return (
-        <Card className="p-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h2 className="text-base font-semibold text-gray-800">Additional Baggage</h2>
-                    <p className="text-sm text-gray-500 mt-1">
-                        Need extra space? Add checked bags for {formatCurrency(fee)} each.
-                    </p>
-                </div>
-                
-                <div className="flex items-center justify-between sm:justify-end gap-6 bg-gray-50 px-4 py-3 rounded-xl border border-gray-200 min-w-[160px]">
-                    <span className="text-sm font-medium text-gray-600 uppercase tracking-wider">Bags</span>
-                    <div className="flex items-center gap-3">
-                        <button 
-                            onClick={onRemove}
-                            className="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-gray-300 text-gray-600 hover:bg-gray-100 transition-all shadow-sm active:scale-95"
-                        >
-                            −
-                        </button>
-                        <span className="text-lg font-bold text-gray-900 w-6 text-center">
-                            {count}
-                        </span>
-                        <button 
-                            onClick={onAdd}
-                            className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-md active:scale-95"
-                        >
-                            +
-                        </button>
-                    </div>
-                </div>
+            {/* ── Baggage (not shown for infants) ── */}
+            <Divider />
+            <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                    Baggage
+                </p>
+
+                {isInfant ? (
+                    <p className="text-xs text-gray-500">No baggage allowance for infants.</p>
+                ) : (
+                    <>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm text-gray-700 font-medium">
+                                    1 checked bag included
+                                </p>
+                                {extraBags > 0 && (
+                                    <p className="text-xs text-blue-600 font-medium mt-0.5">
+                                        + {extraBags} extra bag{extraBags > 1 ? "s" : ""} &nbsp;
+                                        <span className="text-gray-400 font-normal">
+                                            ({formatCurrency(extraBags * BAGGAGE_FEE_PER_BAG)})
+                                        </span>
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
+                                <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                                    Extra bags
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={onRemove}
+                                        className="w-7 h-7 flex items-center justify-center rounded-full bg-white border border-gray-300 text-gray-600 hover:bg-gray-100 transition-all shadow-sm active:scale-95 text-sm"
+                                    >
+                                        −
+                                    </button>
+                                    <span className="text-sm font-bold text-gray-900 w-5 text-center">
+                                        {extraBags}
+                                    </span>
+                                    <button
+                                        onClick={onAdd}
+                                        className="w-7 h-7 flex items-center justify-center rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-md active:scale-95 text-sm"
+                                    >
+                                        +
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <p className="text-[11px] text-gray-400">
+                            Additional bags are {formatCurrency(BAGGAGE_FEE_PER_BAG)} each.
+                        </p>
+                    </>
+                )}
             </div>
-            
-            {count > 0 && (
-                <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
-                    <p className="text-xs text-blue-700 font-medium">
-                        ✓ {count} extra bag{count > 1 ? 's' : ''} added to your booking.
-                    </p>
-                </div>
-            )}
-        </Card>
+        </div>
     );
 }
 
@@ -287,7 +306,7 @@ function PriceRow({ label, value, sub, bold, isTotal }) {
 }
 
 // ─── main page ───────────────────────────────────────────────────────────────
-const BAGGAGE_FEE_PER_BAG = 50.0;
+
 export default function BookingReview() {
     const { state } = useLocation();
     const navigate = useNavigate();
@@ -300,9 +319,18 @@ export default function BookingReview() {
     const passengers = state?.passengers ?? [];
     const returnItinerary = state?.returnItinerary ?? null;
 
-    const [baggageCount, setBaggageCount] = useState(0)
+    // keyed by passengerId → number of extra bags (0 for infants, always)
+    const [extraBagsByPassenger, setExtraBagsByPassenger] = useState(() => {
+        const initial = {};
+        passengers.forEach((p) => {
+            const pid = p.PassengerId || p.passengerId;
+            initial[pid] = 0;
+        });
+        return initial;
+    });
 
-    // Guard: if state is missing, send user back
+    const [submitting, setSubmitting] = useState(false);
+
     useEffect(() => {
         if (!isStandbyBooking && (!selectedItinerary || !searchParams || !passengers.length)) {
             navigate("/flight-search");
@@ -316,24 +344,37 @@ export default function BookingReview() {
     const combinedSubtotal =
         pricing.subtotal + (returnItinerary ? returnPricing.subtotal : 0);
 
-    const baggageTotal = baggageCount * BAGGAGE_FEE_PER_BAG;
+    const baggageTotal = Object.values(extraBagsByPassenger)
+        .reduce((sum, count) => sum + (Number(count) || 0), 0) * BAGGAGE_FEE_PER_BAG;
     const combinedTotal = pricing.total + (returnItinerary ? returnPricing.total : 0) + baggageTotal;
 
-    const handleAddBag = () => setBaggageCount(prev => prev + 1);
-    const handleRemoveBag = () => setBaggageCount(prev => Math.max(0, prev - 1));
+    const handleAddBag = (passengerId) => {
+        setExtraBagsByPassenger((prev) => ({
+            ...prev,
+            [passengerId]: (prev[passengerId] || 0) + 1,
+        }));
+    };
+
+    const handleRemoveBag = (passengerId) => {
+        setExtraBagsByPassenger((prev) => ({
+            ...prev,
+            [passengerId]: Math.max(0, (prev[passengerId] || 0) - 1),
+        }));
+    };
+
+    const isDomesticItinerary =
+        selectedItinerary?.flights?.every((f) => f.isDomestic) ?? true;
+
     const passengersWithIndex = useMemo(() => {
         const counters = {};
         return passengers.map((p) => {
             const type = p.passengerType;
             counters[type] = counters[type] ?? 0;
-            const idx = counters[type];
-            counters[type]++;
-            return { ...p, indexWithinType: idx };
+            const indexWithinType = counters[type];
+            counters[type] += 1;
+            return { ...p, indexWithinType };
         });
     }, [passengers]);
-
-    const isDomesticItinerary =
-        selectedItinerary?.flights?.every((f) => f.isDomestic) ?? true;
 
     const handleBack = () => {
         if (isStandbyBooking) {
@@ -348,53 +389,75 @@ export default function BookingReview() {
         });
     };
 
-    const handleConfirm = () => {
-        const baggageData = passengers.map((passenger) => {
-            const passengerBags = [];
+    const handleConfirm = async () => {
+        setSubmitting(true);
 
-            passengerBags.push({
-                PassengerId: passenger.PassengerId || passenger.passengerId, 
+        // Build baggage payload: 1 included bag + N extra bags per non-infant passenger
+        const baggagePayload = [];
+        for (const passenger of passengers) {
+            const passengerId = passenger.PassengerId || passenger.passengerId;
+            const isInfant = passenger.passengerType?.toLowerCase() === "infant";
+
+            if (isInfant) continue;
+
+            const extraCount = extraBagsByPassenger[passengerId] || 0;
+
+            // 1 included checked bag
+            baggagePayload.push({
+                passengerId,
                 additionalBaggage: false,
-                additionalFare: 0.0,
-                isChecked: false,
+                additionalFare: 0,
+                isChecked: true,
             });
-            for (let i = 0; i < baggageCount; i++) {
-                passengerBags.push({
-                    PassengerId: passenger.PassengerId || passenger.passengerId,
+
+            // extra paid bags
+            for (let i = 0; i < extraCount; i++) {
+                baggagePayload.push({
+                    passengerId,
                     additionalBaggage: true,
                     additionalFare: BAGGAGE_FEE_PER_BAG,
-                    isChecked: 0,
+                    isChecked: true,
                 });
             }
-            return passengerBags;
-        }).flat();
-        
-        if (isStandbyBooking) {
-            navigate("/booking/payment", {
-                state: {
-                    standbyBooking,
-                },
-            });
-            return;
         }
 
-        navigate("/booking/seat-selection", {
-            state: {
-                selectedItinerary,
-                returnItinerary,
-                searchParams,
-                passengers,
-                baggageData,
-                pricingSummary: {
-                    ...pricing,
-                    subtotal: combinedSubtotal,
-                    taxAmount: totalTax,
-                    total: combinedTotal,
+        try {
+            const baggageRes = await api.post("/baggage/bulk", baggagePayload);
+            // createdBaggage: [{ baggageId, passengerId, additionalBaggage, additionalFare, isChecked, ticketCode }]
+            const createdBaggage = baggageRes.data || [];
+
+            if (isStandbyBooking) {
+                navigate("/booking/payment", {
+                    state: {
+                        standbyBooking,
+                    },
+                });
+                return;
+            }
+
+            navigate("/booking/seat-selection", {
+                state: {
+                    selectedItinerary,
+                    returnItinerary,
+                    searchParams,
+                    passengers,
+                    baggageData: createdBaggage,
+                    pricingSummary: {
+                        ...pricing,
+                        subtotal: combinedSubtotal,
+                        taxAmount: totalTax,
+                        total: combinedTotal,
+                    },
                 },
-            },
-        });
+            });
+        } catch (err) {
+            console.error("Failed to create bags", err);
+        } finally {
+            setSubmitting(false);
+        }
     };
 
+    // ── Standby path ──────────────────────────────────────────────────────────
     if (isStandbyBooking) {
         return (
             <div className="min-h-screen bg-transparent">
@@ -452,6 +515,7 @@ export default function BookingReview() {
                         </Button>
                         <Button
                             onClick={handleConfirm}
+                            disabled={submitting}
                             className="px-10 shadow-lg shadow-blue-600/30"
                         >
                             Continue to Payment
@@ -474,11 +538,10 @@ export default function BookingReview() {
                     Review Your Booking
                 </h1>
 
+                {/* ── Outbound flight ── */}
                 <Card className="p-5 bg-white/90 backdrop-blur-md border-none shadow-xl">
                     <SectionTitle>
-                        {selectedItinerary.type === "connecting"
-                                ? "Connecting"
-                                : "Direct"}
+                        {selectedItinerary.type === "connecting" ? "Connecting" : "Direct"}
                     </SectionTitle>
                     <div className="space-y-0">
                         {outboundFlights.map((flight, i) => (
@@ -501,6 +564,7 @@ export default function BookingReview() {
                     </div>
                 </Card>
 
+                {/* ── Return flight ── */}
                 {returnItinerary && (
                     <Card className="p-5 bg-white/90 backdrop-blur-md border-none shadow-xl">
                         <SectionTitle>Return Flight</SectionTitle>
@@ -528,26 +592,26 @@ export default function BookingReview() {
                     </Card>
                 )}
 
+                {/* ── Passengers (with inline baggage) ── */}
                 <Card className="p-5 bg-white/90 backdrop-blur-md border-none shadow-xl">
                     <SectionTitle>Passengers</SectionTitle>
                     <div className="grid grid-cols-1 gap-4">
-                        {passengersWithIndex.map((p, i) => (
-                            <PassengerCard
-                                key={i}
-                                passenger={p}
-                                indexWithinType={p.indexWithinType}
-                                isDomestic={isDomesticItinerary}
-                            />
-                        ))}
+                        {passengersWithIndex.map((p, i) => {
+                            const pid = p.PassengerId || p.passengerId;
+                            return (
+                                <PassengerCard
+                                    key={i}
+                                    passenger={p}
+                                    indexWithinType={p.indexWithinType}
+                                    isDomestic={isDomesticItinerary}
+                                    extraBags={extraBagsByPassenger[pid] ?? 0}
+                                    onAdd={() => handleAddBag(pid)}
+                                    onRemove={() => handleRemoveBag(pid)}
+                                />
+                            );
+                        })}
                     </div>
                 </Card>
-
-                <BaggageSection 
-                    count={baggageCount} 
-                    onAdd={handleAddBag} 
-                    onRemove={handleRemoveBag} 
-                    fee={BAGGAGE_FEE_PER_BAG} 
-                />
 
                 {/* ── Price breakdown ── */}
                 <Card className="p-5 bg-white/90 backdrop-blur-md border-none shadow-xl">
@@ -610,6 +674,17 @@ export default function BookingReview() {
                             </>
                         )}
 
+                        {baggageTotal > 0 && (
+                            <>
+                                <Divider />
+                                <PriceRow
+                                    label="Additional Baggage"
+                                    sub={`${Object.values(extraBagsByPassenger).reduce((s, n) => s + n, 0)} extra bag(s) × ${formatCurrency(BAGGAGE_FEE_PER_BAG)}`}
+                                    value={formatCurrency(baggageTotal)}
+                                />
+                            </>
+                        )}
+
                         <div className="pt-2 mt-2 border-t border-gray-200">
                             <PriceRow
                                 label="Estimated Taxes & Fees"
@@ -638,9 +713,10 @@ export default function BookingReview() {
                     </Button>
                     <Button
                         onClick={handleConfirm}
+                        disabled={submitting}
                         className="px-10 shadow-lg shadow-blue-600/30"
                     >
-                        Confirm & Continue
+                        {submitting ? "Saving..." : "Confirm & Continue"}
                     </Button>
                 </div>
             </div>

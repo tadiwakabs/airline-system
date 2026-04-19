@@ -51,7 +51,7 @@ const emptyForm = {
     country: "",
 };
 
-// ─── UI Field from file 1 styling ───────────────────────────────────────────
+// ─── UI Field ───────────────────────────────────────────────────────────────
 
 const Field = ({ label, field, placeholder, type = "text", value, onChange, error }) => (
     <div className="space-y-1">
@@ -83,7 +83,6 @@ export default function BookingPayment() {
         clearErrors,
     } = useFormErrors();
 
-
     // Read state passed from BookingSeats
     const booking = location.state || {};
     const standbyBooking = booking.standbyBooking || null;
@@ -96,6 +95,8 @@ export default function BookingPayment() {
     const passengers = booking.passengers ?? [];
     const pricingSummary = booking.pricingSummary;
     const seatSelections = booking.seatSelections ?? {};
+    // createdBaggage: [{ baggageId, passengerId, additionalBaggage, additionalFare, isChecked, ticketCode }]
+    const createdBaggage = booking.baggageData ?? [];
 
     // Build readable values for summary
     const firstFlight = selectedItinerary?.flights?.[0];
@@ -233,6 +234,7 @@ export default function BookingPayment() {
                 passengers,
                 pricingSummary,
                 seatSelections,
+                baggageData: createdBaggage,
             },
         });
     };
@@ -259,15 +261,8 @@ export default function BookingPayment() {
                 setSubmitting(false);
                 return;
             }
-            
-            const baggageData = (booking.baggageData || []).map(bag => ({
-                passengerId: bag.passengerId,
-                additionalBaggage: bag.additionalBaggage,
-                additionalFare: bag.additionalFare,
-                isChecked: 0,
-            }));
 
-            // Standby payment path
+            // ── Standby payment path ─────────────────────────────────────────
             if (isStandbyPayment) {
                 const bookingPayload = {
                     userId: resolvedUserId,
@@ -305,7 +300,9 @@ export default function BookingPayment() {
                 return;
             }
 
-            // Normal booking flow
+            // ── Normal booking flow ──────────────────────────────────────────
+
+            // 1. Build ticket list
             const tickets = [];
 
             for (const flight of allFlights) {
@@ -342,6 +339,7 @@ export default function BookingPayment() {
                 }
             }
 
+            // 2. Create the booking
             const bookingPayload = {
                 userId: resolvedUserId,
                 totalPrice: Number(totalPrice),
@@ -353,39 +351,45 @@ export default function BookingPayment() {
             const res = await createBooking(bookingPayload);
             const confirmation = res.data;
 
-            const rawBaggageData = booking.baggageData || [];
-            if (rawBaggageData.length > 0)
-            {
-                const finalizedBaggage = rawBaggageData.map(bag => {
-                    const ticketList = confirmation.tickets || [];
+            // 3. Attach baggage to tickets via PUT /baggage/attach-tickets
+            //    Match each bag to the first ticket whose PassengerId matches.
+            if (createdBaggage.length > 0) {
+                const confirmedTickets = confirmation.Tickets ?? confirmation.tickets ?? [];
 
-                    const matchedTicket = (confirmation.tickets ?? []).find( t => {
-                        const serverPid = (t.passengerid || t.passengerId || t.PassengerId || "").toString().toLowerCase();
-                        const localPid = (bag.passengerId || bag.PassengerId || "").toString().toLowerCase();
-                        return serverPid === localPid && serverPid !== "";
-                    });
-                    const resolvedTicketCode = matchedTicket?.ticketCode || matchedTicket?.TicketCode;
-                    return {
-                        baggageID: crypto.randomUUID().substring(0, 30),
-                        ticketCode: resolvedTicketCode,
-                        baggageId: (bag.passengerId || bag.PassengerId).substring(0, 30),
-                        additionalBaggage: bag.additionalBaggage === true || bag.additionalBaggage === 1,
-                        additionalFare: Number(bag.additionalFare),
-                        isChecked: false,
-                    };
-                }).filter(b => b.ticketCode && b.baggageId);
-                try {
-                    if (finalizedBaggage.length > 0) {
-                        console.log("Sending to bulk save:", finalizedBaggage);
-                        await api.post("/Baggage/bulk", finalizedBaggage);
-                        console.log("Baggage saved!");
-                    } else {
-                        console.warn("No baggage linked: No matching ticketCodes found.");
+                // Build a passengerId → ticketCode lookup (first ticket per passenger)
+                const ticketByPassenger = {};
+                for (const t of confirmedTickets) {
+                    const pid = (t.PassengerId ?? t.passengerId ?? "").toString().toLowerCase();
+                    if (pid && !ticketByPassenger[pid]) {
+                        ticketByPassenger[pid] = t.TicketCode ?? t.ticketCode;
                     }
-                } catch (baggageErr) {
-                    console.error("Baggage failed to save:", baggageErr);
+                }
+
+                const attachPayload = createdBaggage
+                    .map((bag) => {
+                        const pid = (bag.passengerId ?? bag.PassengerId ?? "")
+                            .toString()
+                            .toLowerCase();
+                        const ticketCode = ticketByPassenger[pid];
+                        if (!ticketCode) return null;
+                        return {
+                            baggageId: bag.baggageId ?? bag.baggageID,
+                            ticketCode,
+                        };
+                    })
+                    .filter(Boolean);
+
+                if (attachPayload.length > 0) {
+                    try {
+                        await api.put("/baggage/attach-tickets", attachPayload);
+                    } catch (baggageErr) {
+                        // Non-fatal: booking is already confirmed, log and continue.
+                        console.error("Failed to attach baggage to tickets:", baggageErr);
+                    }
                 }
             }
+
+            // 4. Build enriched ticket list for confirmation screen
             const cabinClassLabel =
                 searchParams?.cabinClass?.toLowerCase() === "first"
                     ? "First Class"
@@ -393,9 +397,13 @@ export default function BookingPayment() {
                         ? "Business Class"
                         : "Economy Class";
 
-            const ticketsWithDetails = (confirmation.tickets ?? []).map((ticket) => {
+            const confirmedTickets = confirmation.Tickets ?? confirmation.tickets ?? [];
+
+            const ticketsWithDetails = confirmedTickets.map((ticket) => {
                 const matchedPassenger = passengers.find(
-                    (p) => p.passengerId === ticket.passengerId
+                    (p) =>
+                        (p.passengerId ?? "").toLowerCase() ===
+                        (ticket.PassengerId ?? ticket.passengerId ?? "").toLowerCase()
                 );
 
                 return {
@@ -403,16 +411,16 @@ export default function BookingPayment() {
                     passengerName: matchedPassenger
                         ? `${matchedPassenger.firstName} ${matchedPassenger.lastName}`
                         : "Unknown Passenger",
-                    seatDisplay: ticket.seatNumber
-                        ? `${ticket.seatNumber} (${cabinClassLabel})`
+                    seatDisplay: ticket.SeatNumber ?? ticket.seatNumber
+                        ? `${ticket.SeatNumber ?? ticket.seatNumber} (${cabinClassLabel})`
                         : "—",
                 };
             });
 
             navigate("/booking/confirmation", {
                 state: {
-                    transactionId: confirmation.transactionId,
-                    bookingId: confirmation.bookingId,
+                    transactionId: confirmation.TransactionId ?? confirmation.transactionId,
+                    bookingId: confirmation.BookingId ?? confirmation.bookingId,
                     tickets: ticketsWithDetails,
                     passengerName,
                     flightDetails,
