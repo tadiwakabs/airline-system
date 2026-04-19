@@ -10,11 +10,13 @@ export default function Reports() {
     const [stagedShowAll, setStagedShowAll] = useState(false); 
     const [stagedSearch, setStagedSearch] = useState("");
     const [stagedSort, setStagedSort] = useState({ key: "", direction: "asc" });
+    const [stagedDates, setStagedDates] = useState({ start: "", end: "" });
     
     const [activeReportType, setActiveReportType] = useState("revenue");
     const [activeShowAll, setActiveShowAll] = useState(false);
     const [activeSearch, setActiveSearch] = useState("");
     const [activeSort, setActiveSort] = useState({ key: null, direction: 'asc' });
+    const [activeDates, setActiveDates] = useState({ start: "", end: "" });
 
     const reportColumnsMap = {
         revenue: ["origin", "destination", "totalRevenue", "refunds", "profit", "avgFare", "cabinDriver"],
@@ -25,7 +27,11 @@ export default function Reports() {
     const loadData = async () => {
         setLoading(true);
         try {
-            const res = await api.get(`reports/${activeReportType}`);
+            const params = new URLSearchParams();
+            if (activeDates.start) params.append("startDate", activeDates.start);
+            if (activeDates.end) params.append("endDate", activeDates.end);
+            
+            const res = await api.get(`reports/${activeReportType}?${params.toString()}`);
             setData(res.data || []);
         } catch (err) {
             setData([]);
@@ -34,23 +40,22 @@ export default function Reports() {
         }
     };
 
-    useEffect(() => { loadData(); }, [activeReportType]);
+    useEffect(() => { loadData(); }, [activeReportType, activeDates]);
 
     const handleApplyFilters = () => {
         setActiveReportType(stagedReportType);
         setActiveShowAll(stagedShowAll);
         setActiveSearch(stagedSearch);
         setActiveSort({ ...stagedSort });
+        setActiveDates({ ...stagedDates });
     };
 
     const requestHeaderSort = (key) => {
         let direction = 'asc';
         if (activeSort.key === key && activeSort.direction === 'asc') direction = 'desc';
         setActiveSort({ key, direction });
-        setStagedSort({ key, direction });
     };
 
-    // Dynamically compute summary stats from real data
     const summaryStats = useMemo(() => {
         if (!data.length) return [
             { label: "—", value: "—", subLabel: "—", subValue: "—" },
@@ -67,33 +72,17 @@ export default function Reports() {
             const topRoute = [...data].sort((a, b) => Number(b.totalRevenue) - Number(a.totalRevenue))[0];
             return [
                 { label: "Total Revenue", value: `$${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, subLabel: "Network Total", subValue: "USD" },
-                { label: "Net Profit", value: `$${totalProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, subLabel: "After Deductions", subValue: `$${totalRefunds.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} refunded`, highlighted: true },
+                { label: "Net Profit", value: `$${totalProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, subLabel: "After Deductions", subValue: `$${totalRefunds.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Refunded/Reimbursed`, highlighted: true },
                 { label: "Premium Routes", value: `${premiumRoutes}`, subLabel: "of total routes", subValue: `${data.length} routes` },
-                { label: "Top Route", value: topRoute ? `${topRoute.origin}→${topRoute.destination}` : "—", subLabel: "Route Revenue", subValue: `$${Number(topRoute?.totalRevenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+                { label: "Top Route", value: topRoute ? `${topRoute.origin}→${topRoute.destination}`.toUpperCase() : "—", subLabel: "Route Revenue", subValue: `$${Number(topRoute?.totalRevenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
             ];
         }
 
-        /*if (activeReportType === "popularity") {
-            const totalBookings = data.reduce((s, r) => s + Number(r.totalActiveBookings || 0), 0);
-            const topDest = [...data].sort((a, b) => Number(b.totalActiveBookings) - Number(a.totalActiveBookings))[0];
-            const leastDest = [...data].filter(r => Number(r.totalActiveBookings) > 0).sort((a, b) => Number(a.totalActiveBookings) - Number(b.totalActiveBookings))[0];
-            const topMonth = data.filter(r => r.peakMonth && r.peakMonth !== "N/A")
-                .reduce((acc, r) => { acc[r.peakMonth] = (acc[r.peakMonth] || 0) + 1; return acc; }, {});
-            const peakMonth = Object.entries(topMonth).sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A";
-            const topDay = data.filter(r => r.peakDay && r.peakDay !== "N/A")
-                .reduce((acc, r) => { acc[r.peakDay] = (acc[r.peakDay] || 0) + 1; return acc; }, {});
-            const peakDay = Object.entries(topDay).sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A";
-            return [
-                { label: "Total Bookings", value: totalBookings.toLocaleString(), subLabel: "Network Wide", subValue: "Booked Tickets" },
-                { label: "Most Popular", value: topDest?.destination || "—", subLabel: "Total Bookings", subValue: Number(topDest?.totalActiveBookings || 0).toLocaleString(), highlighted: true },
-                { label: "Least Popular", value: leastDest?.destination || "—", subLabel: "Total Bookings", subValue: Number(leastDest?.totalActiveBookings || 0).toLocaleString() },
-                { label: "Peak Travel", value: peakDay, subLabel: "Peak Month", subValue: peakMonth },
-            ];
-        }*/
         if (activeReportType === "popularity") {
             const totalBookings = data.reduce((s, r) => s + Number(r.totalActiveBookings || 0), 0);
             const topDest = [...data].sort((a, b) => Number(b.totalActiveBookings) - Number(a.totalActiveBookings))[0];
             const activeDestinations = data.filter(r => Number(r.totalActiveBookings) > 0);
+            
             let leastDestLabel = "—", leastDestValue = "0";
             if (activeDestinations.length > 0) {
                 const minBookings = Math.min(...activeDestinations.map(r => Number(r.totalActiveBookings)));
@@ -101,10 +90,13 @@ export default function Reports() {
                 leastDestLabel = tiedLeast.map(r => r.destination).join(", ").toUpperCase();
                 leastDestValue = minBookings.toLocaleString();
             }
+
             const monthCounts = data.filter(r => r.peakMonth && r.peakMonth !== "N/A").reduce((acc, r) => { acc[r.peakMonth] = (acc[r.peakMonth] || 0) + 1; return acc; }, {});
             const peakMonth = Object.entries(monthCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A";
+            
             const dayCounts = data.filter(r => r.peakDay && r.peakDay !== "N/A").reduce((acc, r) => { acc[r.peakDay] = (acc[r.peakDay] || 0) + 1; return acc; }, {});
             const peakDay = (Object.entries(dayCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A").toUpperCase();
+
             return [
                 { label: "Total Bookings", value: totalBookings.toLocaleString(), subLabel: "Network Wide", subValue: "Booked Tickets" },
                 { label: "Most Popular", value: topDest?.destination?.toUpperCase() || "—", subLabel: "Total Bookings", subValue: Number(topDest?.totalActiveBookings || 0).toLocaleString(), highlighted: true },
@@ -120,7 +112,7 @@ export default function Reports() {
             const avgWeekly = data.reduce((s, r) => s + Number(r.weeklyFrequency || 0), 0) / (data.length || 1);
             return [
                 { label: "Avg Load Factor", value: `${avgLoad.toFixed(2)}%`, subLabel: "Network Average", subValue: "All Routes" },
-                { label: "Busiest Route", value: topRoute ? `${topRoute.origin}→${topRoute.destination}` : "—", subLabel: "Load Factor", subValue: `${Number(topRoute?.avgLoadFactorPercent || 0).toFixed(2)}%`, highlighted: true },
+                { label: "Busiest Route", value: topRoute ? `${topRoute.origin}→${topRoute.destination}`.toUpperCase() : "—", subLabel: "Load Factor", subValue: `${Number(topRoute?.avgLoadFactorPercent || 0).toFixed(2)}%`, highlighted: true },
                 { label: "Active Tail Count", value: `${uniqueTails}`, subLabel: "Fleet Status", subValue: "Operational" },
                 { label: "Avg Weekly Flights", value: `${avgWeekly.toFixed(1)}`, subLabel: "Per Route", subValue: "Flights" },
             ];
@@ -229,6 +221,24 @@ export default function Reports() {
                         onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()} 
                         className="w-full px-2 py-1 bg-white border border-[#e2e8f0] text-[12px] outline-none" 
                     />
+                </div>
+
+                <div className="flex-1 border-r border-[#e2e8f0] p-2 bg-[#f8fafc]/20">
+                    <label className="block mb-1">Date Range</label>
+                    <div className="flex gap-1">
+                        <input 
+                            type="date" 
+                            value={stagedDates.start} 
+                            onChange={(e) => setStagedDates({ ...stagedDates, start: e.target.value })} 
+                            className="w-full px-2 py-1 border border-[#e2e8f0] text-[12px] outline-none" 
+                        />
+                        <input 
+                            type="date" 
+                            value={stagedDates.end} 
+                            onChange={(e) => setStagedDates({ ...stagedDates, end: e.target.value })} 
+                            className="w-full px-2 py-1 border border-[#e2e8f0] text-[12px] outline-none" 
+                        />
+                    </div>
                 </div>
 
                 <div 
