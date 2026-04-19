@@ -291,8 +291,8 @@ export default function Aircraft() {
             {/* Page Header */}
             <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
-                    <h1 className="text-2xl font-semibold text-gray-900">Aircraft Fleet</h1>
-                    <p className="mt-1 text-sm text-gray-500">Manage and monitor aircraft specifications and locations.</p>
+                    <h1 className="text-2xl font-semibold text-gray-800">Aircraft Fleet</h1>
+                    <p className="mt-1 text-sm text-gray-200">Manage and monitor aircraft specifications and locations.</p>
                 </div>
                 <div className="flex gap-4">
                     <Button onClick={() => { setShowForm(true); setEditingTail(null); setForm(emptyForm); clearErrors(); }}>
