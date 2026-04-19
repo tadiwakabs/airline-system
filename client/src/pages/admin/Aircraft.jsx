@@ -5,6 +5,8 @@ import TextInput from "../../components/common/TextInput";
 import Dropdown from "../../components/common/Dropdown";
 import Separator from "../../components/common/Separator";
 import Modal from "../../components/common/Modal";
+import Combobox from "../../components/common/Combobox";
+import airportData from "../../dropdownData/airports.json";
 import {
     getAllAircraft,
     createAircraft,
@@ -22,6 +24,11 @@ const emptyForm = {
     flightRange: "",
     currentAirportCode: "",
 };
+
+const airportOptions = airportData.map((a) => ({
+    label: a.label,
+    value: a.value,
+}));
 
 // ── CSV helpers ───────────────────────────────────────────────────────────────
 
@@ -116,6 +123,9 @@ export default function Aircraft() {
     const [sortDir,      setSortDir]      = useState("asc");
     const { errors: serverErrors, setErrors: setServerErrors, clearErrors } = useFormErrors();
 
+    const [page, setPage] = useState(1);
+    const PAGE_SIZE = 50;
+
     // ── Import modal state ────────────────────────────────────────────────────
     const [importOpen,     setImportOpen]     = useState(false);
     const [importRows,     setImportRows]     = useState([]);
@@ -146,6 +156,7 @@ export default function Aircraft() {
             return 0;
         });
         setFiltered(data);
+        setPage(1);
     }, [aircraftList, filterText, sortField, sortDir]);
 
     const fetchAircraft = async () => {
@@ -271,6 +282,8 @@ export default function Aircraft() {
 
     const validCount   = importRows.filter((r) => r.valid).length;
     const invalidCount = importRows.filter((r) => !r.valid).length;
+    const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+    const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
     // ─────────────────────────────────────────────────────────────────────────
     return (
@@ -359,7 +372,7 @@ export default function Aircraft() {
                                 <td colSpan={6} className="text-center py-10 text-gray-400 italic">No aircraft records found.</td>
                             </tr>
                         ) : (
-                            filtered.map((a) => (
+                            paginated.map((a) => (
                                 <tr key={a.tailnumber} className="rounded-xl bg-gray-50 text-sm hover:bg-gray-100 transition-colors">
                                     <td className="px-3 py-4 font-bold text-blue-600">{a.tailnumber}</td>
                                     <td className="px-3 py-4 text-gray-800 font-medium">{a.planeType ?? "—"}</td>
@@ -388,6 +401,30 @@ export default function Aircraft() {
                         )}
                         </tbody>
                     </table>
+
+                    {totalPages > 1 && (
+                        <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
+                            <p>{filtered.length} aircraft — page {page} of {totalPages}</p>
+                            <div className="flex gap-2">
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={page === 1}
+                                    onClick={() => setPage((p) => p - 1)}
+                                >
+                                    Previous
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={page === totalPages}
+                                    onClick={() => setPage((p) => p + 1)}
+                                >
+                                    Next
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </Card>
 
@@ -397,6 +434,7 @@ export default function Aircraft() {
                 onClose={handleCancel}
                 title={editingTail ? "Edit Aircraft" : "Add New Aircraft"}
                 className="!max-w-xl"
+                contentClassName="!overflow-visible"
             >
                 <form onSubmit={handleSubmit} className="space-y-4 pt-2">
                     <FormError errors={serverErrors} />
@@ -404,16 +442,46 @@ export default function Aircraft() {
                         label="Tail Number"
                         value={form.tailnumber}
                         disabled={!!editingTail}
+                        placeholder="e.g. N12345"
                         onChange={(e) => setForm({ ...form, tailnumber: e.target.value })}
                     />
                     <div className="grid grid-cols-2 gap-4">
-                        <TextInput label="Plane Type" value={form.planeType} onChange={(e) => setForm({ ...form, planeType: e.target.value })} />
-                        <TextInput label="Seats" type="number" value={form.numSeats} onChange={(e) => setForm({ ...form, numSeats: parseInt(e.target.value) })} />
+                        <TextInput
+                            label="Plane Type"
+                            value={form.planeType}
+                            placeholder="e.g. Boeing 737"
+                            onChange={(e) => setForm({ ...form, planeType: e.target.value })}
+                        />
+                        <TextInput
+                            label="Seats"
+                            type="number"
+                            value={form.numSeats}
+                            placeholder="90 – 140"
+                            onChange={(e) => setForm({ ...form, numSeats: parseInt(e.target.value) })}
+                        />
                     </div>
-                    <TextInput label="Manufacturer" value={form.manufacturerName} onChange={(e) => setForm({ ...form, manufacturerName: e.target.value })} />
+                    <TextInput
+                        label="Manufacturer"
+                        value={form.manufacturerName}
+                        placeholder="e.g. Boeing"
+                        onChange={(e) => setForm({ ...form, manufacturerName: e.target.value })}
+                    />
                     <div className="grid grid-cols-2 gap-4">
-                        <TextInput label="Range (miles)" type="number" value={form.flightRange} onChange={(e) => setForm({ ...form, flightRange: parseInt(e.target.value) })} />
-                        <TextInput label="Airport Code" value={form.currentAirportCode} onChange={(e) => setForm({ ...form, currentAirportCode: e.target.value.toUpperCase() })} />
+                        <TextInput
+                            label="Range (miles)"
+                            type="number"
+                            value={form.flightRange}
+                            placeholder="9000 – 11000"
+                            onChange={(e) => setForm({ ...form, flightRange: parseInt(e.target.value) })}
+                        />
+                        <Combobox
+                            label="Airport Code"
+                            value={form.currentAirportCode}
+                            onChange={(val) => setForm({ ...form, currentAirportCode: val })}
+                            options={airportOptions}
+                            placeholder="Search airport..."
+                            emptyMessage="No airports found"
+                        />
                     </div>
                     <div className="flex gap-3 pt-4">
                         <Button type="submit">{editingTail ? "Save Changes" : "Create Aircraft"}</Button>
