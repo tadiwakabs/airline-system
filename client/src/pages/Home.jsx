@@ -203,10 +203,10 @@ export default function Home() {
                     <section className="space-y-4">
                         <div className="flex items-center justify-between">
                             <div>
-                                <h2 className="text-xl font-semibold text-gray-900">
+                                <h2 className="text-xl font-semibold text-gray-800">
                                     Notifications
                                 </h2>
-                                <p className="text-sm text-gray-500">
+                                <p className="text-sm text-gray-200">
                                     Important flight and standby updates for your account.
                                 </p>
                             </div>
@@ -218,7 +218,7 @@ export default function Home() {
                                         state: { defaultTab: "notifications" },
                                     })
                                 }
-                                className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
+                                className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-200 transition hover:bg-gray-600 cursor-pointer"
                             >
                                 View All
                             </button>

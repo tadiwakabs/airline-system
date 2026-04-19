@@ -1,7 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using AirlineAPI.Models;
-using AirlineAPI.Data; // Ensure this matches your actual Data namespace
+using AirlineAPI.Data;
+using AirlineAPI.DTOs.Baggage;
 
 namespace AirlineAPI.Controllers
 {
@@ -22,61 +23,81 @@ namespace AirlineAPI.Controllers
             var baggage = await _context.Baggage.FindAsync(id);
 
             if (baggage == null)
-            {
                 return NotFound();
-            }
+
             return Ok(baggage);
         }
 
         [HttpGet("ticket/{ticketCode}")]
-        public async Task<ActionResult<IEnumerable<Baggage>>> GetBaggageByFlight(string ticketCode)
+        public async Task<ActionResult<IEnumerable<Baggage>>> GetBaggageByTicket(string ticketCode)
         {
-            var flightBaggage = await _context.Baggage
+            var baggage = await _context.Baggage
                 .Where(b => b.ticketCode == ticketCode)
                 .ToListAsync();
 
-            return Ok(flightBaggage);
+            return Ok(baggage);
         }
 
         [HttpPost("bulk")]
-        public async Task<IActionResult> PostBaggageBulk([FromBody] List<Baggage> baggageList)
+        public async Task<IActionResult> PostBaggageBulk([FromBody] List<CreateBaggageDto> baggageList)
         {
-            foreach (var baggage in baggageList)
-            {       
-                if (string.IsNullOrEmpty(baggage.baggageID))
+            if (baggageList == null || !baggageList.Any())
+                return BadRequest("No baggage provided.");
+
+            var created = new List<Baggage>();
+
+            foreach (var item in baggageList)
+            {
+                var baggage = new Baggage
                 {
-                    baggage.baggageID = Guid.NewGuid().ToString().Substring(0, 30);
-                }
-                _context.Baggage.Add(baggage);
+                    baggageID = Guid.NewGuid().ToString("N")[..30],
+                    PassengerId = item.PassengerId,
+                    additionalBaggage = item.AdditionalBaggage,
+                    additionalFare = item.AdditionalFare ?? 0,
+                    isChecked = item.IsChecked,
+                    ticketCode = null
+                };
+
+                created.Add(baggage);
             }
+
+            await _context.Baggage.AddRangeAsync(created);
             await _context.SaveChangesAsync();
-            return Ok(new { message = "Baggage added successfully" });
+
+            return Ok(created.Select(b => new
+            {
+                baggageId = b.baggageID,
+                passengerId = b.PassengerId,
+                additionalBaggage = b.additionalBaggage,
+                additionalFare = b.additionalFare,
+                isChecked = b.isChecked,
+                ticketCode = b.ticketCode
+            }));
         }
 
-        [HttpPost]
-        public async Task<ActionResult<Baggage>> PostBaggage(Baggage baggage)
+        [HttpPut("attach-tickets")]
+        public async Task<IActionResult> AttachTickets([FromBody] List<AttachBaggageTicketDto> updates)
         {
-            if (string.IsNullOrEmpty(baggage.baggageID))
+            if (updates == null || !updates.Any())
+                return BadRequest("No baggage updates provided.");
+
+            var baggageIds = updates.Select(u => u.BaggageId).Distinct().ToList();
+
+            var baggageRows = await _context.Baggage
+                .Where(b => baggageIds.Contains(b.baggageID))
+                .ToListAsync();
+
+            foreach (var update in updates)
             {
-                baggage.baggageID = Guid.NewGuid().ToString().Substring(0, 30);
+                var baggage = baggageRows.FirstOrDefault(b => b.baggageID == update.BaggageId);
+                if (baggage == null)
+                    continue;
+
+                baggage.ticketCode = update.TicketCode;
             }
 
-            _context.Baggage.Add(baggage);
-            
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateException)
-            {
-                if (BaggageExists(baggage.baggageID))
-                {
-                    return Conflict("Baggage ID already exists.");
-                }
-                throw;
-            }
-
-            return CreatedAtAction(nameof(GetBaggage), new { id = baggage.baggageID }, baggage);
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Baggage updated successfully." });
         }
 
         [HttpDelete("{id}")]
@@ -84,19 +105,12 @@ namespace AirlineAPI.Controllers
         {
             var baggage = await _context.Baggage.FindAsync(id);
             if (baggage == null)
-            {
                 return NotFound();
-            }
 
             _context.Baggage.Remove(baggage);
             await _context.SaveChangesAsync();
 
             return NoContent();
-        }
-
-        private bool BaggageExists(string id)
-        {
-            return _context.Baggage.Any(e => e.baggageID == id);
         }
     }
 }

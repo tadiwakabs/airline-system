@@ -410,12 +410,17 @@ namespace AirlineAPI.Data
             modelBuilder.Entity<Baggage>(entity =>
             {
                 entity.ToTable("Baggage");
-                
+
                 entity.HasKey(b => b.baggageID);
-                
+
                 entity.Property(b => b.baggageID)
                     .HasColumnName("baggageId")
                     .HasMaxLength(30)
+                    .IsRequired();
+
+                entity.Property(b => b.PassengerId)
+                    .HasColumnName("passengerId")
+                    .HasMaxLength(50)
                     .IsRequired();
 
                 entity.Property(b => b.additionalBaggage)
@@ -432,7 +437,7 @@ namespace AirlineAPI.Data
                 entity.Property(b => b.ticketCode)
                     .HasColumnName("ticketCode")
                     .HasMaxLength(30)
-                    .IsRequired();
+                    .IsRequired(false);
 
                 entity.HasOne(b => b.Passenger)
                     .WithMany()
