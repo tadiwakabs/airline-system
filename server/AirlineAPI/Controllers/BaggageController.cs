@@ -54,7 +54,7 @@ namespace AirlineAPI.Controllers
                     PassengerId = item.PassengerId,
                     additionalBaggage = item.AdditionalBaggage,
                     additionalFare = item.AdditionalFare ?? 0,
-                    isChecked = item.IsChecked,
+                    isChecked = false,
                     ticketCode = null
                 };
 
