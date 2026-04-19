@@ -27,7 +27,9 @@ namespace AirlineAPI.Controllers
                 return Unauthorized("User not authenticated.");
 
             var notifications = await _context.Notification
-                .Where(n => n.userId == currentUserId)
+                .Where(n =>
+                    n.userId == currentUserId &&
+                    (n.notificationStatus == null || n.notificationStatus != "Read"))
                 .OrderByDescending(n => n.createdAt)
                 .ToListAsync();
 
@@ -35,18 +37,26 @@ namespace AirlineAPI.Controllers
         }
 
         [HttpPut("{id}/read")]
-public async Task<IActionResult> MarkAsRead(int id)
-{
-    var notification = await _context.Notification.FindAsync(id);
+        public async Task<IActionResult> MarkAsRead(int id)
+        {
+            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-    if (notification == null)
-        return NotFound(new { message = "Notification not found." });
+            if (string.IsNullOrEmpty(currentUserId))
+                return Unauthorized("User not authenticated.");
 
-    notification.notificationStatus = "Read";
+            var notification = await _context.Notification
+                .FirstOrDefaultAsync(n =>
+                    n.notificationId == id &&
+                    n.userId == currentUserId);
 
-    await _context.SaveChangesAsync();
+            if (notification == null)
+                return NotFound(new { message = "Notification not found." });
 
-    return Ok(new { message = "Notification marked as read." });
-}
+            notification.notificationStatus = "Read";
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Notification marked as read." });
+        }
     }
 }

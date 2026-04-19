@@ -7,8 +7,6 @@ import FlightSearchPanel from "../components/home/FlightSearchPanel.jsx";
 import Hero from "../components/home/HeroSection.jsx";
 import FeaturedFlights from "../components/home/FeaturedFlights.jsx";
 import Card from "../components/common/Card.jsx";
-import { getFlightById } from "../services/flightService";
-import { getFlightsByBooking } from "../services/bookingService";
 import { getMyNotifications, markNotificationAsRead } from "../services/notificationService";
 import { getStatusByBooking } from "../services/bookingService";
 
@@ -123,19 +121,17 @@ export default function Home() {
         }
     }, [isAuthenticated]);
 
-    useEffect(() => {
-        if (isAuthenticated) {
-            loadNotifications();
-        }
-    }, [isAuthenticated]);
-
     const loadNotifications = async () => {
         try {
             setNotificationsLoading(true);
             setNotificationsError("");
 
             const data = await getMyNotifications();
-            setNotifications(Array.isArray(data) ? data : []);
+            setNotifications(
+                Array.isArray(data)
+                    ? data.filter(n => n.notificationStatus !== "Read")
+                    : []
+            );
         } catch (err) {
             console.error("Error loading notifications:", err);
             setNotificationsError(
@@ -151,11 +147,7 @@ export default function Home() {
         await markNotificationAsRead(id);
 
         setNotifications((prev) =>
-            prev.map((n) =>
-                n.notificationId === id
-                    ? { ...n, notificationStatus: "Read" }
-                    : n
-            )
+            prev.filter((n) => n.notificationId !== id)
         );
     } catch (err) {
         console.error("Error marking notification as read:", err);
