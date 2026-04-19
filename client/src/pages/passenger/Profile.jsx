@@ -1,4 +1,4 @@
-﻿import { act, useEffect, useState } from "react";
+import { act, useEffect, useState } from "react";
 import Card from "../../components/common/Card";
 import TextInput from "../../components/common/TextInput";
 import Modal from "../../components/common/Modal";

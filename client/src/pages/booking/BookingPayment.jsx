@@ -5,6 +5,7 @@ import { createBooking } from "../../services/bookingService";
 import { completePendingPayment } from "../../services/paymentService";
 import { useFormErrors } from "../../utils/useFormErrors";
 import Button from "../../components/common/Button";
+
 import FormError from "../../components/common/FormError";
 
 function detectCardType(number) {

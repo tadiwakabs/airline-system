@@ -99,7 +99,7 @@ export default function Register() {
 
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4">
 
-                    {/* Title */}
+                    {/* Title — optional (DEFAULT NULL) */}
                     <Dropdown
                         label="Title"
                         value={formData.title}
@@ -117,7 +117,7 @@ export default function Register() {
                         placeholder="Select title"
                     />
 
-                    {/* Name */}
+                    {/* Name — both NOT NULL */}
                     <div className="flex gap-3">
                         <TextInput
                             label={<>First Name <span className="text-red-500">*</span></>}
@@ -137,7 +137,7 @@ export default function Register() {
                         />
                     </div>
 
-                    {/* Username */}
+                    {/* Username — NOT NULL, UNIQUE */}
                     <TextInput
                         label={<>Username <span className="text-red-500">*</span></>}
                         value={formData.username}
@@ -147,7 +147,7 @@ export default function Register() {
                         required
                     />
 
-                    {/* Email */}
+                    {/* Email — NOT NULL, UNIQUE */}
                     <TextInput
                         label={<>Email <span className="text-red-500">*</span></>}
                         type="email"
@@ -158,7 +158,7 @@ export default function Register() {
                         required
                     />
 
-                    {/* DOB */}
+                    {/* DOB — NOT NULL */}
                     <DatePicker
                         label={<>Date of Birth <span className="text-red-500">*</span></>}
                         value={formData.dateOfBirth}
@@ -168,7 +168,7 @@ export default function Register() {
                         required
                     />
 
-                    {/* Gender */}
+                    {/* Gender — optional (DEFAULT NULL) */}
                     <Dropdown
                         label="Gender"
                         value={formData.gender}
@@ -182,7 +182,7 @@ export default function Register() {
                         placeholder="Select gender"
                     />
 
-                    {/* Password */}
+                    {/* Password — NOT NULL (passwordHash) */}
                     <TextInput
                         label={<>Password <span className="text-red-500">*</span></>}
                         type="password"
