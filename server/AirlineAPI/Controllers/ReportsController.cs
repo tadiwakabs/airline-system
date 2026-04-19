@@ -51,15 +51,44 @@ namespace AirlineAPI.Controllers
                         CAST(COUNT(DISTINCT CASE WHEN t.status = 'Booked' THEN t.ticketCode END) / 4 AS SIGNED) AS passengersPerWeek,
                         ROUND(COALESCE(SUM(CASE WHEN t.status = 'Booked' THEN t.price ELSE 0 END), 0) / NULLIF((SELECT SUM(t2.price) FROM Ticket t2 WHERE t2.status = 'Booked'), 0) * 100, 2) AS revenueContributionPercent,
                         COALESCE((SELECT MONTHNAME(MIN(t3.issueDate)) FROM Ticket t3 JOIN Flight f3 ON f3.flightNum = t3.flightCode WHERE f3.arrivingPort = f.arrivingPort AND t3.status = 'Booked' GROUP BY MONTH(t3.issueDate) ORDER BY COUNT(*) DESC LIMIT 1), 'N/A') AS peakMonth,
-                        COALESCE((SELECT DAYNAME(MIN(f4.departTime)) FROM Flight f4 JOIN Ticket t4 ON t4.flightCode = f4.flightNum WHERE f4.arrivingPort = f.arrivingPort AND t4.status = 'Booked' GROUP BY DAYOFWEEK(f4.departTime) ORDER BY COUNT(*) DESC LIMIT 1), 'N/A') AS peakDay
+                        COALESCE((SELECT DAYNAME(MIN(f4.departTime)) FROM Flight f4 JOIN Ticket t4 ON t4.flightCode = f4.flightNum WHERE f4.arrivingPort = f.arrivingPort AND t4.status = 'Booked' GROUP BY DAYOFWEEK(f4.departTime) ORDER BY COUNT(*) DESC LIMIT 1), 'N/A') AS peakDay,
+                        ROUND(
+                            (
+                                COALESCE(SUM(CASE WHEN t.status = 'Booked' THEN t.price ELSE 0 END), 0) / 
+                                NULLIF((SELECT SUM(t2.price) FROM Ticket t2 WHERE t2.status = 'Booked'), 0) * 100 * 0.6
+                            ) + (
+                                COUNT(DISTINCT CASE WHEN t.status = 'Booked' THEN t.ticketCode END) /
+                                NULLIF((SELECT COUNT(*) FROM Ticket t3 WHERE t3.status = 'Booked'), 0) * 100 * 0.4
+                            )
+                        , 4) AS networkScore,
+                        CAST(NULL AS CHAR) AS marketTier
                     FROM Flight f
                     LEFT JOIN Ticket t ON t.flightCode = f.flightNum
                     WHERE (t.issueDate >= {0} OR {0} IS NULL) AND (t.issueDate <= {1} OR {1} IS NULL)
                     GROUP BY f.arrivingPort
                     ORDER BY totalActiveBookings DESC";
-
+        
                 var data = await _context.Database.SqlQueryRaw<PopularityRow>(sql, startDate, endDate).ToListAsync();
-                return Ok(data);
+                var sorted = data.OrderByDescending(r => r.networkScore).ToList();
+                double totalRevShare = sorted.Sum(r => r.revenueContributionPercent);
+                double cumulative = 0;
+                double primaryThreshold = totalRevShare * 0.75;
+                double avgPaxPerWeek = sorted.Where(r => r.passengersPerWeek > 0).Average(r => (double)r.passengersPerWeek);
+                
+                foreach (var row in sorted)
+                {
+                    double prevCumulative = cumulative;
+                    cumulative += row.revenueContributionPercent;
+                    
+                    if (prevCumulative < primaryThreshold && row.passengersPerWeek >= avgPaxPerWeek)
+                        row.marketTier = "Primary";
+                    else if (row.networkScore > 0)
+                        row.marketTier = "Secondary";
+                    else
+                        row.marketTier = "Inactive";
+                }
+                
+                return Ok(sorted);
             } catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
         }
 
@@ -74,14 +103,23 @@ namespace AirlineAPI.Controllers
                         f.aircraftUsed AS tailNumber,
                         COALESCE(a.planeType, f.aircraftUsed) AS planeModel,
                         CAST(ROUND(COUNT(DISTINCT f.flightNum) / NULLIF(COUNT(DISTINCT YEARWEEK(f.departTime, 0)), 0)) AS SIGNED) AS weeklyFrequency,
-                        ROUND(COALESCE(SUM(t.passengers), 0) / NULLIF(COUNT(DISTINCT f.flightNum) * AVG(a.numSeats), 0) * 100, 2) AS avgLoadFactorPercent
+                        ROUND(COALESCE(SUM(t.passengers), 0) / NULLIF(COUNT(DISTINCT f.flightNum) * AVG(a.numSeats), 0) * 100, 2) AS avgLoadFactorPercent,
+                        CASE
+                            WHEN ROUND(COALESCE(SUM(t.passengers), 0) / NULLIF(COUNT(DISTINCT f.flightNum) * AVG(a.numSeats), 0) * 100, 2) >= 95
+                                THEN 'Upsize Aircraft'
+                            WHEN ROUND(COALESCE(SUM(t.passengers), 0) / NULLIF(COUNT(DISTINCT f.flightNum) * AVG(a.numSeats), 0) * 100, 2) BETWEEN 80 AND 94.99
+                                THEN 'Optimal'
+                            WHEN ROUND(COALESCE(SUM(t.passengers), 0) / NULLIF(COUNT(DISTINCT f.flightNum) * AVG(a.numSeats), 0) * 100, 2) BETWEEN 70 AND 79.99
+                                THEN 'Monitor'
+                            ELSE 'Downsize Aircraft'
+                        END AS recommendedAction
                     FROM Flight f
                     LEFT JOIN Aircraft a ON f.aircraftUsed = a.tailNumber
                     LEFT JOIN (SELECT flightCode, COUNT(ticketCode) AS passengers FROM Ticket WHERE status = 'Booked' GROUP BY flightCode) t ON t.flightCode = f.flightNum
                     WHERE (f.departTime >= {0} OR {0} IS NULL) AND (f.departTime <= {1} OR {1} IS NULL)
                     GROUP BY f.departingPort, f.arrivingPort, f.aircraftUsed, a.planeType
                     ORDER BY avgLoadFactorPercent DESC";
-
+        
                 var data = await _context.Database.SqlQueryRaw<ActivityRow>(sql, startDate, endDate).ToListAsync();
                 return Ok(data);
             } catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
@@ -105,6 +143,8 @@ namespace AirlineAPI.Controllers
         public double revenueContributionPercent { get; set; }
         public string peakMonth { get; set; } = "";
         public string peakDay { get; set; } = "";
+        public double networkScore { get; set; }
+        public string? marketTier { get; set; }
     }
 
     public class ActivityRow {
@@ -114,5 +154,6 @@ namespace AirlineAPI.Controllers
         public string planeModel { get; set; } = "";
         public long weeklyFrequency { get; set; }
         public double? avgLoadFactorPercent { get; set; }
+        public string recommendedAction { get; set; } = "";
     }
 }

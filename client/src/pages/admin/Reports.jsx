@@ -20,8 +20,8 @@ export default function Reports() {
 
     const reportColumnsMap = {
         revenue: ["origin", "destination", "totalRevenue", "refunds", "profit", "avgFare", "cabinDriver"],
-        popularity: ["destination", "totalActiveBookings", "passengersPerWeek", "revenueContributionPercent", "peakMonth", "peakDay"],
-        activity: ["origin", "destination", "tailNumber", "planeModel", "weeklyFrequency", "avgLoadFactorPercent"]
+        popularity: ["destination", "totalActiveBookings", "passengersPerWeek", "revenueContributionPercent", "peakMonth", "peakDay", "marketTier"],
+        activity: ["origin", "destination", "tailNumber", "planeModel", "weeklyFrequency", "avgLoadFactorPercent", "recommendedAction"]
     };
 
     const loadData = async () => {
@@ -164,6 +164,25 @@ export default function Reports() {
         }
         if (k.includes('percent') || k.includes('factor')) {
             return `${Number(val || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+        }
+        if (k === 'recommendedaction') {
+            const colors = {
+                'UPSIZE AIRCRAFT': 'text-red-600 font-bold',
+                'DOWNSIZE AIRCRAFT': 'text-yellow-600 font-bold',
+                'OPTIMAL': 'text-green-600 font-bold',
+                'MONITOR': 'text-blue-600 font-bold',
+            };
+            const upper = val?.toString().toUpperCase() ?? "—";
+            return <span className={colors[upper] || ''}>{upper}</span>;
+        }
+        if (k === 'markettier') {
+            const colors = {
+                'PRIMARY': 'text-blue-700 font-bold',
+                'SECONDARY': 'text-slate-600 font-bold',
+                'INACTIVE': 'text-gray-400 font-bold',
+            };
+            const upper = val?.toString().toUpperCase() ?? "—";
+            return <span className={colors[upper] || ''}>{upper}</span>;
         }
         return val?.toString() ?? "—";
     };
