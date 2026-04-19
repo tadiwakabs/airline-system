@@ -2,9 +2,9 @@ import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { createBooking } from "../../services/bookingService";
+import { completePendingPayment } from "../../services/paymentService";
 import { useFormErrors } from "../../utils/useFormErrors";
-import Button from "../../components/common/Button"; 
-
+import Button from "../../components/common/Button";
 import FormError from "../../components/common/FormError";
 
 function detectCardType(number) {
@@ -32,6 +32,8 @@ function isValidPhone(phone) {
 function isValidZip(zip) {
     return /^\d{5}(-\d{4})?$|^[A-Za-z]\d[A-Za-z] \d[A-Za-z]\d$/.test(zip);
 }
+
+const RequiredMark = () => <span className="text-red-500"> *</span>;
 
 const emptyForm = {
     cardNumber: "",
@@ -69,6 +71,10 @@ export default function BookingPayment() {
 
     // Read state passed from BookingSeats
     const booking = location.state || {};
+    const standbyBooking = booking.standbyBooking || null;
+    const isStandbyPayment = !!standbyBooking;
+
+    // Existing normal booking flow state
     const selectedItinerary = booking.selectedItinerary;
     const returnItinerary = booking.returnItinerary ?? null;
     const searchParams = booking.searchParams;
@@ -79,24 +85,50 @@ export default function BookingPayment() {
     // Build readable values for the summary
     const firstFlight = selectedItinerary?.flights?.[0];
     const lastFlight = selectedItinerary?.flights?.[selectedItinerary?.flights?.length - 1];
-    const flightDetails = firstFlight
+
+    const normalFlightDetails = firstFlight
         ? returnItinerary
             ? `${firstFlight.departingPort} → ${lastFlight.arrivingPort} (return)`
             : `${firstFlight.departingPort} → ${lastFlight.arrivingPort}`
         : "Unknown Flight";
-    const totalPrice = pricingSummary?.total ?? 0;
-    const passengerName = passengers[0]
+
+    const normalTotalPrice = pricingSummary?.total ?? 0;
+
+    const normalPassengerName = passengers[0]
         ? `${passengers[0].firstName} ${passengers[0].lastName}`
         : "Guest";
 
     const allFlights = [
         ...(selectedItinerary?.flights ?? []),
-        ...(returnItinerary?.flights   ?? []),
+        ...(returnItinerary?.flights ?? []),
     ];
 
     const firstPassengerId = passengers[0]?.passengerId;
     const firstFlightNum = firstFlight?.flightNum;
-    const seatNumber = seatSelections?.[firstFlightNum]?.[firstPassengerId] ?? "N/A";
+    const normalSeatNumber = seatSelections?.[firstFlightNum]?.[firstPassengerId] ?? "N/A";
+
+    // Standby-aware summary values
+    const totalPrice = isStandbyPayment
+        ? Number(standbyBooking.totalPrice ?? 0)
+        : normalTotalPrice;
+
+    const passengerName = isStandbyPayment
+        ? (
+            user?.FirstName && user?.LastName
+                ? `${user.FirstName} ${user.LastName}`
+                : user?.firstName && user?.lastName
+                    ? `${user.firstName} ${user.lastName}`
+                    : "Standby Passenger"
+        )
+        : normalPassengerName;
+
+    const flightDetails = isStandbyPayment
+        ? `Flight ${standbyBooking.flightNum}`
+        : normalFlightDetails;
+
+    const seatNumber = isStandbyPayment
+        ? standbyBooking.seatNumber ?? "N/A"
+        : normalSeatNumber;
 
     const [form, setForm] = useState(emptyForm);
     const [localErrors,setLocalErrors]=useState({});
@@ -186,32 +218,75 @@ export default function BookingPayment() {
                 return;
             }
 
-            // Build one ticket entry per passenger per flight leg
+            // Standby payment path: complete existing pending payment
+            if (isStandbyPayment) {
+                const resolvedUserId = user?.UserId || user?.userId || null;
+
+                const bookingPayload = {
+                    userId: resolvedUserId,
+                    totalPrice: Number(standbyBooking.totalPrice ?? 0),
+                    cabinClass: "economy",           // standby is always economy
+                    paymentMethod: cardType || "Card",
+                    tickets: [
+                        {
+                            flightNum: standbyBooking.flightNum,
+                            passengerId: standbyBooking.passengerId,
+                            seatNumber: standbyBooking.seatNumber,
+                            price: Number(standbyBooking.totalPrice ?? 0),
+                            origin: standbyBooking.origin,
+                            destination: standbyBooking.destination,
+                            boardingTime: standbyBooking.boardingTime ?? "",
+                        },
+                    ],
+                };
+
+                const res = await createBooking(bookingPayload);
+                const confirmation = res.data;
+
+                navigate("/booking/confirmation", {
+                    state: {
+                        transactionId: confirmation.transactionId,
+                        bookingId: confirmation.bookingId,
+                        tickets: confirmation.tickets,
+                        passengerName,
+                        flightDetails,
+                        totalPrice,
+                        cardType,
+                        lastFour: form.cardNumber.replace(/\s/g, "").slice(-4),
+                    },
+                });
+                return;
+            }
+
+            // Existing normal booking flow below stays intact
             const tickets = [];
             for (const flight of allFlights) {
                 const origin      = flight.departingPort || flight.departingPortCode;
                 const destination = flight.arrivingPort  || flight.arrivingPortCode;
                 const boardingTime = new Date(flight.departTime).toLocaleTimeString([], {
-                    hour: "2-digit", minute: "2-digit"
+                    hour: "2-digit",
+                    minute: "2-digit",
                 });
 
                 for (const passenger of passengers) {
-                    const seatNumber = seatSelections?.[flight.flightNum]?.[passenger.passengerId];
-                    if (!seatNumber) continue;
+                    const selectedSeatNumber = seatSelections?.[flight.flightNum]?.[passenger.passengerId];
+                    if (!selectedSeatNumber) continue;
 
                     // Per-passenger price for this leg from the quote
                     const cabinClass = searchParams?.cabinClass ?? "economy";
                     const fareBreakdown = selectedItinerary?.quote?.[cabinClass] ?? {};
                     const legPrice =
-                        passenger.passengerType === "Child"  ? (fareBreakdown.perChild  ?? 0) :
-                            passenger.passengerType === "Infant" ? (fareBreakdown.perInfant ?? 0) :
-                                (fareBreakdown.perAdult  ?? 0);
+                        passenger.passengerType === "Child"
+                            ? (fareBreakdown.perChild ?? 0)
+                            : passenger.passengerType === "Infant"
+                                ? (fareBreakdown.perInfant ?? 0)
+                                : (fareBreakdown.perAdult ?? 0);
 
                     tickets.push({
-                        flightNum:   flight.flightNum,
+                        flightNum: flight.flightNum,
                         passengerId: passenger.passengerId,
-                        seatNumber,
-                        price:       legPrice,
+                        seatNumber: selectedSeatNumber,
+                        price: legPrice,
                         origin,
                         destination,
                         boardingTime,
@@ -220,9 +295,9 @@ export default function BookingPayment() {
             }
 
             const bookingPayload = {
-                userId:        resolvedUserId,
-                totalPrice:    Number(totalPrice),
-                cabinClass:    searchParams?.cabinClass ?? "economy",
+                userId: resolvedUserId,
+                totalPrice: Number(totalPrice),
+                cabinClass: searchParams?.cabinClass ?? "economy",
                 paymentMethod: cardType,
                 tickets,
             };
@@ -272,6 +347,7 @@ export default function BookingPayment() {
             setSubmitting(false);
         }
     };
+
     return (
         <div className="max-w-2xl mx-auto p-6">
             <h1 className="text-2xl font-bold mb-2">Payment</h1>
@@ -299,7 +375,7 @@ export default function BookingPayment() {
                 </div>
                 <div className="grid gap-3">
                     <Field
-                        label="Card Number"
+                        label={<>Card Number<RequiredMark /></>}
                         field="cardNumber"
                         placeholder="1234 5678 9012 3456"
                         value={form.cardNumber}
@@ -307,7 +383,7 @@ export default function BookingPayment() {
                         error={localErrors.cardNumber}
                     />
                     <Field
-                        label="Name on Card"
+                        label={<>Name on Card<RequiredMark /></>}
                         field="cardName"
                         placeholder="John Smith"
                         value={form.cardName}
@@ -316,7 +392,7 @@ export default function BookingPayment() {
                     />
                     <div className="grid grid-cols-2 gap-3">
                         <Field
-                            label="Expiry (MM/YY)"
+                            label={<>Expiry (MM/YY)<RequiredMark /></>}
                             field="expiry"
                             placeholder="MM/YY"
                             value={form.expiry}
@@ -324,7 +400,7 @@ export default function BookingPayment() {
                             error={localErrors.expiry}
                         />
                         <Field
-                            label="CVV"
+                            label={<>CVV<RequiredMark /></>}
                             field="cvv"
                             placeholder="123"
                             value={form.cvv}
@@ -340,7 +416,7 @@ export default function BookingPayment() {
                 <h2 className="font-semibold mb-3">Billing Address</h2>
                 <div className="grid gap-3">
                     <Field
-                        label="Phone Number"
+                        label={<>Phone Number<RequiredMark /></>}
                         field="phone"
                         placeholder="+1 (800) 000-0000"
                         value={form.phone}
@@ -348,7 +424,7 @@ export default function BookingPayment() {
                         error={localErrors.phone}
                     />
                     <Field
-                        label="Address"
+                        label={<>Address<RequiredMark /></>}
                         field="address"
                         placeholder="123 Main St"
                         value={form.address}
@@ -357,7 +433,7 @@ export default function BookingPayment() {
                     />
                     <div className="grid grid-cols-2 gap-3">
                         <Field
-                            label="City"
+                            label={<>City<RequiredMark /></>}
                             field="city"
                             placeholder="Houston"
                             value={form.city}
@@ -365,7 +441,7 @@ export default function BookingPayment() {
                             error={localErrors.city}
                         />
                         <Field
-                            label="State"
+                            label={<>State<RequiredMark /></>}
                             field="state"
                             placeholder="TX"
                             value={form.state}
@@ -375,7 +451,7 @@ export default function BookingPayment() {
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                         <Field
-                            label="Zip / Postal Code"
+                            label={<>Zip / Postal Code<RequiredMark /></>}
                             field="zip"
                             placeholder="77001"
                             value={form.zip}
@@ -383,7 +459,7 @@ export default function BookingPayment() {
                             error={localErrors.zip}
                         />
                         <Field
-                            label="Country"
+                            label={<>Country<RequiredMark /></>}
                             field="country"
                             placeholder="USA"
                             value={form.country}

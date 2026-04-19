@@ -1,87 +1,154 @@
 using AirlineAPI.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
 
 namespace AirlineAPI.Controllers
 {
     [ApiController]
     [Route("api/reports")]
+    [EnableCors("ReactPolicy")]
+    [AllowAnonymous]
     public class ReportsController : ControllerBase
     {
         private readonly AppDbContext _context;
-        public ReportsController(AppDbContext context)
+        public ReportsController(AppDbContext context) { _context = context; }
+
+        [HttpGet("revenue")]
+        public async Task<IActionResult> GetRevenueReport()
         {
-            _context = context;
+            try {
+                var data = await _context.Database.SqlQueryRaw<RevenueRow>(@"
+                    SELECT 
+                        f.departingPort AS origin,
+                        f.arrivingPort AS destination,
+                        ROUND(COALESCE(SUM(t.price), 0), 2) AS totalRevenue,
+                        ROUND(COALESCE(SUM(
+                            COALESCE(p.refundAmount, 0) + COALESCE(p.reimbursementAmount, 0)
+                        ), 0), 2) AS refunds,
+                        ROUND(
+                            COALESCE(SUM(t.price), 0) -
+                            COALESCE(SUM(COALESCE(p.refundAmount, 0) + COALESCE(p.reimbursementAmount, 0)), 0)
+                        , 2) AS profit,
+                        ROUND(COALESCE(AVG(t.price), 0), 2) AS avgFare,
+                        IF(
+                            SUM(CASE WHEN t.ticketClass IN ('Business', 'First') THEN t.price ELSE 0 END) >
+                            SUM(CASE WHEN t.ticketClass = 'Economy' THEN t.price ELSE 0 END),
+                            'Premium', 'Economy'
+                        ) AS cabinDriver
+                    FROM Flight f
+                    LEFT JOIN Ticket t ON t.flightCode = f.flightNum
+                    LEFT JOIN Payment p ON p.bookingId = t.bookingId
+                    GROUP BY f.departingPort, f.arrivingPort
+                    ORDER BY totalRevenue DESC").ToListAsync();
+                return Ok(data);
+            } catch (Exception ex) { 
+                return StatusCode(500, new { message = ex.Message }); 
+            }
         }
 
-        // GET: api/reports/od-demand
-        [HttpGet("od-demand")]
-        public async Task<IActionResult> GetODDemand()
+        [HttpGet("popularity")]
+        public async Task<IActionResult> GetPopularity()
         {
-            var results = await _context.Database
-                .SqlQueryRaw<OdDemandRow>("SELECT * FROM vw_od_market_demand LIMIT 100")
-                .ToListAsync();
-            return Ok(results);
+            try {
+                var data = await _context.Database.SqlQueryRaw<PopularityRow>(@"
+                    SELECT 
+                        f.arrivingPort AS destination,
+                        CAST(COUNT(DISTINCT CASE WHEN t.status = 'Booked' THEN t.ticketCode END) AS SIGNED) AS totalActiveBookings,
+                        CAST(COUNT(DISTINCT CASE WHEN t.status = 'Booked' THEN t.ticketCode END) / 4 AS SIGNED) AS passengersPerWeek,
+                        ROUND(
+                            COALESCE(SUM(CASE WHEN t.status = 'Booked' THEN t.price ELSE 0 END), 0) /
+                            NULLIF((SELECT SUM(t2.price) FROM Ticket t2 WHERE t2.status = 'Booked'), 0) * 100
+                        , 2) AS revenueContributionPercent,
+                        COALESCE(
+                            (SELECT MONTHNAME(MIN(t3.issueDate))
+                             FROM Ticket t3
+                             JOIN Flight f3 ON f3.flightNum = t3.flightCode
+                             WHERE f3.arrivingPort = f.arrivingPort AND t3.status = 'Booked'
+                             GROUP BY MONTH(t3.issueDate)
+                             ORDER BY COUNT(*) DESC
+                             LIMIT 1),
+                        'N/A') AS peakMonth,
+                        COALESCE(
+                            (SELECT DAYNAME(MIN(f4.departTime))
+                             FROM Flight f4
+                             JOIN Ticket t4 ON t4.flightCode = f4.flightNum
+                             WHERE f4.arrivingPort = f.arrivingPort AND t4.status = 'Booked'
+                             GROUP BY DAYOFWEEK(f4.departTime)
+                             ORDER BY COUNT(*) DESC
+                            LIMIT 1),
+                        'N/A') AS peakDay
+                    FROM Flight f
+                    LEFT JOIN Ticket t ON t.flightCode = f.flightNum
+                    GROUP BY f.arrivingPort
+                    ORDER BY totalActiveBookings DESC").ToListAsync();
+                return Ok(data);
+            } catch (Exception ex) {
+                return StatusCode(500, new { message = ex.Message });
+            }
         }
 
-        // GET: api/reports/route-vitality
-        [HttpGet("route-vitality")]
-        public async Task<IActionResult> GetRouteVitality()
+        [HttpGet("activity")]
+        public async Task<IActionResult> GetActivity()
         {
-            var results = await _context.Database
-                .SqlQueryRaw<RouteVitalityRow>("SELECT * FROM vw_route_vitality_matrix LIMIT 100")
-                .ToListAsync();
-            return Ok(results);
-        }
-
-        // GET: api/reports/revenue-leakage
-        [HttpGet("revenue-leakage")]
-        public async Task<IActionResult> GetRevenueLeakage()
-        {
-            var results = await _context.Database
-                .SqlQueryRaw<RevenueLeakageRow>("SELECT * FROM vw_revenue_leakage_spill LIMIT 100")
-                .ToListAsync();
-            return Ok(results);
+            try {
+                var data = await _context.Database.SqlQueryRaw<ActivityRow>(@"
+                    SELECT 
+                        f.departingPort AS origin,
+                        f.arrivingPort AS destination,
+                        f.aircraftUsed AS tailNumber,
+                        COALESCE(a.planeType, f.aircraftUsed) AS planeModel,
+                        CAST(ROUND(
+                            COUNT(DISTINCT f.flightNum) / 
+                            NULLIF(COUNT(DISTINCT YEARWEEK(f.departTime, 0)), 0)
+                        ) AS SIGNED) AS weeklyFrequency,
+                        ROUND(
+                            COALESCE(SUM(t.passengers), 0) / 
+                            NULLIF(COUNT(DISTINCT f.flightNum) * AVG(a.numSeats), 0) * 100
+                        , 2) AS avgLoadFactorPercent
+                    FROM Flight f
+                    LEFT JOIN Aircraft a ON f.aircraftUsed = a.tailNumber
+                    LEFT JOIN (
+                        SELECT flightCode, COUNT(ticketCode) AS passengers
+                        FROM Ticket
+                        WHERE status = 'Booked'
+                        GROUP BY flightCode
+                    ) t ON t.flightCode = f.flightNum
+                    GROUP BY f.departingPort, f.arrivingPort, f.aircraftUsed, a.planeType
+                    ORDER BY avgLoadFactorPercent DESC").ToListAsync();
+                return Ok(data);
+            } catch (Exception ex) {
+                return StatusCode(500, new { message = ex.Message });
+            }
         }
     }
 
-    public class OdDemandRow
-    {
-        public string trueOrigin { get; set; } = string.Empty;
-        public string trueDestination { get; set; } = string.Empty;
-        public int totalPassengers { get; set; }
-        public double connectionRatioPct { get; set; }
-        public double actualRevenue { get; set; }
-        public double potentialDirectRevenue { get; set; }
+    public class RevenueRow {
+        public string origin { get; set; } = "";
+        public string destination { get; set; } = "";
+        public decimal totalRevenue { get; set; }
+        public double refunds { get; set; }
+        public decimal profit { get; set; }
+        public decimal avgFare { get; set; }
+        public string cabinDriver { get; set; } = "";
     }
 
-    public class RouteVitalityRow
-    {
-        public string departingPort { get; set; } = string.Empty;
-        public string arrivingPort { get; set; } = string.Empty;
-        public int flightNum { get; set; }
-        public int bookedPassengers { get; set; }
-        public int totalCapacity { get; set; }
-        public double actualLoadFactorPct { get; set; }
-        public double avgTicketPrice { get; set; }
-        public double passengerYield { get; set; }
-        public double breakEvenLoadFactorPct { get; set; }
-        public string quadrant { get; set; } = string.Empty;
+    public class PopularityRow {
+        public string destination { get; set; } = "";
+        public long totalActiveBookings { get; set; }
+        public long passengersPerWeek { get; set; }
+        public double revenueContributionPercent { get; set; }
+        public string peakMonth { get; set; } = "";
+        public string peakDay { get; set; } = "";
     }
 
-    public class RevenueLeakageRow
-    {
-        public int flightNum { get; set; }
-        public string departingPort { get; set; } = string.Empty;
-        public string arrivingPort { get; set; } = string.Empty;
-        public int distance { get; set; }
-        public int capacity { get; set; }
-        public int bookedPassengers { get; set; }
-        public double loadFactorPct { get; set; }
-        public double totalRevenue { get; set; }
-        public double RASK { get; set; }
-        public double networkAvgRASK { get; set; }
-        public double estimatedSpillCost { get; set; }
-        public int unconstrainedDemandEstimate { get; set; }
+    public class ActivityRow {
+        public string origin { get; set; } = "";
+        public string destination { get; set; } = "";
+        public string tailNumber { get; set; } = "";
+        public string planeModel { get; set; } = "";
+        public long weeklyFrequency { get; set; }
+        public double? avgLoadFactorPercent { get; set; }
     }
 }

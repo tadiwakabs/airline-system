@@ -25,7 +25,7 @@ export default function Login() {
 
 
     const [submitError, setSubmitError] = useState("");
-    const from = location.state?.from?.pathname || "/";
+    const from = location.state?.from || "/";
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -74,9 +74,20 @@ export default function Login() {
             const result = await login(formData);
 
             if (result && result.success) {
-                clearErrors(); 
-                navigate(from, { replace: true });
-                return ; 
+                const pending = location.state?.pendingSelection;
+                const searchParams = location.state?.searchParams;
+
+                navigate(from, {
+                    replace: true,
+                    state: pending
+                        ? {
+                            ...pending,
+                            searchParams
+                        }
+                        : undefined
+                });
+
+                return;
             } 
             setErrors({ general: result?.message || "Invalid credentials." });
         } catch (err) {
@@ -132,7 +143,13 @@ export default function Login() {
 
                     <p className="text-sm text-gray-500 text-center">
                         Don’t have an account?&nbsp;
-                        <Link to="/register" className="text-blue-600 hover:underline">Create one</Link>
+                        <Link
+                            to="/register"
+                            state={location.state}
+                            className="text-blue-600 hover:underline"
+                        >
+                            Create one
+                        </Link>
                     </p>
                 </Card>
             </div>

@@ -8,11 +8,16 @@ const api = axios.create({
 api.interceptors.response.use(
     res => res,
     err => {
-        if (err.response?.status === 401) {
+        const url = err.config?.url || "";
+        const isAuthRequest =
+            url.includes("/auth/login") || url.includes("/auth/register");
+
+        if (err.response?.status === 401 && !isAuthRequest) {
             localStorage.removeItem("token");
             localStorage.removeItem("user");
             window.location.href = "/login";
         }
+
         return Promise.reject(err);
     }
 );

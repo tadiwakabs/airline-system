@@ -46,6 +46,11 @@ namespace AirlineAPI.DTOs.Flight
         public decimal? EconomyPrice { get; set; }
         public decimal? BusinessPrice { get; set; }
         public decimal? FirstPrice { get; set; }
+
+        // Return-trip options
+        public bool IsReturn { get; set; } = false;
+        
+        public int? LayoverHours { get; set; }
     }
     
     public class RecurringScheduleResponseDto

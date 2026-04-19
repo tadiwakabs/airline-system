@@ -40,6 +40,12 @@ namespace AirlineAPI.Models
         public int distance { get; set; }
         public bool? flightChange { get; set; }
         public int? recurringScheduleId { get; set; }
+        
+        [Column("scheduledDepartLocal")]
+        public DateTime? scheduledDepartLocal { get; set; }
+
+        [Column("scheduledArrivalLocal")]
+        public DateTime? scheduledArrivalLocal { get; set; }
 
         //----Links----
         [ForeignKey("aircraftUsed")]

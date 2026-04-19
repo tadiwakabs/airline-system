@@ -8,28 +8,48 @@ const navLinkBase = "text-sm font-medium text-gray-700 transition-colors hover:t
 const navLinkActive = "text-blue-600";
 
 const SEARCH_PAGES = [
-    { label: "Home", path: "/", keywords: ["home", "main", "start"] },
-    { label: "Book a Flight", path: "/", keywords: ["book", "flight", "search", "ticket"] },
+    { label: "Book a Flight", path: "/", keywords: ["book", "home", "flight", "search", "ticket"] },
     { label: "Flight Search", path: "/flight-search", keywords: ["flight search", "find flight", "search flights"] },
-    { label: "Manage Booking", path: "/bookings", keywords: ["manage", "booking", "my booking", "manage booking"] },
+    { label: "Manage Your Bookings", path: "/manage", keywords: ["manage", "booking", "my booking", "manage booking"] },
     { label: "My Profile", path: "/profile", keywords: ["profile", "account", "my account", "settings"] },
     { label: "Login", path: "/login", keywords: ["login", "sign in", "signin"] },
     { label: "Register", path: "/register", keywords: ["register", "sign up", "signup", "create account"] },
     { label: "Help", path: "/help", keywords: ["help", "support", "contact", "faq"] },
-    { label: "Aircraft", path: "/aircraft", keywords: ["aircraft", "planes", "fleet"] },
-    { label: "Flights", path: "/flights", keywords: ["flights", "schedule", "manage flights"] },
-    { label: "Reports", path: "/reports", keywords: ["reports", "analytics", "demand", "revenue"] },
-    { label: "Payment", path: "/booking/payment", keywords: ["payment", "pay", "checkout"] },
+    { label: "Manage Aircraft", path: "/aircraft", keywords: ["aircraft", "planes", "fleet"] },
+    { label: "Manage Flights", path: "/flights", keywords: ["flights", "schedule", "manage flights"] },
+    { label: "View Reports", path: "/reports", keywords: ["reports", "analytics", "demand", "revenue"] },
 ];
 
-function searchPages(query) {
+function searchPages(query, { isAuthenticated, isAdmin, isFlightOps }) {
     if (!query.trim()) return [];
     const lower = query.toLowerCase();
-    return SEARCH_PAGES.filter(
-        (page) =>
-            page.label.toLowerCase().includes(lower) ||
-            page.keywords.some((k) => k.includes(lower))
-    );
+
+    return SEARCH_PAGES
+        .filter((page) => {
+            if ((page.path === "/login" || page.path === "/register") && isAuthenticated) {
+                return false;
+            }
+
+            if (
+                page.path === "/aircraft" ||
+                page.path === "/flights"
+            ) {
+                return isAdmin || isFlightOps;
+            }
+            
+            if (
+                page.path === "/reports"
+            ) {
+                return isAdmin;
+            }
+
+            return true;
+        })
+        .filter(
+            (page) =>
+                page.label.toLowerCase().includes(lower) ||
+                page.keywords.some((k) => k.includes(lower))
+        );
 }
 
 // FIX 1: Define SearchBox OUTSIDE the Navbar component
@@ -76,7 +96,6 @@ const SearchBox = ({
                                 }`}
                             >
                                 <span className="font-medium">{result.label}</span>
-                                <span className="ml-2 text-xs text-gray-400">{result.path}</span>
                             </button>
                         ))}
                     </div>
@@ -101,12 +120,24 @@ export default function Navbar() {
     const profileMenuRef = useRef(null);
     const searchRef = useRef(null);
 
+    const role = (user?.userRole || user?.UserRole || "").trim().toLowerCase();
+
+    const isAdmin = role === "administrator";
+    const isEmployee = role === "employee";
+    const department = (user?.department || "").replace(/\s+/g, "").trim().toLowerCase();
+    const isFlightOps = isEmployee && department === "flightops";
+
     useEffect(() => {
-        const results = searchPages(searchValue);
+        const results = searchPages(searchValue, {
+            isAuthenticated,
+            isAdmin,
+            isFlightOps,
+        });
+
         setSearchResults(results);
         setShowDropdown(results.length > 0 && searchValue.trim() !== "");
         setActiveIndex(-1);
-    }, [searchValue]);
+    }, [searchValue, isAuthenticated, isAdmin, isFlightOps]);
 
     useEffect(() => {
         function handleClickOutside(event) {
@@ -120,11 +151,6 @@ export default function Navbar() {
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
-
-    const role = (user?.userRole || user?.UserRole || "").trim().toLowerCase();
-
-    const isAdmin = role === "administrator";
-    const isEmployee = role === "employee";
 
     const handleSearch = (e) => {
         e.preventDefault();
@@ -296,7 +322,7 @@ export default function Navbar() {
                                         )}
 
                                         <Link
-                                            to="/bookings"
+                                            to="/manage"
                                             onClick={() => setIsProfileMenuOpen(false)}
                                             className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
                                         >
