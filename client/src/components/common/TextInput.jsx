@@ -19,6 +19,7 @@ export default function TextInput({
       error,
       disabled = false,
       className = "",
+      charLimit,
   }) {
     const inputId = id || name;
 
@@ -39,6 +40,7 @@ export default function TextInput({
                 type={type}
                 placeholder={placeholder}
                 value={value}
+                maxLength={charLimit}
                 onChange={onChange}
                 className={cn(
                     "w-full rounded-xl border bg-white",
@@ -47,8 +49,8 @@ export default function TextInput({
                     disabled
                         ? "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-500"
                         : error
-                        ? "border-red-500"
-                        : "border-gray-300",
+                            ? "border-red-500"
+                            : "border-gray-300",
                     sizeClasses[size],
                     className
                 )}

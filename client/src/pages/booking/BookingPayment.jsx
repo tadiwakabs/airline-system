@@ -51,7 +51,7 @@ const emptyForm = {
 
 // ─── UI Field from file 1 styling ───────────────────────────────────────────
 
-const Field = ({ label, field, placeholder, type = "text", value, onChange, error }) => (
+const Field = ({ label, field, placeholder, type = "text", value, onChange, error, charLimit }) => (
     <div className="space-y-1">
         <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
             {label}
@@ -60,6 +60,7 @@ const Field = ({ label, field, placeholder, type = "text", value, onChange, erro
             type={type}
             placeholder={placeholder}
             value={value}
+            maxLength={charLimit}
             onChange={(e) => onChange(field, e.target.value)}
             className={`w-full p-3 rounded-xl border transition-all outline-none shadow-sm ${
                 error
@@ -289,6 +290,7 @@ export default function BookingPayment() {
                         totalPrice,
                         cardType,
                         lastFour: form.cardNumber.replace(/\s/g, "").slice(-4),
+                        dateDepart: standbyBooking.departTime ?? null,
                     },
                 });
                 return;
@@ -375,6 +377,7 @@ export default function BookingPayment() {
                     totalPrice,
                     cardType,
                     lastFour: form.cardNumber.replace(/\s/g, "").slice(-4),
+                    dateDepart: firstFlight?.departTime ?? null,
                 },
             });
         } catch (err) {
@@ -438,6 +441,7 @@ export default function BookingPayment() {
                                     <Field
                                         label={<>Card Number<RequiredMark /></>}
                                         field="cardNumber"
+                                        charLimit={19}
                                         placeholder="1234 5678 9012 3456"
                                         value={form.cardNumber}
                                         onChange={handleChange}
@@ -488,6 +492,7 @@ export default function BookingPayment() {
                                     label={<>Phone Number<RequiredMark /></>}
                                     field="phone"
                                     placeholder="+1 (800) 000-0000"
+                                    charLimit={10}
                                     value={form.phone}
                                     onChange={handleChange}
                                     error={localErrors.phone}

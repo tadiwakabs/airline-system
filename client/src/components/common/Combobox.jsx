@@ -11,6 +11,7 @@ export default function Combobox({
  }) {
     const [isOpen, setIsOpen] = useState(false);
     const [inputValue, setInputValue] = useState("");
+    const [hasTyped, setHasTyped] = useState(false);
     const wrapperRef = useRef(null);
 
     const normalizedOptions = useMemo(
@@ -27,8 +28,9 @@ export default function Combobox({
     const selectedOption = normalizedOptions.find((opt) => opt.value === value);
 
     const filteredOptions = useMemo(() => {
-        const search = inputValue.trim().toLowerCase();
+        if (!hasTyped) return normalizedOptions;
 
+        const search = inputValue.trim().toLowerCase();
         if (!search) return normalizedOptions;
 
         return normalizedOptions.filter((option) => {
@@ -36,11 +38,12 @@ export default function Combobox({
             const val = String(option.value ?? "").toLowerCase();
             return label.includes(search) || val.includes(search);
         });
-    }, [normalizedOptions, inputValue]);
+    }, [normalizedOptions, inputValue, hasTyped]);
 
     useEffect(() => {
         if (!isOpen) {
             setInputValue(selectedOption?.label || "");
+            setHasTyped(false);
         }
     }, [isOpen, selectedOption]);
 
@@ -62,6 +65,11 @@ export default function Combobox({
         setIsOpen(false);
     };
 
+    const handleFocus = () => {
+        setHasTyped(false);
+        setIsOpen(true);
+    };
+
     return (
         <div className="relative space-y-1" ref={wrapperRef}>
             {label && (
@@ -74,10 +82,11 @@ export default function Combobox({
                 type="text"
                 value={inputValue}
                 placeholder={placeholder}
-                onFocus={() => setIsOpen(true)}
+                onFocus={handleFocus}
                 onChange={(e) => {
                     const newValue = e.target.value;
                     setInputValue(newValue);
+                    setHasTyped(true);
                     setIsOpen(true);
                     onSearch?.(newValue);
                 }}
