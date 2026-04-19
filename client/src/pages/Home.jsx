@@ -250,13 +250,13 @@ export default function Home() {
                                                     </p>
                                                 </div>
                                                 {(notification.notificationStatus || "").toLowerCase() === "unread" && (
-        <button
-            onClick={() => handleMarkAsRead(notification.notificationId)}
-            className="mt-2 text-xs text-blue-600 hover:underline"
-        >
-            Mark as Read
-        </button>
-    )}
+                                                    <button
+                                                        onClick={() => handleMarkAsRead(notification.notificationId)}
+                                                        className="mt-2 text-xs text-blue-600 hover:underline"
+                                                    >
+                                                        Mark as Read
+                                                    </button>
+                                                )}
                                             </div>
 
                                             <span
@@ -322,9 +322,6 @@ export default function Home() {
                                                     <p className="text-xs text-gray-500 mt-1">
                                                         {statusResult.departingCity || "—"} →{" "}
                                                         {statusResult.arrivingCity || "—"}
-                                                    </p>
-                                                    <p className="text-xs text-gray-500">
-                                                        {flight.departingCity || "—"} → {flight.arrivingCity || "—"}
                                                     </p>
                                                 </div>
 
