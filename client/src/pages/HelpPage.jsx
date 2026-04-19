@@ -111,7 +111,7 @@ const HelpPage = () => {
                         📧 Email Us
                       </h2>
                       <p className="mt-2 text-sm font-medium text-gray-900">
-                        support@3380airlines.com
+                        support@dividedairlines.com
                       </p>
                       <p className="mt-1 text-sm text-gray-600">
                         We typically respond within 24 hours.

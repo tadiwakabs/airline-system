@@ -31,18 +31,9 @@ function searchPages(query, { isAuthenticated, isAdmin, isFlightOps }) {
 
     return SEARCH_PAGES
         .filter((page) => {
-            if ((page.path === "/login" || page.path === "/register") && isAuthenticated) {
-                return false;
-            }
-
-            if (page.path === "/aircraft" || page.path === "/flights") {
-                return isAdmin || isFlightOps;
-            }
-
-            if (page.path === "/reports") {
-                return isAdmin;
-            }
-
+            if ((page.path === "/login" || page.path === "/register") && isAuthenticated) return false;
+            if (page.path === "/aircraft" || page.path === "/flights") return isAdmin || isFlightOps;
+            if (page.path === "/reports") return isAdmin;
             return true;
         })
         .filter(
@@ -53,18 +44,18 @@ function searchPages(query, { isAuthenticated, isAdmin, isFlightOps }) {
 }
 
 const SearchBox = ({
-                       isScrolled,
-                       searchValue,
-                       setSearchValue,
-                       searchResults,
-                       showDropdown,
-                       setShowDropdown,
-                       activeIndex,
-                       handleKeyDown,
-                       handleSearch,
-                       goToPage,
-                       searchRef,
-                   }) => (
+    isScrolled,
+    searchValue,
+    setSearchValue,
+    searchResults,
+    showDropdown,
+    setShowDropdown,
+    activeIndex,
+    handleKeyDown,
+    handleSearch,
+    goToPage,
+    searchRef,
+}) => (
     <div ref={searchRef} className="relative w-64 lg:w-72">
         <form onSubmit={handleSearch} className="flex items-center gap-2">
             <div className="relative flex-1">
@@ -133,12 +124,7 @@ export default function Navbar() {
     }, []);
 
     useEffect(() => {
-        const results = searchPages(searchValue, {
-            isAuthenticated,
-            isAdmin,
-            isFlightOps,
-        });
-
+        const results = searchPages(searchValue, { isAuthenticated, isAdmin, isFlightOps });
         setSearchResults(results);
         setShowDropdown(results.length > 0 && searchValue.trim() !== "");
         setActiveIndex(-1);
@@ -146,14 +132,9 @@ export default function Navbar() {
 
     useEffect(() => {
         function handleClickOutside(event) {
-            if (searchRef.current && !searchRef.current.contains(event.target)) {
-                setShowDropdown(false);
-            }
-            if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
-                setIsProfileMenuOpen(false);
-            }
+            if (searchRef.current && !searchRef.current.contains(event.target)) setShowDropdown(false);
+            if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) setIsProfileMenuOpen(false);
         }
-
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
@@ -176,7 +157,6 @@ export default function Navbar() {
 
     const handleKeyDown = (e) => {
         if (!showDropdown) return;
-
         if (e.key === "ArrowDown") {
             e.preventDefault();
             setActiveIndex((prev) => Math.min(prev + 1, searchResults.length - 1));
@@ -206,13 +186,23 @@ export default function Navbar() {
             }`}
         >
             <div className="mx-auto flex max-w-7xl items-center justify-between px-6">
-                <Link to="/" className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white font-black shadow-lg">
-                        3380
+                
+                {/* --- LOGO & TAGLINE SECTION --- */}
+                <Link to="/" className="flex items-end gap-3 group">
+                    <div className="flex h-10 w-auto items-center">
+                        <img 
+                            src="/logo.png" 
+                            alt="Divided Airline Logo" 
+                            className="h-full w-auto object-contain transition-transform group-hover:scale-105" 
+                            onError={(e) => console.log("Image failed to load:", e.target.src)}
+                        />
                     </div>
-                    <div className={isScrolled ? "text-slate-900" : "text-white"}>
-                        <p className="text-lg font-black leading-none">3380 Airlines</p>
-                        <p className="text-[10px] opacity-70 italic font-medium">Fly smarter</p>
+                    <div className="flex flex-col pb-0.5">
+                        <span className={`text-[11px] font-black uppercase tracking-[0.2em] italic transition-colors duration-300 ${
+                            isScrolled ? "text-blue-600" : "text-blue-400"
+                        }`}>
+                            Fly Smarter
+                        </span>
                     </div>
                 </Link>
 
@@ -268,11 +258,7 @@ export default function Navbar() {
                                 <Button
                                     variant={isScrolled ? "outline" : "ghost"}
                                     size="sm"
-                                    className={
-                                        !isScrolled
-                                            ? "text-white border-white/20 hover:bg-white/10 shadow-sm"
-                                            : ""
-                                    }
+                                    className={!isScrolled ? "text-white border-white/20 hover:bg-white/10 shadow-sm" : ""}
                                 >
                                     Login
                                 </Button>
@@ -312,54 +298,44 @@ export default function Navbar() {
                                             {user?.userRole || user?.UserRole}
                                         </p>
                                     </div>
-
                                     <div className="py-2 space-y-1">
                                         <Link
                                             to="/profile"
                                             onClick={() => setIsProfileMenuOpen(false)}
                                             className="flex items-center gap-3 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg"
                                         >
-                                            <User size={16} />
-                                            Profile
+                                            <User size={16} /> Profile
                                         </Link>
-
                                         {isEmployee && (
                                             <Link
                                                 to="/employee/dashboard"
                                                 onClick={() => setIsProfileMenuOpen(false)}
                                                 className="flex items-center gap-3 px-3 py-2 text-sm text-slate-600 hover:bg-green-50 rounded-lg"
                                             >
-                                                <LayoutDashboard size={16} className="text-green-600" />
-                                                Employee Dashboard
+                                                <LayoutDashboard size={16} className="text-green-600" /> Employee Dashboard
                                             </Link>
                                         )}
-
                                         {isAdmin && (
                                             <Link
                                                 to="/admin/dashboard"
                                                 onClick={() => setIsProfileMenuOpen(false)}
                                                 className="flex items-center gap-3 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg"
                                             >
-                                                <LayoutDashboard size={16} />
-                                                Admin Dashboard
+                                                <LayoutDashboard size={16} /> Admin Dashboard
                                             </Link>
                                         )}
-
                                         <Link
                                             to="/manage"
                                             onClick={() => setIsProfileMenuOpen(false)}
                                             className="flex items-center gap-3 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg"
                                         >
-                                            <Ticket size={16} />
-                                            Bookings
+                                            <Ticket size={16} /> Bookings
                                         </Link>
-
                                         <button
                                             onClick={handleLogout}
                                             className="flex w-full items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg"
                                         >
-                                            <LogOut size={16} />
-                                            Logout
+                                            <LogOut size={16} /> Logout
                                         </button>
                                     </div>
                                 </div>
