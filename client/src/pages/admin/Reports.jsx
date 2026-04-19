@@ -138,11 +138,6 @@ export default function Reports() {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [heatmapData, setHeatmapData] = useState([]);
-    useEffect(() => {
-    api.get('/reports/heatmap')  // add the /
-        .then(res => setHeatmapData(res.data || []))
-        .catch(() => setHeatmapData([]));
-    }, []);
 
     // Staged filter state
     const [stagedReportType, setStagedReportType] = useState("revenue");
@@ -179,10 +174,13 @@ export default function Reports() {
         }
     };
 
-    useEffect(() => { loadData(); }, [activeReportType, activeDates]);
+    useEffect(() => {
+        loadData();
+        setChartSnapshot([]);
+    }, [activeReportType, activeDates]);
 
     useEffect(() => {
-        api.get('reports/heatmap')
+        api.get('/reports/heatmap')
             .then(res => setHeatmapData(res.data || []))
             .catch(() => setHeatmapData([]));
     }, []);
@@ -193,6 +191,7 @@ export default function Reports() {
         setActiveSearch(stagedSearch);
         setActiveSort({ ...stagedSort });
         setActiveDates({ ...stagedDates });
+        setChartSnapshot(processedData);
     };
 
     const requestHeaderSort = (key) => {
@@ -303,6 +302,11 @@ export default function Reports() {
         return [];
     }, [data, activeReportType]);
 
+    const baseRevenueData = useMemo(() => {
+        if (activeReportType !== 'revenue') return [];
+        return data.filter(row => Number(row.totalRevenue || 0) > 0).slice(0, 10);
+    }, [data, activeReportType]);
+
     // Processed/filtered data
     const processedData = useMemo(() => {
         let items = [...data];
@@ -332,6 +336,19 @@ export default function Reports() {
         }
         return items;
     }, [data, activeSearch, activeSort, activeShowAll, activeReportType]);
+
+    const [chartSnapshot, setChartSnapshot] = useState([]);
+
+    useEffect(() => {
+        if (chartSnapshot.length === 0 && processedData.length > 0) {
+            setChartSnapshot(processedData);
+        }
+    }, [processedData]);
+
+    const baseActivityData = useMemo(() => {
+        if (activeReportType !== 'activity') return [];
+        return data.filter(row => Number(row.avgLoadFactorPercent || 0) > 0);
+    }, [data, activeReportType]);
 
     const formatValue = (key, val) => {
         const k = key.toLowerCase();
@@ -388,17 +405,17 @@ export default function Reports() {
                             <div style={{ height: 260 }}>
                                 <Bar
                                     data={{
-                                        labels: processedData.slice(0, 10).map(r => `${r.origin}→${r.destination}`),
+                                        labels: chartSnapshot.slice(0, 10).map(r => `${r.origin}→${r.destination}`),
                                         datasets: [
                                             {
                                                 label: 'Net Profit',
-                                                data: processedData.slice(0, 10).map(r => Number(r.profit || 0)),
+                                                data: chartSnapshot.slice(0, 10).map(r => Number(r.profit || 0)),
                                                 backgroundColor: '#0f172a',
                                                 stack: 'a',
                                             },
                                             {
                                                 label: 'Refunds/Deductions',
-                                                data: processedData.slice(0, 10).map(r => Number(r.refunds || 0)),
+                                                data: chartSnapshot.slice(0, 10).map(r => Number(r.refunds || 0)),
                                                 backgroundColor: '#94a3b8',
                                                 stack: 'a',
                                             }
@@ -524,11 +541,11 @@ export default function Reports() {
                             <div style={{ height: 270 }}>
                                 <Bar
                                     data={{
-                                        labels: processedData.map(r => `${r.origin}→${r.destination}`),
+                                        labels: baseActivityData.map(r => `${r.origin}→${r.destination}`),
                                         datasets: [{
                                             label: 'Load Factor %',
-                                            data: processedData.map(r => Number(r.avgLoadFactorPercent || 0)),
-                                            backgroundColor: processedData.map(r => {
+                                            data: baseActivityData.map(r => Number(r.avgLoadFactorPercent || 0)),
+                                            backgroundColor: baseActivityData.map(r => {
                                                 const action = r.recommendedAction;
                                                 if (action === 'Upsize Aircraft') return 'rgba(220,38,38,0.8)';
                                                 if (action === 'Downsize Aircraft') return 'rgba(234,179,8,0.8)';
@@ -547,7 +564,7 @@ export default function Reports() {
                                             tooltip: {
                                                 callbacks: {
                                                     label: (ctx) => {
-                                                        const r = processedData[ctx.dataIndex];
+                                                        const r = baseActivityData[ctx.dataIndex];
                                                         return [`Load: ${ctx.raw}%`, `Action: ${r?.recommendedAction || '—'}`];
                                                     }
                                                 }
@@ -573,17 +590,17 @@ export default function Reports() {
                             <div style={{ height: 270 }}>
                                 <Bar
                                     data={{
-                                        labels: processedData.map(r => `${r.origin}→${r.destination}`),
+                                        labels: baseActivityData.map(r => `${r.origin}→${r.destination}`),
                                         datasets: [
                                             {
                                                 label: 'Flights / Week',
-                                                data: processedData.map(r => Number(r.weeklyFrequency || 0)),
+                                                data: baseActivityData.map(r => Number(r.weeklyFrequency || 0)),
                                                 backgroundColor: 'rgba(15,23,42,0.8)',
                                                 borderRadius: 3,
                                             },
                                             {
                                                 label: 'Avg Load Factor %',
-                                                data: processedData.map(r => Number(r.avgLoadFactorPercent || 0)),
+                                                data: baseActivityData.map(r => Number(r.avgLoadFactorPercent || 0)),
                                                 backgroundColor: 'rgba(59,130,246,0.7)',
                                                 borderRadius: 3,
                                             }
@@ -644,7 +661,11 @@ export default function Reports() {
             <div className="flex items-stretch gap-0 mb-4 border border-[#cbd5e1] bg-white shadow-sm overflow-hidden text-[10px] font-bold uppercase text-[#64748b]">
                 <div className="flex-1 border-r border-[#e2e8f0] p-2 bg-[#f8fafc]/50">
                     <label className="block mb-1">Report Module</label>
-                    <select value={stagedReportType} onChange={(e) => setStagedReportType(e.target.value)} className="w-full px-2 py-1 bg-white border border-[#e2e8f0] text-[12px] font-semibold outline-none cursor-pointer">
+                    <select
+                        value={stagedReportType}
+                        onChange={(e) => setStagedReportType(e.target.value)}
+                        className="w-full px-2 py-1 bg-white border border-[#e2e8f0] text-[12px] font-semibold outline-none cursor-pointer"
+                    >
                         <option value="revenue">Financial Revenue</option>
                         <option value="popularity">Market Popularity</option>
                         <option value="activity">Operational Activity</option>
@@ -652,7 +673,11 @@ export default function Reports() {
                 </div>
                 <div className="flex-1 border-r border-[#e2e8f0] p-2">
                     <label className="block mb-1">Sort By</label>
-                    <select value={stagedSort.key} onChange={(e) => setStagedSort({ ...stagedSort, key: e.target.value })} className="w-full px-2 py-1 bg-white border border-[#e2e8f0] text-[12px] font-semibold outline-none cursor-pointer">
+                    <select
+                        value={stagedSort.key}
+                        onChange={(e) => setStagedSort({ ...stagedSort, key: e.target.value })}
+                        className="w-full px-2 py-1 bg-white border border-[#e2e8f0] text-[12px] font-semibold outline-none cursor-pointer"
+                    >
                         <option value="">Default</option>
                         {(reportColumnsMap[stagedReportType] || []).map(col => (
                             <option key={col} value={col}>{formatHeader(col)}</option>
@@ -661,7 +686,11 @@ export default function Reports() {
                 </div>
                 <div className="flex-[0.6] border-r border-[#e2e8f0] p-2">
                     <label className="block mb-1">Order</label>
-                    <select value={stagedSort.direction} onChange={(e) => setStagedSort({ ...stagedSort, direction: e.target.value })} className="w-full px-2 py-1 bg-white border border-[#e2e8f0] text-[12px] font-semibold outline-none cursor-pointer">
+                    <select
+                        value={stagedSort.direction}
+                        onChange={(e) => setStagedSort({ ...stagedSort, direction: e.target.value })}
+                        className="w-full px-2 py-1 bg-white border border-[#e2e8f0] text-[12px] font-semibold outline-none cursor-pointer"
+                    >
                         <option value="asc">ASC</option>
                         <option value="desc">DESC</option>
                     </select>
@@ -703,6 +732,24 @@ export default function Reports() {
                     </div>
                     <span className="whitespace-nowrap text-[#64748b]">Show All</span>
                 </div>
+                <button
+                    onClick={() => {
+                        setStagedReportType("revenue");
+                        setStagedShowAll(false);
+                        setStagedSearch("");
+                        setStagedSort({ key: "", direction: "asc" });
+                        setStagedDates({ start: "", end: "" });
+                        setActiveReportType("revenue");
+                        setActiveShowAll(false);
+                        setActiveSearch("");
+                        setActiveSort({ key: null, direction: 'asc' });
+                        setActiveDates({ start: "", end: "" });
+                        setChartSnapshot([]);
+                    }}
+                    className="px-6 bg-white border-r border-[#cbd5e1] text-[#64748b] font-bold text-[11px] uppercase tracking-widest hover:bg-slate-50 transition-all"
+                >
+                    Reset
+                </button>
                 <button
                     onClick={handleApplyFilters}
                     className="px-8 bg-[#0f172a] text-white font-bold text-[11px] uppercase tracking-widest hover:bg-[#2563eb] transition-all"
