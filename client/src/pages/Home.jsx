@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-
 import TabBar from "../components/home/TabBar.jsx";
 import FlightStatusPanel from "../components/home/FlightStatus.jsx";
 import FlightSearchPanel from "../components/home/FlightSearchPanel.jsx";
 import Hero from "../components/home/HeroSection.jsx";
 import FeaturedFlights from "../components/home/FeaturedFlights.jsx";
 import Card from "../components/common/Card.jsx";
-import { getMyNotifications } from "../services/notificationService";
+import { getFlightById } from "../services/flightService";
+import { getFlightsByBooking } from "../services/bookingService";
+import { getMyNotifications, markNotificationAsRead } from "../services/notificationService";
 import { getStatusByBooking } from "../services/bookingService";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -145,6 +146,22 @@ export default function Home() {
         }
     };
 
+    const handleMarkAsRead = async (id) => {
+    try {
+        await markNotificationAsRead(id);
+
+        setNotifications((prev) =>
+            prev.map((n) =>
+                n.notificationId === id
+                    ? { ...n, notificationStatus: "Read" }
+                    : n
+            )
+        );
+    } catch (err) {
+        console.error("Error marking notification as read:", err);
+    }
+};
+
     const handleSearch = (params) => {
         navigate("/flight-search", { state: params });
     };
@@ -240,6 +257,14 @@ export default function Home() {
                                                             : "—"}
                                                     </p>
                                                 </div>
+                                                {(notification.notificationStatus || "").toLowerCase() === "unread" && (
+        <button
+            onClick={() => handleMarkAsRead(notification.notificationId)}
+            className="mt-2 text-xs text-blue-600 hover:underline"
+        >
+            Mark as Read
+        </button>
+    )}
                                             </div>
 
                                             <span
