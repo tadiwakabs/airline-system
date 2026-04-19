@@ -24,7 +24,7 @@ export default function FeatureCard({
             <div className="p-4 space-y-3">
                 <div className="flex items-start justify-between gap-3">
                     <div>
-                        <h3 className="text-[19px] font-semibold">
+                        <h3 className="text-[17.5px] font-semibold">
                             {origin} → {destination}
                         </h3>
                         <p className="text-sm text-gray-500">{dateRange}</p>

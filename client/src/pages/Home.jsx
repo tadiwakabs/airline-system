@@ -434,7 +434,7 @@ export default function Home() {
                     </div>
                 </section>
 
-                <div className="mt-8">
+                <div className="mt-36">
                     <FeaturedFlights />
                 </div>
             </div>
