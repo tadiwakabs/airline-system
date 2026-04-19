@@ -7,13 +7,9 @@ import FlightSearchPanel from "../components/home/FlightSearchPanel.jsx";
 import Hero from "../components/home/HeroSection.jsx";
 import FeaturedFlights from "../components/home/FeaturedFlights.jsx";
 import Card from "../components/common/Card.jsx";
-<<<<<<< Updated upstream
-import { getMyNotifications } from "../services/notificationService";
-=======
 import { getFlightById } from "../services/flightService";
 import { getFlightsByBooking } from "../services/bookingService";
 import { getMyNotifications, markNotificationAsRead } from "../services/notificationService";
->>>>>>> Stashed changes
 import { getStatusByBooking } from "../services/bookingService";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
