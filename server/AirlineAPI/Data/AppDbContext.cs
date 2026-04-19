@@ -27,6 +27,7 @@ namespace AirlineAPI.Data
         public DbSet<Standby> Standby { get; set; }
         public DbSet<Notification> Notification { get; set; }
         public DbSet<FlightCrewAssignment> FlightCrewAssignments { get; set; }
+        public DbSet<Baggage> Baggage { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

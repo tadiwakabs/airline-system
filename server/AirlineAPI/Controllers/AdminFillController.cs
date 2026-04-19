@@ -129,160 +129,36 @@ namespace AirlineAPI.Controllers
             if (flight == null)
                 return NotFound(new { message = "Flight not found." });
 
-            IQueryable<Seating> seatsQuery = _context.Seating
-                .Where(s => s.flightNum == request.FlightNum && s.seatStatus == SeatStatus.Available);
-
-            if (request.FillClass != "all")
+            var effectiveDepart = flight.scheduledDepartLocal ?? flight.departTime;
+            if (effectiveDepart <= DateTime.UtcNow && effectiveDepart <= DateTime.Now)
             {
-                var seatClass = ParseSeatClass(request.FillClass);
-                seatsQuery = seatsQuery.Where(s => s.seatclass == seatClass);
-            }
-
-            var totalAvailable = await seatsQuery.CountAsync();
-
-            if (totalAvailable == 0)
-            {
-                return BadRequest(new { message = "No available seats match the selected fill class." });
-            }
-
-            int requestedSeatCount;
-
-            if (request.FillMode == "percent")
-            {
-                if (!request.FillPercent.HasValue || request.FillPercent.Value <= 0 || request.FillPercent.Value > 100)
-                    return BadRequest(new { message = "Fill percent must be between 1 and 100." });
-
-                requestedSeatCount = (int)Math.Ceiling(totalAvailable * (request.FillPercent.Value / 100.0));
-
-                if (requestedSeatCount <= 0)
-                    requestedSeatCount = 1;
-            }
-            else
-            {
-                if (!request.SeatCount.HasValue || request.SeatCount.Value <= 0)
-                    return BadRequest(new { message = "Seat count must be greater than zero." });
-
-                requestedSeatCount = request.SeatCount.Value;
-            }
-
-            var seatsToUse = await seatsQuery
-                .OrderBy(s => s.seatNumber)
-                .Take(requestedSeatCount)
-                .ToListAsync();
-
-            if (seatsToUse.Count < requestedSeatCount)
-            {
-                return BadRequest(new
-                {
-                    message = $"Only {seatsToUse.Count} available seat(s) match the selected fill class."
-                });
+                return BadRequest(new { message = "Cannot autofill a flight that has already departed." });
             }
 
             await using var transaction = await _context.Database.BeginTransactionAsync();
 
             try
             {
-                var created = new List<FillFlightCreatedItemDto>();
+                var rng = new Random();
 
-                foreach (var seat in seatsToUse)
-                {
-                    if (seat.seatclass == null)
-                        throw new Exception($"Seat {seat.seatNumber} has no seat class.");
-
-                    var cabinClass = ConvertSeatClassToCabinClass(seat.seatclass.Value);
-
-                    var pricing = flight.Pricing.FirstOrDefault(p => p.CabinClass == cabinClass);
-                    if (pricing == null)
-                        throw new Exception($"No pricing found for {cabinClass} on flight {flight.flightNum}.");
-
-                    var passenger = new Passenger
-                    {
-                        PassengerId = Guid.NewGuid().ToString("N"),
-                        UserId = null,
-                        OwnerUserId = null,
-                        FirstName = "Auto",
-                        LastName = $"Passenger {seat.seatNumber}",
-                        DateOfBirth = new DateTime(1990, 1, 1),
-                        Gender = Gender.Other,
-                        PassengerType = PassengerType.Adult,
-                        Email = null,
-                        PhoneNumber = null
-                    };
-
-                    _context.Passenger.Add(passenger);
-                    await _context.SaveChangesAsync();
-
-                    var booking = new Booking
-                    {
-                        bookingId = Guid.NewGuid().ToString(),
-                        bookingDate = DateTime.UtcNow,
-                        bookingStatus = BookingStatus.Confirmed,
-                        totalPrice = pricing.Price,
-                        userId = FillUserId
-                    };
-
-                    _context.Bookings.Add(booking);
-                    await _context.SaveChangesAsync();
-
-                    var payment = new Payment
-                    {
-                        userId = FillUserId,
-                        bookingId = booking.bookingId,
-                        bookingPrice = (double)pricing.Price,
-                        totalPrice = (double)pricing.Price,
-                        paymentMethod = request.PaymentMethod,
-                        paymentStatus = PaymentStatus.Success
-                    };
-
-                    _context.Payments.Add(payment);
-
-                    var ticketCode = BuildTicketCode(booking.bookingId, flight.flightNum, seat.seatNumber);
-
-                    var ticket = new Ticket
-                    {
-                        ticketCode = ticketCode,
-                        bookingId = booking.bookingId,
-                        price = pricing.Price,
-                        issueDate = DateTime.UtcNow,
-                        origin = flight.departingPort,
-                        destination = flight.arrivingPort,
-                        boardingTime = (flight.scheduledDepartLocal ?? flight.departTime)
-                            .AddHours(-1)
-                            .ToString("yyyy-MM-dd HH:mm"),
-                        seatNumber = seat.seatNumber,
-                        flightCode = flight.flightNum,
-                        status = TicketStatus.Booked,
-                        ticketClass = ConvertCabinClassToTicketClass(cabinClass),
-                        passengerId = passenger.PassengerId,
-                        reservationTime = DateTime.UtcNow
-                    };
-
-                    _context.Ticket.Add(ticket);
-
-                    seat.seatStatus = SeatStatus.Occupied;
-                    seat.passengerId = passenger.PassengerId;
-                    seat.holdExpiresAt = null;
-
-                    await _context.SaveChangesAsync();
-
-                    created.Add(new FillFlightCreatedItemDto
-                    {
-                        PassengerId = passenger.PassengerId,
-                        BookingId = booking.bookingId,
-                        TicketCode = ticket.ticketCode,
-                        SeatNumber = seat.seatNumber,
-                        CabinClass = cabinClass.ToString(),
-                        Price = pricing.Price
-                    });
-                }
+                var created = await CreateFillForFlightAsync(
+                    flight,
+                    request.FillClass,
+                    request.FillMode,
+                    request.SeatCount,
+                    request.FillPercent,
+                    request.FillPercentMin,
+                    request.FillPercentMax,
+                    request.RandomizeSeats,
+                    request.PaymentMethod,
+                    rng
+                );
 
                 await transaction.CommitAsync();
 
                 return Ok(new FillFlightResultDto
                 {
-                    Message = request.FillMode == "percent"
-                        ? $"Created {created.Count} passenger booking(s) using {request.FillPercent}% fill."
-                        : $"Created {created.Count} passenger booking(s).",
+                    Message = $"Created {created.Count} passenger booking(s) for flight {flight.flightNum}.",
                     FlightNum = flight.flightNum,
                     FillClass = request.FillClass,
                     CreatedCount = created.Count,
@@ -299,165 +175,185 @@ namespace AirlineAPI.Controllers
                 });
             }
         }
-
-        [HttpPost("route")]
-public async Task<IActionResult> FillRoute([FromBody] FillRouteRequestDto request)
-{
-    if (!await IsAdminAsync())
-        return Forbid();
-
-    if (request == null)
-        return BadRequest(new { message = "Request body is required." });
-
-    request.PaymentMethod = NormalizePaymentMethod(request.PaymentMethod);
-    if (string.IsNullOrWhiteSpace(request.PaymentMethod))
-        return BadRequest(new { message = "Invalid payment method." });
-
-    var fillUserExists = await _context.Users.AnyAsync(u => u.UserId == FillUserId);
-    if (!fillUserExists)
-        return BadRequest(new { message = "Configured fill user does not exist." });
-
-    var flights = await _context.Flights
-        .Include(f => f.Pricing)
-        .Where(f => f.departingPort == request.DepartingPort && f.arrivingPort == request.ArrivingPort)
-        .ToListAsync();
-
-    if (!flights.Any())
-        return NotFound(new { message = "No flights found for this route." });
-
-    var rng = new Random();
-    var allCreated = new List<object>();
-    var errors = new List<string>();
-
-    foreach (var flight in flights)
-    {
-        await using var transaction = await _context.Database.BeginTransactionAsync();
-        try
+        
+        [HttpPost("batch")]
+        public async Task<IActionResult> FillMultipleFlights([FromBody] FillMultipleFlightsRequestDto request)
         {
-            var cabinRanges = new[]
+            if (!await IsAdminAsync())
+                return Forbid();
+
+            if (request == null || request.FlightNums == null || !request.FlightNums.Any())
+                return BadRequest(new { message = "At least one flight number is required." });
+
+            request.FillClass = NormalizeFillClass(request.FillClass);
+            if (request.FillClass == "")
+                return BadRequest(new { message = "Invalid fill class." });
+
+            request.FillMode = NormalizeFillMode(request.FillMode);
+            if (request.FillMode == "")
+                return BadRequest(new { message = "Invalid fill mode. Use 'seats' or 'percent'." });
+
+            request.PaymentMethod = NormalizePaymentMethod(request.PaymentMethod);
+            if (string.IsNullOrWhiteSpace(request.PaymentMethod))
+                return BadRequest(new { message = "Invalid payment method." });
+
+            var fillUserExists = await _context.Users.AnyAsync(u => u.UserId == FillUserId);
+            if (!fillUserExists)
+                return BadRequest(new { message = "Configured fill user does not exist." });
+
+            var flights = await _context.Flights
+                .Include(f => f.Pricing)
+                .Where(f => request.FlightNums.Contains(f.flightNum))
+                .ToListAsync();
+
+            if (!flights.Any())
+                return NotFound(new { message = "No matching flights found." });
+
+            var rng = new Random();
+            var allCreated = new List<object>();
+            var errors = new List<string>();
+
+            foreach (var flight in flights)
             {
-                new { Class = "economy", SeatClass = SeatClass.Economy, CabinClass = CabinClass.Economy, Min = request.EconomyMin, Max = request.EconomyMax },
-                new { Class = "business", SeatClass = SeatClass.Business, CabinClass = CabinClass.Business, Min = request.BusinessMin, Max = request.BusinessMax },
-                new { Class = "first",    SeatClass = SeatClass.First,    CabinClass = CabinClass.First,    Min = request.FirstMin,    Max = request.FirstMax },
-            };
-
-            var flightCreated = new List<object>();
-
-            foreach (var cabin in cabinRanges)
-            {
-                if (cabin.Min <= 0 && cabin.Max <= 0) continue;
-
-                var availableSeats = await _context.Seating
-                    .Where(s => s.flightNum == flight.flightNum
-                             && s.seatStatus == SeatStatus.Available
-                             && s.seatclass == cabin.SeatClass)
-                    .OrderBy(s => s.seatNumber)
-                    .ToListAsync();
-
-                if (!availableSeats.Any()) continue;
-
-                var fillPct = rng.Next(cabin.Min, cabin.Max + 1);
-                var seatsToFill = (int)Math.Ceiling(availableSeats.Count * (fillPct / 100.0));
-                var seatsToUse = availableSeats.Take(seatsToFill).ToList();
-
-                var pricing = flight.Pricing.FirstOrDefault(p => p.CabinClass == cabin.CabinClass);
-                if (pricing == null) continue;
-
-                foreach (var seat in seatsToUse)
+                var effectiveDepart = flight.scheduledDepartLocal ?? flight.departTime;
+                if (effectiveDepart <= DateTime.UtcNow && effectiveDepart <= DateTime.Now)
                 {
-                    var passenger = new Passenger
-                    {
-                        PassengerId = Guid.NewGuid().ToString("N"),
-                        UserId = null,
-                        OwnerUserId = null,
-                        FirstName = "Auto",
-                        LastName = $"Passenger {seat.seatNumber}",
-                        DateOfBirth = new DateTime(1990, 1, 1),
-                        Gender = Gender.Other,
-                        PassengerType = PassengerType.Adult,
-                        Email = null,
-                        PhoneNumber = null
-                    };
-                    _context.Passenger.Add(passenger);
-                    await _context.SaveChangesAsync();
+                    errors.Add($"Flight {flight.flightNum}: already departed.");
+                    continue;
+                }
 
-                    var booking = new Booking
-                    {
-                        bookingId = Guid.NewGuid().ToString(),
-                        bookingDate = DateTime.UtcNow,
-                        bookingStatus = BookingStatus.Confirmed,
-                        totalPrice = pricing.Price,
-                        userId = FillUserId
-                    };
-                    _context.Bookings.Add(booking);
-                    await _context.SaveChangesAsync();
+                await using var transaction = await _context.Database.BeginTransactionAsync();
 
-                    var payment = new Payment
-                    {
-                        userId = FillUserId,
-                        bookingId = booking.bookingId,
-                        bookingPrice = (double)pricing.Price,
-                        totalPrice = (double)pricing.Price,
-                        paymentMethod = request.PaymentMethod,
-                        paymentStatus = PaymentStatus.Success
-                    };
-                    _context.Payments.Add(payment);
+                try
+                {
+                    var created = await CreateFillForFlightAsync(
+                        flight,
+                        request.FillClass,
+                        request.FillMode,
+                        request.SeatCount,
+                        request.FillPercent,
+                        request.FillPercentMin,
+                        request.FillPercentMax,
+                        request.RandomizeSeats,
+                        request.PaymentMethod,
+                        rng
+                    );
 
-                    var ticket = new Ticket
-                    {
-                        ticketCode = $"{flight.flightNum}{seat.seatNumber}{Guid.NewGuid().ToString("N")[..10]}",
-                        bookingId = booking.bookingId,
-                        price = pricing.Price,
-                        issueDate = DateTime.UtcNow,
-                        origin = flight.departingPort,
-                        destination = flight.arrivingPort,
-                        boardingTime = (flight.scheduledDepartLocal ?? flight.departTime).AddHours(-1).ToString("yyyy-MM-dd HH:mm"),
-                        seatNumber = seat.seatNumber,
-                        flightCode = flight.flightNum,
-                        status = TicketStatus.Booked,
-                        ticketClass = ConvertCabinClassToTicketClass(cabin.CabinClass),
-                        passengerId = passenger.PassengerId,
-                        reservationTime = DateTime.UtcNow
-                    };
-                    _context.Ticket.Add(ticket);
+                    await transaction.CommitAsync();
 
-                    seat.seatStatus = SeatStatus.Occupied;
-                    seat.passengerId = passenger.PassengerId;
-                    seat.holdExpiresAt = null;
-
-                    await _context.SaveChangesAsync();
-
-                    flightCreated.Add(new
+                    allCreated.AddRange(created.Select(c => new
                     {
                         flightNum = flight.flightNum,
-                        seatNumber = seat.seatNumber,
-                        cabinClass = cabin.Class,
-                        fillPct,
-                        price = pricing.Price,
-                        ticketCode = ticket.ticketCode
-                    });
+                        passengerId = c.PassengerId,
+                        bookingId = c.BookingId,
+                        ticketCode = c.TicketCode,
+                        seatNumber = c.SeatNumber,
+                        cabinClass = c.CabinClass,
+                        price = c.Price
+                    }));
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    errors.Add($"Flight {flight.flightNum}: {ex.Message}");
                 }
             }
 
-            await transaction.CommitAsync();
-            allCreated.AddRange(flightCreated);
+            return Ok(new
+            {
+                message = $"Batch fill complete. {allCreated.Count} booking(s) created across {flights.Count} flight(s).",
+                flightsProcessed = flights.Count,
+                totalCreated = allCreated.Count,
+                errors,
+                items = allCreated
+            });
         }
-        catch (Exception ex)
-        {
-            await transaction.RollbackAsync();
-            errors.Add($"Flight {flight.flightNum}: {ex.Message}");
-        }
-    }
 
-    return Ok(new
-    {
-        message = $"Route fill complete. {allCreated.Count} bookings created across {flights.Count} flights.",
-        flightsProcessed = flights.Count,
-        totalCreated = allCreated.Count,
-        errors,
-        items = allCreated
-    });
-}
+        [HttpPost("route")]
+        public async Task<IActionResult> FillRoute([FromBody] FillRouteRequestDto request)
+        {
+            if (!await IsAdminAsync())
+                return Forbid();
+
+            if (request == null)
+                return BadRequest(new { message = "Request body is required." });
+
+            request.PaymentMethod = NormalizePaymentMethod(request.PaymentMethod);
+            if (string.IsNullOrWhiteSpace(request.PaymentMethod))
+                return BadRequest(new { message = "Invalid payment method." });
+
+            var fillUserExists = await _context.Users.AnyAsync(u => u.UserId == FillUserId);
+            if (!fillUserExists)
+                return BadRequest(new { message = "Configured fill user does not exist." });
+
+            var nowUtc = DateTime.UtcNow;
+            var nowLocal = DateTime.Now;
+
+            var flights = await _context.Flights
+                .Include(f => f.Pricing)
+                .Where(f =>
+                    f.departingPort == request.DepartingPort &&
+                    f.arrivingPort == request.ArrivingPort &&
+                    ((f.scheduledDepartLocal.HasValue && f.scheduledDepartLocal > nowLocal) ||
+                     (!f.scheduledDepartLocal.HasValue && f.departTime > nowUtc)))
+                .ToListAsync();
+
+            if (!flights.Any())
+                return NotFound(new { message = "No flights found for this route." });
+            
+            var allCreated = new List<object>();
+            var errors = new List<string>();
+
+            var rng = new Random();
+
+            foreach (var flight in flights)
+            {
+                await using var transaction = await _context.Database.BeginTransactionAsync();
+
+                try
+                {
+                    var created = await CreateFillForFlightAsync(
+                        flight,
+                        request.FillClass,
+                        request.FillMode,
+                        request.SeatCount,
+                        request.FillPercent,
+                        request.FillPercentMin,
+                        request.FillPercentMax,
+                        request.RandomizeSeats,
+                        request.PaymentMethod,
+                        rng
+                    );
+
+                    await transaction.CommitAsync();
+
+                    allCreated.AddRange(created.Select(c => new
+                    {
+                        flightNum = flight.flightNum,
+                        passengerId = c.PassengerId,
+                        bookingId = c.BookingId,
+                        ticketCode = c.TicketCode,
+                        seatNumber = c.SeatNumber,
+                        cabinClass = c.CabinClass,
+                        price = c.Price
+                    }));
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    errors.Add($"Flight {flight.flightNum}: {ex.Message}");
+                }
+            }
+
+            return Ok(new
+            {
+                message = $"Route fill complete. {allCreated.Count} bookings created across {flights.Count} flights.",
+                flightsProcessed = flights.Count,
+                totalCreated = allCreated.Count,
+                errors,
+                items = allCreated
+            });
+        }
 
         private static string NormalizeFillClass(string? fillClass)
         {
@@ -530,6 +426,206 @@ public async Task<IActionResult> FillRoute([FromBody] FillRouteRequestDto reques
                 _ => ""
             };
         }
+        
+        private static void ValidatePercentRange(int? min, int? max)
+        {
+            if (!min.HasValue || !max.HasValue)
+                throw new Exception("Fill percent min and max are required.");
+
+            if (min.Value < 1 || min.Value > 100 || max.Value < 1 || max.Value > 100)
+                throw new Exception("Fill percent min/max must be between 1 and 100.");
+
+            if (min.Value > max.Value)
+                throw new Exception("Fill percent min cannot be greater than max.");
+        }
+
+        private static int GetRandomPercentInRange(Random rng, int min, int max)
+        {
+            if (min == max) return min;
+            return rng.Next(min, max + 1);
+        }
+
+        private static List<T> ShuffleList<T>(IEnumerable<T> items, Random rng)
+        {
+            var list = items.ToList();
+            for (int i = list.Count - 1; i > 0; i--)
+            {
+                int j = rng.Next(i + 1);
+                (list[i], list[j]) = (list[j], list[i]);
+            }
+            return list;
+        }
+
+        private async Task<List<FillFlightCreatedItemDto>> CreateFillForFlightAsync(
+            Flight flight,
+            string fillClass,
+            string fillMode,
+            int? seatCount,
+            int? fillPercent,
+            int? fillPercentMin,
+            int? fillPercentMax,
+            bool randomizeSeats,
+            string paymentMethod,
+            Random rng)
+        {
+            IQueryable<Seating> seatsQuery = _context.Seating
+                .Where(s => s.flightNum == flight.flightNum && s.seatStatus == SeatStatus.Available);
+
+            if (fillClass != "all")
+            {
+                var seatClass = ParseSeatClass(fillClass);
+                seatsQuery = seatsQuery.Where(s => s.seatclass == seatClass);
+            }
+
+            var availableSeats = await seatsQuery
+                .OrderBy(s => s.seatNumber)
+                .ToListAsync();
+
+            if (!availableSeats.Any())
+                throw new Exception("No available seats match the selected fill class.");
+
+            int requestedSeatCount;
+
+            if (fillMode == "percent")
+            {
+                int percentToUse;
+
+                if (fillPercent.HasValue)
+                {
+                    if (fillPercent.Value <= 0 || fillPercent.Value > 100)
+                        throw new Exception("Fill percent must be between 1 and 100.");
+
+                    percentToUse = fillPercent.Value;
+                }
+                else
+                {
+                    ValidatePercentRange(fillPercentMin, fillPercentMax);
+                    percentToUse = GetRandomPercentInRange(rng, fillPercentMin!.Value, fillPercentMax!.Value);
+                }
+
+                requestedSeatCount = (int)Math.Ceiling(availableSeats.Count * (percentToUse / 100.0));
+                if (requestedSeatCount <= 0)
+                    requestedSeatCount = 1;
+            }
+            else
+            {
+                if (!seatCount.HasValue || seatCount.Value <= 0)
+                    throw new Exception("Seat count must be greater than zero.");
+
+                requestedSeatCount = seatCount.Value;
+            }
+
+            if (requestedSeatCount > availableSeats.Count)
+            {
+                throw new Exception($"Only {availableSeats.Count} available seat(s) match the selected fill class.");
+            }
+
+            var seatsToUse = randomizeSeats
+                ? ShuffleList(availableSeats, rng).Take(requestedSeatCount).ToList()
+                : availableSeats.Take(requestedSeatCount).ToList();
+
+            var created = new List<FillFlightCreatedItemDto>();
+
+            foreach (var seat in seatsToUse)
+            {
+                if (seat.seatclass == null)
+                    throw new Exception($"Seat {seat.seatNumber} has no seat class.");
+
+                var cabinClass = ConvertSeatClassToCabinClass(seat.seatclass.Value);
+
+                var pricing = flight.Pricing.FirstOrDefault(p => p.CabinClass == cabinClass);
+                if (pricing == null)
+                    throw new Exception($"No pricing found for {cabinClass} on flight {flight.flightNum}.");
+
+                var passenger = new Passenger
+                {
+                    PassengerId = Guid.NewGuid().ToString("N"),
+                    UserId = null,
+                    OwnerUserId = null,
+                    FirstName = "Auto",
+                    LastName = $"Passenger {seat.seatNumber}",
+                    DateOfBirth = new DateTime(1990, 1, 1),
+                    Gender = Gender.Other,
+                    PassengerType = PassengerType.Adult,
+                    Email = null,
+                    PhoneNumber = null
+                };
+
+                _context.Passenger.Add(passenger);
+                await _context.SaveChangesAsync();
+
+                var booking = new Booking
+                {
+                    bookingId = Guid.NewGuid().ToString(),
+                    bookingDate = DateTime.UtcNow,
+                    bookingStatus = BookingStatus.Confirmed,
+                    totalPrice = pricing.Price,
+                    userId = FillUserId
+                };
+
+                _context.Bookings.Add(booking);
+                await _context.SaveChangesAsync();
+
+                var payment = new Payment
+                {
+                    userId = FillUserId,
+                    bookingId = booking.bookingId,
+                    bookingPrice = (double)pricing.Price,
+                    totalPrice = (double)pricing.Price,
+                    paymentMethod = paymentMethod,
+                    paymentStatus = PaymentStatus.Success
+                };
+
+                _context.Payments.Add(payment);
+
+                var ticket = new Ticket
+                {
+                    ticketCode = BuildTicketCode(booking.bookingId, flight.flightNum, seat.seatNumber),
+                    bookingId = booking.bookingId,
+                    price = pricing.Price,
+                    issueDate = DateTime.UtcNow,
+                    origin = flight.departingPort,
+                    destination = flight.arrivingPort,
+                    boardingTime = (flight.scheduledDepartLocal ?? flight.departTime).AddHours(-1).ToString("yyyy-MM-dd HH:mm"),
+                    seatNumber = seat.seatNumber,
+                    flightCode = flight.flightNum,
+                    status = TicketStatus.Booked,
+                    ticketClass = ConvertCabinClassToTicketClass(cabinClass),
+                    passengerId = passenger.PassengerId,
+                    reservationTime = DateTime.UtcNow
+                };
+                _context.Ticket.Add(ticket);
+
+                var baggage = new Baggage
+                {
+                    baggageId = Guid.NewGuid().ToString("N")[..30],
+                    passengerId = passenger.PassengerId,
+                    additionalBaggage = false,
+                    additionalFare = 0,
+                    isChecked = false,
+                    ticketCode = ticket.ticketCode
+                };
+                _context.Add(baggage);
+
+                seat.seatStatus = SeatStatus.Occupied;
+                seat.passengerId = passenger.PassengerId;
+                seat.holdExpiresAt = null;
+
+                await _context.SaveChangesAsync();
+
+                created.Add(new FillFlightCreatedItemDto
+                {
+                    PassengerId = passenger.PassengerId,
+                    BookingId = booking.bookingId,
+                    TicketCode = ticket.ticketCode,
+                    SeatNumber = seat.seatNumber,
+                    CabinClass = cabinClass.ToString(),
+                    Price = pricing.Price
+                });
+            }
+
+            return created;
+        }
     }
 
     public class FillFlightRequestDto
@@ -542,11 +638,54 @@ public async Task<IActionResult> FillRoute([FromBody] FillRouteRequestDto reques
         // used when FillMode = "seats"
         public int? SeatCount { get; set; }
 
-        // used when FillMode = "percent"
+        // used when FillMode = "percent" for a fixed value
         public int? FillPercent { get; set; }
+
+        // used when FillMode = "percent" for a range
+        public int? FillPercentMin { get; set; }
+        public int? FillPercentMax { get; set; }
 
         public string FillClass { get; set; } = "all";
         public string PaymentMethod { get; set; } = "Visa";
+        public bool RandomizeSeats { get; set; } = false;
+    }
+    
+    public class FillMultipleFlightsRequestDto
+    {
+        public List<int> FlightNums { get; set; } = new();
+
+        public string FillMode { get; set; } = "seats";
+        public int? SeatCount { get; set; }
+        public int? FillPercent { get; set; }
+        public int? FillPercentMin { get; set; }
+        public int? FillPercentMax { get; set; }
+
+        public string FillClass { get; set; } = "all";
+        public string PaymentMethod { get; set; } = "Visa";
+        public bool RandomizeSeats { get; set; } = false;
+    }
+    
+    public class FillRouteRequestDto
+    {
+        public string DepartingPort { get; set; } = "";
+        public string ArrivingPort { get; set; } = "";
+
+        // "seats" or "percent"
+        public string FillMode { get; set; } = "seats";
+
+        public int? SeatCount { get; set; }
+
+        // single percent (optional)
+        public int? FillPercent { get; set; }
+
+        // percent range (new)
+        public int? FillPercentMin { get; set; }
+        public int? FillPercentMax { get; set; }
+
+        public string FillClass { get; set; } = "all";
+        public string PaymentMethod { get; set; } = "Visa";
+
+        public bool RandomizeSeats { get; set; } = true;
     }
 
     public class FlightFillSummaryDto

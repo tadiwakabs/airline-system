@@ -1,6 +1,5 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.AspNetCore.SignalR;
 
 namespace AirlineAPI.Models
 {
@@ -10,31 +9,31 @@ namespace AirlineAPI.Models
         [Key]
         [Required]
         [StringLength(30)]
-        public string baggageID { get; set; } = string.Empty;
-
-        [ForeignKey("baggageId")]
-        public Passenger? Passengers { get; set; }
+        [Column("baggageId")]
+        public string baggageId { get; set; } = string.Empty;
 
         [Required]
-        [Range(0, int.MaxValue)]
-        public int baggageCount { get; set; }
+        [StringLength(50)]
+        [Column("passengerId")]
+        public string passengerId { get; set; } = string.Empty;
+
+        [ForeignKey(nameof(passengerId))]
+        public Passenger? Passenger { get; set; }
 
         [Required]
-        [Range(0, double.MaxValue)]
-        public double baggageFare { get; set; }
-
         public bool additionalBaggage { get; set; } = false;
 
         [Range(0, double.MaxValue)]
-        public double? additionalFare { get; set; }
+        public double? additionalFare { get; set; } = 0;
 
-        public bool isChecked { get; set; }
+        [Required]
+        public bool isChecked { get; set; } = false;
 
         [Required]
         [StringLength(30)]
         public string ticketCode { get; set; } = string.Empty;
 
-        [ForeignKey("ticketCode")]
+        [ForeignKey(nameof(ticketCode))]
         public Ticket? Ticket { get; set; }
     }
 }
