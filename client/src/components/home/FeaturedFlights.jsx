@@ -2,12 +2,7 @@ import FeatureCard from "../flight/FeatureCard.jsx";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getFeaturedFlights } from "../../services/flightService";
-import AIRPORTS from "../../dropdownData/airports.json";
-
-// Build a code → city lookup once from the airports JSON
-const CODE_TO_CITY = Object.fromEntries(
-    AIRPORTS.map((a) => [a.value.toUpperCase(), a.city])
-);
+import { getAllAirports } from "../../services/airportService";
 
 // Destination images keyed by arriving airport code
 const DESTINATION_IMAGES = {
@@ -75,6 +70,29 @@ export default function FeaturedFlights() {
     const [flights, setFlights] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [airportMap, setAirportMap] = useState({});
+
+    useEffect(() => {
+        const loadAirports = async () => {
+            try {
+                const res = await getAllAirports();
+                const airports = Array.isArray(res.data) ? res.data : [];
+
+                const codeToCity = Object.fromEntries(
+                    airports.map((a) => [
+                        String(a.airportCode || "").toUpperCase(),
+                        a.city || a.airportName || a.airportCode
+                    ])
+                );
+
+                setAirportMap(codeToCity);
+            } catch (err) {
+                console.error("Failed to load airports:", err);
+            }
+        };
+
+        loadAirports();
+    }, []);
 
     useEffect(() => {
         const load = async () => {
@@ -158,8 +176,8 @@ export default function FeaturedFlights() {
                             <FeatureCard
                                 key={flight.flightNum || flight.FlightNum}
                                 image={DESTINATION_IMAGES[arriveCode] ?? FALLBACK_IMAGE}
-                                origin={CODE_TO_CITY[departCode] ?? departCode}
-                                destination={CODE_TO_CITY[arriveCode] ?? arriveCode}
+                                origin={airportMap[departCode] ?? departCode}
+                                destination={airportMap[arriveCode] ?? arriveCode}
                                 price={economyPrice != null ? String(economyPrice * 2) : "—"}
                                 dateRange={formatDateRange(departTime)}
                                 isPromotion={false}

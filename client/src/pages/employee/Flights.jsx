@@ -924,8 +924,8 @@ export default function Flights() {
             {/* Page header */}
             <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
-                    <h1 className="text-2xl font-semibold text-gray-900">Flights</h1>
-                    <p className="mt-1 text-sm text-gray-500">Manage individual and recurring flights.</p>
+                    <h1 className="text-2xl font-semibold text-gray-800">Flights</h1>
+                    <p className="mt-1 text-sm text-gray-200">Manage individual and recurring flights.</p>
                 </div>
                 <div className="flex gap-4">
                     <Button
@@ -945,14 +945,14 @@ export default function Flights() {
                     >
                         {activeTab === "flights" ? "Add Flight" : "Add Recurring Schedule"}
                     </Button>
-                    <Button variant="outline" onClick={() => {
+                    {/* <Button variant="outline" onClick={() => {
                         setImportJson("");
                         setImportError("");
                         setImportResult(null);
                         setIsImportModalOpen(true);
                     }}>
                         Import JSON
-                    </Button>
+                    </Button> */}
                 </div>
 
             </div>
