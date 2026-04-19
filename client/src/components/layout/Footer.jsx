@@ -9,16 +9,21 @@ export default function Footer() {
                 {/* Brand Column */}
                 <div className="space-y-6">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white font-black text-xl shadow-lg shadow-blue-500/20">
-                            33
+                        <div className="flex h-10 w-auto items-center">
+                            <img 
+                                src="/logo.png" 
+                                alt="Divided Airline Logo" 
+                                className="h-full w-auto object-contain transition-transform group-hover:scale-105" 
+                                onError={(e) => console.log("Image failed to load:", e.target.src)}
+                            />
                         </div>
                         <div>
-                            <p className="text-xl font-black text-white tracking-tight">3380 Airlines</p>
+                            {/*<p className="text-xl font-black text-white tracking-tight">Divided Airline</p>*/}
                             <p className="text-xs font-bold text-blue-500 uppercase tracking-widest">Sky is not the limit</p>
                         </div>
                     </div>
                     <p className="text-sm leading-relaxed text-slate-400">
-                        Experience world-class travel with 3380 Airlines. From luxury seating to seamless bookings, we make every journey feel like home.
+                        Experience world-class travel with Divided Airline. From luxury seating to seamless bookings, we make every journey feel like home.
                     </p>
                 </div>
 
@@ -45,7 +50,7 @@ export default function Footer() {
                 <div className="bg-white/5 p-6 rounded-2xl border border-white/10">
                     <h3 className="mb-4 text-xs font-black uppercase tracking-widest text-white">Contact Us</h3>
                     <div className="space-y-3 text-sm">
-                        <p className="flex justify-between font-medium">Email: <span className="text-white">support@3380.com</span></p>
+                        <p className="flex justify-between font-medium">Email: <span className="text-white">support@dividedairlines.com</span></p>
                         <p className="flex justify-between font-medium">Phone: <span className="text-white">+1 (800) 338-0000</span></p>
                         <div className="pt-4 border-t border-white/10">
                             <p className="text-[10px] uppercase font-black text-slate-500">Support Hours</p>
@@ -58,7 +63,7 @@ export default function Footer() {
             {/* Bottom Bar */}
             <div className="border-t border-white/5 bg-black/20">
                 <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-8 md:flex-row md:items-center md:justify-between text-[11px] font-bold uppercase tracking-widest text-slate-500">
-                    <p>© 2026 3380 Airlines. Built for COSC 3380.</p>
+                    <p>© 2026 Divided Airline. Built for COSC 3380.</p>
                     <div className="flex gap-6">
                         <span className="text-slate-600 italic">Redefining modern air travel</span>
                     </div>
