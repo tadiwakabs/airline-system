@@ -1,40 +1,47 @@
 ﻿import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import { useFormErrors } from "../utils/useFormErrors";
+
 import Card from "../components/common/Card";
 import TextInput from "../components/common/TextInput";
 import Button from "../components/common/Button";
 import Separator from "../components/common/Separator";
-import { useAuth } from "../contexts/AuthContext";
+import FormError from "../components/common/FormError";
+
 
 export default function Login() {
     const navigate = useNavigate();
     const location = useLocation();
     const { login, loading } = useAuth();
+    const {errors, setErrors, clearErrors}=useFormErrors();
+    const [localErrors, setLocalErrors]= useState({});
+
 
     const [formData, setFormData] = useState({
         username: "",
         password: "",
     });
 
-    const [errors, setErrors] = useState({});
-    const [submitError, setSubmitError] = useState("");
 
-    const from = location.state?.from?.pathname || "/";
+    const [submitError, setSubmitError] = useState("");
+    const from = location.state?.from || "/";
 
     const handleChange = (e) => {
         const { name, value } = e.target;
+
 
         setFormData((prev) => ({
             ...prev,
             [name]: value,
         }));
 
-        setErrors((prev) => ({
+        setLocalErrors((prev) => ({
             ...prev,
             [name]: "",
         }));
 
-        setSubmitError("");
+        
     };
 
     const validateForm = () => {
@@ -48,23 +55,44 @@ export default function Login() {
             newErrors.password = "Password is required.";
         }
 
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
+        if (Object.keys(newErrors).length >0){
+            setErrors(newErrors);
+            return false;
+        }
+        return true;
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setSubmitError(""); 
+        clearErrors();      
+        setLocalErrors({}); 
 
         if (!validateForm()) return;
 
-        const result = await login(formData);
+        try {
+            const result = await login(formData);
 
-        if (!result.success) {
-            setSubmitError(result.message);
-            return;
+            if (result && result.success) {
+                const pending = location.state?.pendingSelection;
+                const searchParams = location.state?.searchParams;
+
+                navigate(from, {
+                    replace: true,
+                    state: pending
+                        ? {
+                            ...pending,
+                            searchParams
+                        }
+                        : undefined
+                });
+
+                return;
+            } 
+            setErrors({ general: result?.message || "Invalid credentials." });
+        } catch (err) {
+            setErrors({ general: "A connection error occurred. Please try again." });
         }
-
-        navigate(from, { replace: true });
     };
 
     return (
@@ -76,7 +104,8 @@ export default function Login() {
                         Sign in to manage bookings, view trips, and access your account.
                     </p>
 
-                    <Separator />
+                    <Separator className="my-4"/>
+                    <FormError errors={errors}/>
 
                     {/* Username */}
                     <form onSubmit={handleSubmit} className="flex flex-col gap-y-4">
@@ -114,7 +143,13 @@ export default function Login() {
 
                     <p className="text-sm text-gray-500 text-center">
                         Don’t have an account?&nbsp;
-                        <Link to="/register" className="text-blue-600 hover:underline">Create one</Link>
+                        <Link
+                            to="/register"
+                            state={location.state}
+                            className="text-blue-600 hover:underline"
+                        >
+                            Create one
+                        </Link>
                     </p>
                 </Card>
             </div>

@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 
 import TabBar from "../components/home/TabBar.jsx";
 import FlightStatusPanel from "../components/home/FlightStatus.jsx";
@@ -9,6 +10,8 @@ import FeaturedFlights from "../components/home/FeaturedFlights.jsx";
 import Card from "../components/common/Card.jsx";
 import { getFlightById } from "../services/flightService";
 import { getFlightsByBooking } from "../services/bookingService";
+import { getMyNotifications } from "../services/notificationService";
+import { getStatusByBooking } from "../services/bookingService";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -31,8 +34,18 @@ function getStatusBadgeClass(status) {
 
 function formatDateTime(value) {
     if (!value) return "—";
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return value;
+
+    const raw = String(value).trim();
+    const [datePart, timePart = ""] = raw.split("T");
+    if (!datePart) return value;
+
+    const [year, month, day] = datePart.split("-").map(Number);
+    const [hour = 0, minute = 0] = timePart.split(":").map(Number);
+
+    if (!year || !month || !day) return value;
+
+    const d = new Date(year, month - 1, day, hour, minute);
+
     return d.toLocaleString([], {
         month: "short",
         day: "numeric",
@@ -40,6 +53,34 @@ function formatDateTime(value) {
         hour: "numeric",
         minute: "2-digit",
     });
+}
+
+function parseLocalDateTime(value) {
+    if (!value) return null;
+
+    const raw = String(value).trim();
+    const [datePart, timePart = ""] = raw.split("T");
+    if (!datePart) return null;
+
+    const [year, month, day] = datePart.split("-").map(Number);
+    const [hour = 0, minute = 0] = timePart.split(":").map(Number);
+
+    if (!year || !month || !day) return null;
+
+    return new Date(year, month - 1, day, hour, minute);
+}
+
+function arrivesNextDay(departValue, arrivalValue) {
+    const depart = parseLocalDateTime(departValue);
+    const arrival = parseLocalDateTime(arrivalValue);
+
+    if (!depart || !arrival) return false;
+
+    return (
+        arrival.getFullYear() > depart.getFullYear() ||
+        arrival.getMonth() > depart.getMonth() ||
+        arrival.getDate() > depart.getDate()
+    );
 }
 
 function getAirportCode(flight, type) {
@@ -52,6 +93,7 @@ function getAirportCode(flight, type) {
             ""
         );
     }
+
     return (
         flight.arrivingPortCode ??
         flight.arrivingPort ??
@@ -69,7 +111,35 @@ export default function Home() {
     const [statusError, setStatusError] = useState("");
     const [statusResult, setStatusResult] = useState(null);
 
+    const [notifications, setNotifications] = useState([]);
+    const [notificationsLoading, setNotificationsLoading] = useState(false);
+    const [notificationsError, setNotificationsError] = useState("");
+
     const navigate = useNavigate();
+    const { isAuthenticated } = useAuth();
+
+    useEffect(() => {
+        if (isAuthenticated) {
+            loadNotifications();
+        }
+    }, [isAuthenticated]);
+
+    const loadNotifications = async () => {
+        try {
+            setNotificationsLoading(true);
+            setNotificationsError("");
+
+            const data = await getMyNotifications();
+            setNotifications(Array.isArray(data) ? data : []);
+        } catch (err) {
+            console.error("Error loading notifications:", err);
+            setNotificationsError(
+                err?.response?.data?.message || "Failed to load notifications."
+            );
+        } finally {
+            setNotificationsLoading(false);
+        }
+    };
 
     const handleSearch = (params) => {
         navigate("/flight-search", { state: params });
@@ -87,30 +157,16 @@ export default function Home() {
                 return;
             }
 
-            const isBookingId = input.includes("-") || isNaN(Number(input));
+            const res = await getStatusByBooking(input);
+            const data = res.data;
 
-            if (isBookingId) {
-                const res = await getFlightsByBooking(input);
-                const flights = res.data;
-                if (!flights?.length) {
-                    setStatusError("No flights found for that booking.");
-                    return;
-                }
-                setStatusResult({ bookingFlights: flights });
+            if (Array.isArray(data)) {
+                setStatusResult({ bookingFlights: data });
             } else {
-                const res = await getFlightById(input);
-                const flight = res.data;
-                setStatusResult({
-                    flightNum: flight.flightNum,
-                    status: flight.status,
-                    departingPort: getAirportCode(flight, "depart"),
-                    arrivingPort: getAirportCode(flight, "arrive"),
-                    departTime: flight.departTime,
-                    arrivalTime: flight.arrivalTime,
-                    aircraftUsed: flight.aircraftUsed,
-                });
+                setStatusResult(data);
             }
         } catch (err) {
+            console.error("Error checking status:", err);
             setStatusError("Could not find that flight or booking.");
         } finally {
             setStatusLoading(false);
@@ -118,25 +174,100 @@ export default function Home() {
     };
 
     return (
-        /* Changed 'bg-gray-50' to 'bg-transparent' so the slider shows through.
-           Added 'backdrop-blur-sm' to provide some depth.
-        */
         <div className="min-h-screen bg-transparent backdrop-blur-[2px]">
             <div className="max-w-6xl mx-auto px-4 py-8 space-y-14">
-                
-                {/* Hero Section */}
                 <Hero />
+
+                {isAuthenticated && notifications.length > 0 && (
+                    <section className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h2 className="text-xl font-semibold text-gray-900">
+                                    Notifications
+                                </h2>
+                                <p className="text-sm text-gray-500">
+                                    Important flight and standby updates for your account.
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    navigate("/profile", {
+                                        state: { defaultTab: "notifications" },
+                                    })
+                                }
+                                className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
+                            >
+                                View All
+                            </button>
+                        </div>
+
+                        {notificationsLoading && (
+                            <Card className="p-5">
+                                <p className="text-sm text-gray-600">Loading notifications...</p>
+                            </Card>
+                        )}
+
+                        {notificationsError && (
+                            <Card className="p-5 border-red-200">
+                                <p className="text-red-600">{notificationsError}</p>
+                            </Card>
+                        )}
+
+                        {!notificationsLoading && !notificationsError && (
+                            <div className="space-y-3">
+                                {notifications.slice(0, 3).map((notification) => (
+                                    <Card key={notification.notificationId} className="p-5">
+                                        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                            <div>
+                                                <p className="text-sm font-semibold text-gray-900">
+                                                    {notification.message}
+                                                </p>
+
+                                                <div className="mt-2 space-y-1 text-xs text-gray-500">
+                                                    <p>
+                                                        Flight: {notification.flightNum || "—"}
+                                                    </p>
+                                                    <p>
+                                                        Created:{" "}
+                                                        {notification.createdAt
+                                                            ? formatDateTime(notification.createdAt)
+                                                            : "—"}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <span
+                                                className={`inline-flex w-fit rounded-full px-3 py-1 text-sm font-semibold ${
+                                                    (notification.notificationStatus || "").toLowerCase() ===
+                                                    "unread"
+                                                        ? "bg-blue-100 text-blue-700"
+                                                        : "bg-gray-100 text-gray-700"
+                                                }`}
+                                            >
+                                                {notification.notificationStatus || "Unknown"}
+                                            </span>
+                                        </div>
+                                    </Card>
+                                ))}
+                            </div>
+                        )}
+                    </section>
+                )}
 
                 <section className="space-y-4">
                     <TabBar active={activeTab} onChange={setActiveTab} />
 
-                    {/* Glass Panel wrapper for the Search/Status box */}
                     <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-2xl p-1 border border-white/20">
                         {activeTab === "search" ? (
                             <FlightSearchPanel onSearch={handleSearch} />
                         ) : (
                             <div className="p-4">
-                                <FlightStatusPanel onCheck={handleStatusCheck} />
+                                <FlightStatusPanel
+                                    onCheck={handleStatusCheck}
+                                    result={statusResult}
+                                />
 
                                 {statusLoading && (
                                     <div className="p-5 text-center text-gray-600">
@@ -150,52 +281,149 @@ export default function Home() {
                                     </div>
                                 )}
 
-                                {!statusLoading && !statusError && statusResult && !statusResult.bookingFlights && (
-                                    <Card className="mt-6 p-6 bg-white shadow-lg border-none">
-                                        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                                            <div>
-                                                <p className="text-xs font-bold uppercase tracking-widest text-blue-600">Flight Status</p>
-                                                <h3 className="text-2xl font-black text-slate-900">{statusResult.flightNum}</h3>
-                                                <p className="text-slate-500 font-medium">{statusResult.departingPort} → {statusResult.arrivingPort}</p>
-                                            </div>
-                                            <span className={`inline-flex rounded-full px-4 py-1 text-xs font-bold uppercase border ${getStatusBadgeClass(statusResult.status)}`}>
-                                                {statusResult.status || "Unknown"}
-                                            </span>
-                                        </div>
+                                {!statusLoading &&
+                                    !statusError &&
+                                    statusResult &&
+                                    !statusResult.bookingFlights && (
+                                        <Card className="mt-6 p-6 bg-white shadow-lg border-none">
+                                            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                                                <div>
+                                                    <p className="text-xs font-bold uppercase tracking-widest text-blue-600">
+                                                        Flight Status
+                                                    </p>
+                                                    <h3 className="text-2xl font-black text-slate-900">
+                                                        {statusResult.flightNum}
+                                                    </h3>
+                                                    <p className="text-slate-500 font-medium">
+                                                        {statusResult.departingPort} →{" "}
+                                                        {statusResult.arrivingPort}
+                                                    </p>
+                                                    <p className="text-xs text-gray-500 mt-1">
+                                                        {statusResult.departingCity || "—"} →{" "}
+                                                        {statusResult.arrivingCity || "—"}
+                                                    </p>
+                                                </div>
 
-                                        <div className="mt-8 grid grid-cols-2 lg:grid-cols-4 gap-6">
-                                            <div>
-                                                <p className="text-[10px] uppercase font-bold text-slate-400">Departure</p>
-                                                <p className="text-sm font-bold text-slate-800">{formatDateTime(statusResult.departTime)}</p>
+                                                <span
+                                                    className={`inline-flex rounded-full px-4 py-1 text-xs font-bold uppercase border ${getStatusBadgeClass(
+                                                        statusResult.status
+                                                    )}`}
+                                                >
+                                                    {statusResult.status || "Unknown"}
+                                                </span>
                                             </div>
-                                            <div>
-                                                <p className="text-[10px] uppercase font-bold text-slate-400">Arrival</p>
-                                                <p className="text-sm font-bold text-slate-800">{formatDateTime(statusResult.arrivalTime)}</p>
+
+                                            <div className="mt-8 grid grid-cols-2 lg:grid-cols-4 gap-6">
+                                                <div>
+                                                    <p className="text-[10px] uppercase font-bold text-slate-400">
+                                                        Departure
+                                                    </p>
+                                                    <p className="text-sm font-bold text-slate-800">
+                                                        {formatDateTime(statusResult.departTime)}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] uppercase font-bold text-slate-400">
+                                                        Arrival
+                                                    </p>
+                                                    <p className="text-sm font-bold text-slate-800">
+                                                        {formatDateTime(statusResult.arrivalTime)}
+                                                        {arrivesNextDay(
+                                                            statusResult.departTime,
+                                                            statusResult.arrivalTime
+                                                        ) && (
+                                                            <span className="ml-2 text-xs font-semibold text-blue-600">
+                                                                +1
+                                                            </span>
+                                                        )}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] uppercase font-bold text-slate-400">
+                                                        Aircraft
+                                                    </p>
+                                                    <p className="text-sm font-bold text-slate-800">
+                                                        {statusResult.aircraftUsed || "—"}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] uppercase font-bold text-slate-400">
+                                                        Route
+                                                    </p>
+                                                    <p className="text-sm font-bold text-slate-800">
+                                                        {statusResult.departingPort} →{" "}
+                                                        {statusResult.arrivingPort}
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <p className="text-[10px] uppercase font-bold text-slate-400">Aircraft</p>
-                                                <p className="text-sm font-bold text-slate-800">{statusResult.aircraftUsed || "—"}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-[10px] uppercase font-bold text-slate-400">Route Type</p>
-                                                <p className="text-sm font-bold text-slate-800">Direct</p>
-                                            </div>
-                                        </div>
-                                    </Card>
-                                )}
+                                        </Card>
+                                    )}
 
                                 {!statusLoading && !statusError && statusResult?.bookingFlights && (
                                     <div className="mt-6 space-y-4">
                                         {statusResult.bookingFlights.map((flight) => (
-                                            <Card key={flight.flightNum} className="p-5 bg-white shadow-md border-none">
-                                                <div className="flex justify-between items-start">
+                                            <Card
+                                                key={flight.flightNum}
+                                                className="p-5 bg-white shadow-md border-none"
+                                            >
+                                                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                                                     <div>
-                                                        <h4 className="font-bold text-blue-600">Flight {flight.flightNum}</h4>
-                                                        <p className="text-sm text-slate-600">{getAirportCode(flight, "depart")} to {getAirportCode(flight, "arrive")}</p>
+                                                        <h4 className="font-bold text-blue-600">
+                                                            Flight {flight.flightNum}
+                                                        </h4>
+                                                        <p className="text-sm text-slate-600">
+                                                            {getAirportCode(flight, "depart")} to{" "}
+                                                            {getAirportCode(flight, "arrive")}
+                                                        </p>
+                                                        <p className="text-xs text-gray-500 mt-1">
+                                                            {flight.departingCity || "—"} →{" "}
+                                                            {flight.arrivingCity || "—"}
+                                                        </p>
                                                     </div>
-                                                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${getStatusBadgeClass(flight.status)}`}>
-                                                        {flight.status}
+
+                                                    <span
+                                                        className={`px-3 py-1 rounded-full text-xs font-bold uppercase border ${getStatusBadgeClass(
+                                                            flight.status
+                                                        )}`}
+                                                    >
+                                                        {flight.status || "Unknown"}
                                                     </span>
+                                                </div>
+
+                                                <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                                                    <div>
+                                                        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                                                            Departure
+                                                        </p>
+                                                        <p className="text-sm font-semibold text-gray-900">
+                                                            {formatDateTime(flight.departTime)}
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                                                            Arrival
+                                                        </p>
+                                                        <p className="text-sm font-semibold text-gray-900">
+                                                            {formatDateTime(flight.arrivalTime)}
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                                                            Aircraft
+                                                        </p>
+                                                        <p className="text-sm font-semibold text-gray-900">
+                                                            {flight.aircraftUsed || "—"}
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                                                            Route
+                                                        </p>
+                                                        <p className="text-sm font-semibold text-gray-900">
+                                                            {getAirportCode(flight, "depart")} →{" "}
+                                                            {getAirportCode(flight, "arrive")}
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             </Card>
                                         ))}
@@ -206,7 +434,6 @@ export default function Home() {
                     </div>
                 </section>
 
-                {/* Featured Flights - Wrapped in a subtle glass container */}
                 <div className="mt-8">
                     <FeaturedFlights />
                 </div>

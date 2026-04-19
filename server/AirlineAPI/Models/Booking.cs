@@ -36,6 +36,7 @@ namespace AirlineAPI.Models
         [ForeignKey("userId")]
         public User? Users { get; set; }
 
-        
+        public ICollection<Ticket> Tickets {get;set;}= new List<Ticket>();
+
     }
 }

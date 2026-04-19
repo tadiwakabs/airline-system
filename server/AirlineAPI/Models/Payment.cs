@@ -6,7 +6,7 @@ namespace AirlineAPI.Models
     public enum PaymentStatus
     {
         Pending,
-        Sucess,
+        Success,
         Failed,
         Cancelled,
         Refunded
@@ -46,5 +46,11 @@ namespace AirlineAPI.Models
         public string paymentMethod { get; set; } = string.Empty;
 
         public PaymentStatus? paymentStatus { get; set; }
+
+        [Range(0, double.MaxValue)]
+        public double? refundAmount { get; set; }
+
+        [Range(0, double.MaxValue)]
+        public double? reimbursementAmount { get; set; }
     }
 }

@@ -126,7 +126,7 @@ export default function Confirmation() {
                 {/* ── Final Actions ── */}
                 <div className="flex flex-col sm:flex-row gap-4 pt-4">
                     <Button 
-                        onClick={() => navigate("/bookings")} 
+                        onClick={() => navigate("/manage")} 
                         variant="outline" 
                         className="w-full py-4 rounded-xl border-slate-200 text-slate-600 font-bold"
                     >

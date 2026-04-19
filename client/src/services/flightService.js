@@ -27,3 +27,6 @@ export const createRecurringFlights = (data) =>
 
 export const upsertFlightPricing = (flightNum, data) => 
     api.put(`/flights/${flightNum}/pricing`, data);
+
+export const getFeaturedFlights = (count = 8) =>
+    api.get(`/flights/featured?count=${count}`);

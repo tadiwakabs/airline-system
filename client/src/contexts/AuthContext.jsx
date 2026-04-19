@@ -3,13 +3,35 @@ import { loginUser } from "../services/authService";
 
 const AuthContext = createContext(null);
 
-export function AuthProvider({ children }) {
-    const savedUser = localStorage.getItem("user");
-    const savedToken = localStorage.getItem("token");
+function parseJwt(token) {
+    try {
+        return JSON.parse(atob(token.split(".")[1]));
+    } catch {
+        return null;
+    }
+}
 
-    const [user, setUser] = useState(savedUser ? JSON.parse(savedUser) : null);
-    const [token, setToken] = useState(savedToken);
-    const [isAuthenticated, setIsAuthenticated] = useState(!!savedToken);
+function isTokenExpired(token) {
+    const payload = parseJwt(token);
+    return !payload?.exp || payload.exp * 1000 < Date.now();
+}
+
+export function AuthProvider({ children }) {
+    const rawUser = localStorage.getItem("user");
+    const rawToken = localStorage.getItem("token");
+
+    const tokenValid = rawToken && !isTokenExpired(rawToken);
+
+    if (!tokenValid) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+    }
+
+    const [user, setUser] = useState(
+        tokenValid && rawUser ? JSON.parse(rawUser) : null
+    );
+    const [token, setToken] = useState(tokenValid ? rawToken : null);
+    const [isAuthenticated, setIsAuthenticated] = useState(!!tokenValid);
     const [loading, setLoading] = useState(false);
 
     const login = async ({ username, password }) => {
@@ -25,6 +47,7 @@ export function AuthProvider({ children }) {
                 firstName: data.firstName,
                 lastName: data.lastName,
                 userRole: data.userRole,
+                department: data.department || null,
             };
 
             localStorage.setItem("token", data.token);
@@ -54,6 +77,7 @@ export function AuthProvider({ children }) {
             firstName: data.firstName,
             lastName: data.lastName,
             userRole: data.userRole,
+            department: data.department || null,
         };
 
         localStorage.setItem("token", data.token);
@@ -62,6 +86,20 @@ export function AuthProvider({ children }) {
         setToken(data.token);
         setUser(authUser);
         setIsAuthenticated(true);
+    };
+
+    const updateUser = (updates) => {
+        setUser((prev) => {
+            if (!prev) return prev;
+
+            const nextUser = {
+                ...prev,
+                ...updates,
+            };
+
+            localStorage.setItem("user", JSON.stringify(nextUser));
+            return nextUser;
+        });
     };
 
     const logout = () => {
@@ -81,6 +119,7 @@ export function AuthProvider({ children }) {
             loading,
             login,
             loginWithToken,
+            updateUser,
             logout,
         }),
         [user, token, isAuthenticated, loading]

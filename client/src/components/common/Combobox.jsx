@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 export default function Combobox({
      label,
@@ -13,18 +13,34 @@ export default function Combobox({
     const [inputValue, setInputValue] = useState("");
     const wrapperRef = useRef(null);
 
-    const normalizedOptions = options.map((opt) => {
-        if (typeof opt === "string") {
-            return { label: opt, value: opt };
-        }
-        return opt;
-    });
+    const normalizedOptions = useMemo(
+        () =>
+            options.map((opt) => {
+                if (typeof opt === "string") {
+                    return { label: opt, value: opt };
+                }
+                return opt;
+            }),
+        [options]
+    );
 
     const selectedOption = normalizedOptions.find((opt) => opt.value === value);
 
+    const filteredOptions = useMemo(() => {
+        const search = inputValue.trim().toLowerCase();
+
+        if (!search) return normalizedOptions;
+
+        return normalizedOptions.filter((option) => {
+            const label = String(option.label ?? "").toLowerCase();
+            const val = String(option.value ?? "").toLowerCase();
+            return label.includes(search) || val.includes(search);
+        });
+    }, [normalizedOptions, inputValue]);
+
     useEffect(() => {
-        if (!isOpen && selectedOption) {
-            setInputValue(selectedOption.label);
+        if (!isOpen) {
+            setInputValue(selectedOption?.label || "");
         }
     }, [isOpen, selectedOption]);
 
@@ -32,9 +48,7 @@ export default function Combobox({
         const handleClickOutside = (event) => {
             if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
                 setIsOpen(false);
-                if (selectedOption) {
-                    setInputValue(selectedOption.label);
-                }
+                setInputValue(selectedOption?.label || "");
             }
         };
 
@@ -72,8 +86,8 @@ export default function Combobox({
 
             {isOpen && (
                 <div className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
-                    {normalizedOptions.length > 0 ? (
-                        normalizedOptions.map((option) => (
+                    {filteredOptions.length > 0 ? (
+                        filteredOptions.map((option) => (
                             <button
                                 key={option.value}
                                 type="button"

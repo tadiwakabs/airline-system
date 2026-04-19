@@ -1,9 +1,10 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace AirlineAPI.Models
 {
-    public enum TicketStatus { Booked, Cancelled, Pending }
+    public enum TicketStatus { Booked, Cancelled, Pending, Boarded }
     public enum TicketClass  { Economy, Business, First }
 
     [Table("Ticket")]
@@ -16,6 +17,7 @@ namespace AirlineAPI.Models
         public string bookingId { get; set; } = string.Empty;
 
         [ForeignKey("bookingId")]
+        [JsonIgnore]
         public Booking? Booking { get; set; }
 
         [Required]
@@ -33,11 +35,10 @@ namespace AirlineAPI.Models
         [StringLength(30)]
         public string? boardingTime { get; set; }      // fixed typo
 
-        [Required, StringLength(3)]
-        public string seatNumber { get; set; } = string.Empty;
-
-        [Required]
-        public int flightCode { get; set; }             // matches FK in SQL
+        [StringLength(3)]
+        public string? seatNumber { get; set; } = string.Empty;
+        
+        public int? flightCode { get; set; }             // matches FK in SQL
 
         [ForeignKey("flightCode")]
         public Flight? Flight { get; set; }
