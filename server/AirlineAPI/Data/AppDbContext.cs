@@ -434,9 +434,9 @@ namespace AirlineAPI.Data
                     .HasMaxLength(30)
                     .IsRequired();
 
-                entity.HasOne(b => b.Passengers)
+                entity.HasOne(b => b.Passenger)
                     .WithMany()
-                    .HasForeignKey("passengerId") 
+                    .HasForeignKey(b => b.PassengerId)
                     .OnDelete(DeleteBehavior.Cascade);
 
                 entity.HasOne(b => b.Ticket)
