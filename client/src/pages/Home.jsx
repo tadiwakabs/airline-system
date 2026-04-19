@@ -13,20 +13,22 @@ import { getFlightsByBooking } from "../services/bookingService";
 import { getMyNotifications } from "../services/notificationService";
 import { getStatusByBooking } from "../services/bookingService";
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
 function getStatusBadgeClass(status) {
     switch ((status || "").toLowerCase()) {
         case "on time":
         case "ontime":
-            return "bg-green-100 text-green-700";
+            return "bg-green-100 text-green-700 border-green-200";
         case "delayed":
-            return "bg-yellow-100 text-yellow-700";
+            return "bg-yellow-100 text-yellow-700 border-yellow-200";
         case "cancelled":
         case "canceled":
-            return "bg-red-100 text-red-700";
+            return "bg-red-100 text-red-700 border-red-200";
         case "boarding":
-            return "bg-blue-100 text-blue-700";
+            return "bg-blue-100 text-blue-700 border-blue-200";
         default:
-            return "bg-gray-100 text-gray-700";
+            return "bg-gray-100 text-gray-700 border-gray-200";
     }
 }
 
@@ -101,18 +103,43 @@ function getAirportCode(flight, type) {
     );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function Home() {
     const [activeTab, setActiveTab] = useState("search");
     const [statusLoading, setStatusLoading] = useState(false);
     const [statusError, setStatusError] = useState("");
     const [statusResult, setStatusResult] = useState(null);
 
-    // Added notification state
     const [notifications, setNotifications] = useState([]);
     const [notificationsLoading, setNotificationsLoading] = useState(false);
     const [notificationsError, setNotificationsError] = useState("");
 
     const navigate = useNavigate();
+    const { isAuthenticated } = useAuth();
+
+    useEffect(() => {
+        if (isAuthenticated) {
+            loadNotifications();
+        }
+    }, [isAuthenticated]);
+
+    const loadNotifications = async () => {
+        try {
+            setNotificationsLoading(true);
+            setNotificationsError("");
+
+            const data = await getMyNotifications();
+            setNotifications(Array.isArray(data) ? data : []);
+        } catch (err) {
+            console.error("Error loading notifications:", err);
+            setNotificationsError(
+                err?.response?.data?.message || "Failed to load notifications."
+            );
+        } finally {
+            setNotificationsLoading(false);
+        }
+    };
 
     // Added notification loader
     const { isAuthenticated } = useAuth();
@@ -141,7 +168,6 @@ export default function Home() {
     };
 
     const handleSearch = (params) => {
-        console.log("Search params:", params);
         navigate("/flight-search", { state: params });
     };
 
@@ -174,11 +200,10 @@ export default function Home() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-transparent backdrop-blur-[2px]">
             <div className="max-w-6xl mx-auto px-4 py-8 space-y-14">
                 <Hero />
 
-                {/* Added notifications section */}
                 {isAuthenticated && notifications.length > 0 && (
                     <section className="space-y-4">
                         <div className="flex items-center justify-between">
@@ -204,186 +229,243 @@ export default function Home() {
                             </button>
                         </div>
 
-                        <div className="space-y-3">
-                            {notifications.slice(0, 3).map((notification) => (
-                                <Card
-                                    key={notification.notificationId}
-                                    className="p-5"
-                                >
-                                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                                        <div>
-                                            <p className="text-sm font-semibold text-gray-900">
-                                                {notification.message}
-                                            </p>
+                        {notificationsLoading && (
+                            <Card className="p-5">
+                                <p className="text-sm text-gray-600">Loading notifications...</p>
+                            </Card>
+                        )}
 
-                                            <div className="mt-2 space-y-1 text-xs text-gray-500">
-                                                <p>
-                                                    Flight: {notification.flightNum || "—"}
+                        {notificationsError && (
+                            <Card className="p-5 border-red-200">
+                                <p className="text-red-600">{notificationsError}</p>
+                            </Card>
+                        )}
+
+                        {!notificationsLoading && !notificationsError && (
+                            <div className="space-y-3">
+                                {notifications.slice(0, 3).map((notification) => (
+                                    <Card key={notification.notificationId} className="p-5">
+                                        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                            <div>
+                                                <p className="text-sm font-semibold text-gray-900">
+                                                    {notification.message}
                                                 </p>
-                                                <p>
-                                                    Created:{" "}
-                                                    {notification.createdAt
-                                                        ? formatDateTime(notification.createdAt)
-                                                        : "—"}
-                                                </p>
+
+                                                <div className="mt-2 space-y-1 text-xs text-gray-500">
+                                                    <p>
+                                                        Flight: {notification.flightNum || "—"}
+                                                    </p>
+                                                    <p>
+                                                        Created:{" "}
+                                                        {notification.createdAt
+                                                            ? formatDateTime(notification.createdAt)
+                                                            : "—"}
+                                                    </p>
+                                                </div>
                                             </div>
-                                        </div>
 
-                                        <span
-                                            className={`inline-flex w-fit rounded-full px-3 py-1 text-sm font-semibold ${
-                                                (notification.notificationStatus || "").toLowerCase() === "unread"
-                                                    ? "bg-blue-100 text-blue-700"
-                                                    : "bg-gray-100 text-gray-700"
-                                            }`}
-                                        >
-                            {notification.notificationStatus || "Unknown"}
-                        </span>
-                                    </div>
-                                </Card>
-                            ))}
-                        </div>
+                                            <span
+                                                className={`inline-flex w-fit rounded-full px-3 py-1 text-sm font-semibold ${
+                                                    (notification.notificationStatus || "").toLowerCase() ===
+                                                    "unread"
+                                                        ? "bg-blue-100 text-blue-700"
+                                                        : "bg-gray-100 text-gray-700"
+                                                }`}
+                                            >
+                                                {notification.notificationStatus || "Unknown"}
+                                            </span>
+                                        </div>
+                                    </Card>
+                                ))}
+                            </div>
+                        )}
                     </section>
                 )}
 
                 <section className="space-y-4">
                     <TabBar active={activeTab} onChange={setActiveTab} />
 
-                    {activeTab === "search" ? (
-                        <FlightSearchPanel onSearch={handleSearch} />
-                    ) : (
-                        <>
-                            <FlightStatusPanel onCheck={handleStatusCheck} result={statusResult} />
+                    <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-2xl p-1 border border-white/20">
+                        {activeTab === "search" ? (
+                            <FlightSearchPanel onSearch={handleSearch} />
+                        ) : (
+                            <div className="p-4">
+                                <FlightStatusPanel
+                                    onCheck={handleStatusCheck}
+                                    result={statusResult}
+                                />
 
-                            {statusLoading && (
-                                <Card className="p-5">
-                                    <p>Checking flight status...</p>
-                                </Card>
-                            )}
-
-                            {statusError && (
-                                <Card className="p-5 border-red-200">
-                                    <p className="text-red-600">{statusError}</p>
-                                </Card>
-                            )}
-
-                            {!statusLoading && !statusError && statusResult && !statusResult.bookingFlights && (
-                                <Card className="p-5">
-                                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                                        <div>
-                                            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                                                Flight
-                                            </p>
-                                            <h3 className="text-xl font-semibold text-gray-900">
-                                                {statusResult.flightNum}
-                                            </h3>
-                                            <p className="mt-1 text-sm text-gray-600">
-                                                {statusResult.departingPort} → {statusResult.arrivingPort}
-                                            </p>
-                                            <p className="text-xs text-gray-500">
-                                                {statusResult.departingCity || "—"} → {statusResult.arrivingCity || "—"}
-                                            </p>
-                                        </div>
-
-                                        <span
-                                            className={`inline-flex w-fit rounded-full px-3 py-1 text-sm font-semibold ${getStatusBadgeClass(
-                                                statusResult.status
-                                            )}`}
-                                        >
-                                            {statusResult.status || "Unknown"}
-                                        </span>
+                                {statusLoading && (
+                                    <div className="p-5 text-center text-gray-600">
+                                        <p className="animate-pulse">Checking flight status...</p>
                                     </div>
+                                )}
 
-                                    <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                                        <div>
-                                            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                                                Departure
-                                            </p>
-                                            <p className="text-sm font-semibold text-gray-900">
-                                                {formatDateTime(statusResult.departTime)}
-                                            </p>
-                                        </div>
-
-                                        <div>
-                                            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                                                Arrival
-                                            </p>
-                                            <p className="text-sm font-semibold text-gray-900">
-                                                {formatDateTime(statusResult.arrivalTime)}
-                                                {arrivesNextDay(statusResult.departTime, statusResult.arrivalTime) && (
-                                                    <span className="ml-2 text-xs font-semibold text-blue-600">+1</span>
-                                                )}
-                                            </p>
-                                        </div>
-
-                                        <div>
-                                            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                                                Aircraft
-                                            </p>
-                                            <p className="text-sm font-semibold text-gray-900">
-                                                {statusResult.aircraftUsed || "—"}
-                                            </p>
-                                        </div>
-
-                                        <div>
-                                            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                                                Route
-                                            </p>
-                                            <p className="text-sm font-semibold text-gray-900">
-                                                {statusResult.departingPort} → {statusResult.arrivingPort}
-                                            </p>
-                                        </div>
+                                {statusError && (
+                                    <div className="mt-4 p-4 bg-red-50/90 border border-red-200 rounded-xl text-red-600">
+                                        {statusError}
                                     </div>
-                                </Card>
-                            )}
+                                )}
 
-                            {!statusLoading && !statusError && statusResult?.bookingFlights && (
-                                <div className="space-y-3">
-                                    {statusResult.bookingFlights.map((flight) => (
-                                        <Card key={flight.flightNum} className="p-5">
+                                {!statusLoading &&
+                                    !statusError &&
+                                    statusResult &&
+                                    !statusResult.bookingFlights && (
+                                        <Card className="mt-6 p-6 bg-white shadow-lg border-none">
                                             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                                                 <div>
-                                                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Flight</p>
-                                                    <h3 className="text-xl font-semibold text-gray-900">{flight.flightNum}</h3>
-                                                    <p className="mt-1 text-sm text-gray-600">
-                                                        {getAirportCode(flight, "depart")} → {getAirportCode(flight, "arrive")}
+                                                    <p className="text-xs font-bold uppercase tracking-widest text-blue-600">
+                                                        Flight Status
+                                                    </p>
+                                                    <h3 className="text-2xl font-black text-slate-900">
+                                                        {statusResult.flightNum}
+                                                    </h3>
+                                                    <p className="text-slate-500 font-medium">
+                                                        {statusResult.departingPort} →{" "}
+                                                        {statusResult.arrivingPort}
+                                                    </p>
+                                                    <p className="text-xs text-gray-500 mt-1">
+                                                        {statusResult.departingCity || "—"} →{" "}
+                                                        {statusResult.arrivingCity || "—"}
                                                     </p>
                                                     <p className="text-xs text-gray-500">
                                                         {flight.departingCity || "—"} → {flight.arrivingCity || "—"}
                                                     </p>
                                                 </div>
-                                                <span className={`inline-flex w-fit rounded-full px-3 py-1 text-sm font-semibold ${getStatusBadgeClass(flight.status)}`}>
-                                                    {flight.status || "Unknown"}
+
+                                                <span
+                                                    className={`inline-flex rounded-full px-4 py-1 text-xs font-bold uppercase border ${getStatusBadgeClass(
+                                                        statusResult.status
+                                                    )}`}
+                                                >
+                                                    {statusResult.status || "Unknown"}
                                                 </span>
                                             </div>
-                                            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+
+                                            <div className="mt-8 grid grid-cols-2 lg:grid-cols-4 gap-6">
                                                 <div>
-                                                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Departure</p>
-                                                    <p className="text-sm font-semibold text-gray-900">{formatDateTime(flight.departTime)}</p>
+                                                    <p className="text-[10px] uppercase font-bold text-slate-400">
+                                                        Departure
+                                                    </p>
+                                                    <p className="text-sm font-bold text-slate-800">
+                                                        {formatDateTime(statusResult.departTime)}
+                                                    </p>
                                                 </div>
                                                 <div>
-                                                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Arrival</p>
-                                                    <p className="text-sm font-semibold text-gray-900">{formatDateTime(flight.arrivalTime)}</p>
+                                                    <p className="text-[10px] uppercase font-bold text-slate-400">
+                                                        Arrival
+                                                    </p>
+                                                    <p className="text-sm font-bold text-slate-800">
+                                                        {formatDateTime(statusResult.arrivalTime)}
+                                                        {arrivesNextDay(
+                                                            statusResult.departTime,
+                                                            statusResult.arrivalTime
+                                                        ) && (
+                                                            <span className="ml-2 text-xs font-semibold text-blue-600">
+                                                                +1
+                                                            </span>
+                                                        )}
+                                                    </p>
                                                 </div>
                                                 <div>
-                                                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Aircraft</p>
-                                                    <p className="text-sm font-semibold text-gray-900">{flight.aircraftUsed || "—"}</p>
+                                                    <p className="text-[10px] uppercase font-bold text-slate-400">
+                                                        Aircraft
+                                                    </p>
+                                                    <p className="text-sm font-bold text-slate-800">
+                                                        {statusResult.aircraftUsed || "—"}
+                                                    </p>
                                                 </div>
                                                 <div>
-                                                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Route</p>
-                                                    <p className="text-sm font-semibold text-gray-900">
-                                                        {getAirportCode(flight, "depart")} → {getAirportCode(flight, "arrive")}
+                                                    <p className="text-[10px] uppercase font-bold text-slate-400">
+                                                        Route
+                                                    </p>
+                                                    <p className="text-sm font-bold text-slate-800">
+                                                        {statusResult.departingPort} →{" "}
+                                                        {statusResult.arrivingPort}
                                                     </p>
                                                 </div>
                                             </div>
                                         </Card>
-                                    ))}
-                                </div>
-                            )}
-                        </>
-                    )}
+                                    )}
+
+                                {!statusLoading && !statusError && statusResult?.bookingFlights && (
+                                    <div className="mt-6 space-y-4">
+                                        {statusResult.bookingFlights.map((flight) => (
+                                            <Card
+                                                key={flight.flightNum}
+                                                className="p-5 bg-white shadow-md border-none"
+                                            >
+                                                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                                                    <div>
+                                                        <h4 className="font-bold text-blue-600">
+                                                            Flight {flight.flightNum}
+                                                        </h4>
+                                                        <p className="text-sm text-slate-600">
+                                                            {getAirportCode(flight, "depart")} to{" "}
+                                                            {getAirportCode(flight, "arrive")}
+                                                        </p>
+                                                        <p className="text-xs text-gray-500 mt-1">
+                                                            {flight.departingCity || "—"} →{" "}
+                                                            {flight.arrivingCity || "—"}
+                                                        </p>
+                                                    </div>
+
+                                                    <span
+                                                        className={`px-3 py-1 rounded-full text-xs font-bold uppercase border ${getStatusBadgeClass(
+                                                            flight.status
+                                                        )}`}
+                                                    >
+                                                        {flight.status || "Unknown"}
+                                                    </span>
+                                                </div>
+
+                                                <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                                                    <div>
+                                                        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                                                            Departure
+                                                        </p>
+                                                        <p className="text-sm font-semibold text-gray-900">
+                                                            {formatDateTime(flight.departTime)}
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                                                            Arrival
+                                                        </p>
+                                                        <p className="text-sm font-semibold text-gray-900">
+                                                            {formatDateTime(flight.arrivalTime)}
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                                                            Aircraft
+                                                        </p>
+                                                        <p className="text-sm font-semibold text-gray-900">
+                                                            {flight.aircraftUsed || "—"}
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                                                            Route
+                                                        </p>
+                                                        <p className="text-sm font-semibold text-gray-900">
+                                                            {getAirportCode(flight, "depart")} →{" "}
+                                                            {getAirportCode(flight, "arrive")}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </Card>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </section>
 
-                <FeaturedFlights />
+                <div className="mt-36">
+                    <FeaturedFlights />
+                </div>
             </div>
         </div>
     );

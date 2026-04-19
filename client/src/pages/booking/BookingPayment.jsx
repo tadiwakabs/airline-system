@@ -2,11 +2,11 @@ import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { createBooking } from "../../services/bookingService";
-import { completePendingPayment } from "../../services/paymentService";
 import { useFormErrors } from "../../utils/useFormErrors";
+import FormError from "../../components/common/FormError";
 import Button from "../../components/common/Button";
 
-import FormError from "../../components/common/FormError";
+// ─── Helpers ────────────────────────────────────────────────────────────────
 
 function detectCardType(number) {
     const clean = number.replace(/\s/g, "");
@@ -49,17 +49,25 @@ const emptyForm = {
     country: "",
 };
 
+// ─── UI Field from file 1 styling ───────────────────────────────────────────
+
 const Field = ({ label, field, placeholder, type = "text", value, onChange, error }) => (
-    <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+    <div className="space-y-1">
+        <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
+            {label}
+        </label>
         <input
             type={type}
             placeholder={placeholder}
             value={value}
             onChange={(e) => onChange(field, e.target.value)}
-            className={`w-full border px-3 py-2 rounded ${error ? "border-red-500" : "border-gray-300"}`}
+            className={`w-full p-3 rounded-xl border transition-all outline-none shadow-sm ${
+                error
+                    ? "border-red-500 bg-red-50 text-red-900"
+                    : "border-slate-200 bg-white/80 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:bg-white"
+            }`}
         />
-        {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
+        {error && <p className="text-red-500 text-[10px] font-bold mt-1 ml-1">{error}</p>}
     </div>
 );
 
@@ -67,15 +75,17 @@ export default function BookingPayment() {
     const navigate = useNavigate();
     const location = useLocation();
     const { user } = useAuth();
-    const {errors:serverErrors,setErrors:setServerErrors,clearErrors}= useFormErrors();
+    const {
+        errors: serverErrors,
+        setErrors: setServerErrors,
+        clearErrors,
+    } = useFormErrors();
 
-
-    // Read state passed from BookingSeats
     const booking = location.state || {};
     const standbyBooking = booking.standbyBooking || null;
     const isStandbyPayment = !!standbyBooking;
 
-    // Existing normal booking flow state
+    // Normal booking flow state
     const selectedItinerary = booking.selectedItinerary;
     const returnItinerary = booking.returnItinerary ?? null;
     const searchParams = booking.searchParams;
@@ -83,14 +93,15 @@ export default function BookingPayment() {
     const pricingSummary = booking.pricingSummary;
     const seatSelections = booking.seatSelections ?? {};
 
-    // Build readable values for the summary
+    // Build readable values for summary
     const firstFlight = selectedItinerary?.flights?.[0];
-    const lastFlight = selectedItinerary?.flights?.[selectedItinerary?.flights?.length - 1];
+    const lastOutboundFlight =
+        selectedItinerary?.flights?.[selectedItinerary?.flights?.length - 1];
 
     const normalFlightDetails = firstFlight
         ? returnItinerary
-            ? `${firstFlight.departingPort} → ${lastFlight.arrivingPort} (return)`
-            : `${firstFlight.departingPort} → ${lastFlight.arrivingPort}`
+            ? `${firstFlight.departingPort} → ${lastOutboundFlight.arrivingPort} (Return)`
+            : `${firstFlight.departingPort} → ${lastOutboundFlight.arrivingPort}`
         : "Unknown Flight";
 
     const normalTotalPrice = pricingSummary?.total ?? 0;
@@ -106,7 +117,8 @@ export default function BookingPayment() {
 
     const firstPassengerId = passengers[0]?.passengerId;
     const firstFlightNum = firstFlight?.flightNum;
-    const normalSeatNumber = seatSelections?.[firstFlightNum]?.[firstPassengerId] ?? "N/A";
+    const normalSeatNumber =
+        seatSelections?.[firstFlightNum]?.[firstPassengerId] ?? "N/A";
 
     // Standby-aware summary values
     const totalPrice = isStandbyPayment
@@ -132,7 +144,7 @@ export default function BookingPayment() {
         : normalSeatNumber;
 
     const [form, setForm] = useState(emptyForm);
-    const [localErrors,setLocalErrors]=useState({});
+    const [localErrors, setLocalErrors] = useState({});
     const [submitting, setSubmitting] = useState(false);
 
     const cardType = detectCardType(form.cardNumber);
@@ -150,6 +162,7 @@ export default function BookingPayment() {
         if (field === "cvv") {
             value = value.replace(/\D/g, "").slice(0, cardType === "Amex" ? 4 : 3);
         }
+
         setForm({ ...form, [field]: value });
         setLocalErrors({ ...localErrors, [field]: "" });
         clearErrors();
@@ -168,18 +181,27 @@ export default function BookingPayment() {
 
         const [month, year] = form.expiry.split("/");
         const now = new Date();
-        const expMonth = parseInt(month);
-        const expYear = parseInt("20" + year);
-        if (!form.expiry || form.expiry.length < 5) newErrors.expiry = "Invalid expiry date";
-        else if (expMonth < 1 || expMonth > 12) newErrors.expiry = "Invalid month";
-        else if (
-            expYear < now.getFullYear() ||
-            (expYear === now.getFullYear() && expMonth < now.getMonth() + 1)
-        ) newErrors.expiry = "Card is expired";
+
+        if (!form.expiry || form.expiry.length < 5) {
+            newErrors.expiry = "Invalid expiry date";
+        } else {
+            const expMonth = parseInt(month);
+            const expYear = parseInt("20" + year);
+
+            if (expMonth < 1 || expMonth > 12) {
+                newErrors.expiry = "Invalid month";
+            } else if (
+                expYear < now.getFullYear() ||
+                (expYear === now.getFullYear() && expMonth < now.getMonth() + 1)
+            ) {
+                newErrors.expiry = "Card is expired";
+            }
+        }
 
         const expectedCvv = isAmex ? 4 : 3;
-        if (form.cvv.length !== expectedCvv)
+        if (form.cvv.length !== expectedCvv) {
             newErrors.cvv = `CVV must be ${expectedCvv} digits`;
+        }
 
         if (!isValidPhone(form.phone)) newErrors.phone = "Invalid phone number";
         if (!form.address.trim()) newErrors.address = "Address is required";
@@ -192,13 +214,22 @@ export default function BookingPayment() {
     };
 
     const handleBack = () => {
+        if (isStandbyPayment) {
+            navigate("/booking/review", {
+                state: { standbyBooking },
+            });
+            return;
+        }
+
         navigate("/booking/seat-selection", {
-            state:{selectedItinerary,
-            returnItinerary,
-            searchParams,
-            passengers,
-            pricingSummary,
-            seatSelections}
+            state: {
+                selectedItinerary,
+                returnItinerary,
+                searchParams,
+                passengers,
+                pricingSummary,
+                seatSelections,
+            },
         });
     };
 
@@ -208,25 +239,29 @@ export default function BookingPayment() {
             setLocalErrors(validationErrors);
             return;
         }
+
         clearErrors();
         setSubmitting(true);
 
         try {
             const resolvedUserId = user?.UserId || user?.userId || null;
+
             if (!resolvedUserId) {
-                setServerErrors({ response:{ data:"You must be logged in before making a payment." }});
+                setServerErrors({
+                    response: {
+                        data: "You must be logged in before making a payment.",
+                    },
+                });
                 setSubmitting(false);
                 return;
             }
 
-            // Standby payment path: complete existing pending payment
+            // Standby payment path
             if (isStandbyPayment) {
-                const resolvedUserId = user?.UserId || user?.userId || null;
-
                 const bookingPayload = {
                     userId: resolvedUserId,
                     totalPrice: Number(standbyBooking.totalPrice ?? 0),
-                    cabinClass: "economy",           // standby is always economy
+                    cabinClass: "economy",
                     paymentMethod: cardType || "Card",
                     tickets: [
                         {
@@ -259,21 +294,22 @@ export default function BookingPayment() {
                 return;
             }
 
-            // Existing normal booking flow below stays intact
+            // Normal booking flow
             const tickets = [];
+
             for (const flight of allFlights) {
-                const origin      = flight.departingPort || flight.departingPortCode;
-                const destination = flight.arrivingPort  || flight.arrivingPortCode;
+                const origin = flight.departingPort || flight.departingPortCode;
+                const destination = flight.arrivingPort || flight.arrivingPortCode;
                 const boardingTime = new Date(flight.departTime).toLocaleTimeString([], {
                     hour: "2-digit",
                     minute: "2-digit",
                 });
 
                 for (const passenger of passengers) {
-                    const selectedSeatNumber = seatSelections?.[flight.flightNum]?.[passenger.passengerId];
+                    const selectedSeatNumber =
+                        seatSelections?.[flight.flightNum]?.[passenger.passengerId];
                     if (!selectedSeatNumber) continue;
 
-                    // Per-passenger price for this leg from the quote
                     const cabinClass = searchParams?.cabinClass ?? "economy";
                     const fareBreakdown = selectedItinerary?.quote?.[cabinClass] ?? {};
                     const legPrice =
@@ -341,7 +377,6 @@ export default function BookingPayment() {
                     lastFour: form.cardNumber.replace(/\s/g, "").slice(-4),
                 },
             });
-
         } catch (err) {
             setServerErrors(err);
         } finally {
@@ -350,141 +385,183 @@ export default function BookingPayment() {
     };
 
     return (
-        <div className="max-w-2xl mx-auto p-6">
-            <h1 className="text-2xl font-bold mb-2">Payment</h1>
+        <div className="min-h-screen bg-transparent py-12 px-4">
+            <div className="max-w-3xl mx-auto space-y-6">
+                <FormError errors={serverErrors} />
 
-            <FormError errors={serverErrors}/>
+                <div className="bg-blue-600 backdrop-blur-md text-white p-8 rounded-[2rem] shadow-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border border-blue-400/30">
+                    <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-70 mb-1">
+                            Total to Pay
+                        </p>
+                        <h2 className="text-4xl font-black">
+                            {new Intl.NumberFormat("en-US", {
+                                style: "currency",
+                                currency: "USD",
+                            }).format(totalPrice)}
+                        </h2>
+                    </div>
 
-            {/* Booking Summary */}
-            <div className="bg-blue-50 border border-blue-200 rounded p-4 mb-6 text-sm">
-                <p className="font-semibold text-blue-800 mb-1">Booking Summary</p>
-                <p>Passenger: <span className="font-medium">{passengerName}</span></p>
-                <p>Flight: <span className="font-medium">{flightDetails}</span></p>
-                <p>Seat: <span className="font-medium">{seatNumber}</span></p>
-                <p>Total: <span className="font-bold text-blue-700">${totalPrice}</span></p>
-            </div>
-
-            {/* Card Details */}
-            <div className="border rounded p-4 mb-4">
-                <div className="flex items-center justify-between mb-3">
-                    <h2 className="font-semibold">Card Details</h2>
-                    {cardType && (
-                        <span className="text-sm font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded">
-                            {cardType}
-                        </span>
-                    )}
-                </div>
-                <div className="grid gap-3">
-                    <Field
-                        label={<>Card Number<RequiredMark /></>}
-                        field="cardNumber"
-                        placeholder="1234 5678 9012 3456"
-                        value={form.cardNumber}
-                        onChange={handleChange}
-                        error={localErrors.cardNumber}
-                    />
-                    <Field
-                        label={<>Name on Card<RequiredMark /></>}
-                        field="cardName"
-                        placeholder="John Smith"
-                        value={form.cardName}
-                        onChange={handleChange}
-                        error={localErrors.cardName}
-                    />
-                    <div className="grid grid-cols-2 gap-3">
-                        <Field
-                            label={<>Expiry (MM/YY)<RequiredMark /></>}
-                            field="expiry"
-                            placeholder="MM/YY"
-                            value={form.expiry}
-                            onChange={handleChange}
-                            error={localErrors.expiry}
-                        />
-                        <Field
-                            label={<>CVV<RequiredMark /></>}
-                            field="cvv"
-                            placeholder="123"
-                            value={form.cvv}
-                            onChange={handleChange}
-                            error={localErrors.cvv}
-                        />
+                    <div className="bg-white/10 p-4 rounded-2xl backdrop-blur-sm border border-white/10 text-xs space-y-1">
+                        <p>
+                            <span className="opacity-60">Flight:</span>{" "}
+                            <span className="font-bold">{flightDetails}</span>
+                        </p>
+                        <p>
+                            <span className="opacity-60">Passenger:</span>{" "}
+                            <span className="font-bold">{passengerName}</span>
+                        </p>
+                        <p>
+                            <span className="opacity-60">Seat:</span>{" "}
+                            <span className="font-bold">{seatNumber}</span>
+                        </p>
                     </div>
                 </div>
-            </div>
 
-            {/* Billing Address */}
-            <div className="border rounded p-4 mb-6">
-                <h2 className="font-semibold mb-3">Billing Address</h2>
-                <div className="grid gap-3">
-                    <Field
-                        label={<>Phone Number<RequiredMark /></>}
-                        field="phone"
-                        placeholder="+1 (800) 000-0000"
-                        value={form.phone}
-                        onChange={handleChange}
-                        error={localErrors.phone}
-                    />
-                    <Field
-                        label={<>Address<RequiredMark /></>}
-                        field="address"
-                        placeholder="123 Main St"
-                        value={form.address}
-                        onChange={handleChange}
-                        error={localErrors.address}
-                    />
-                    <div className="grid grid-cols-2 gap-3">
-                        <Field
-                            label={<>City<RequiredMark /></>}
-                            field="city"
-                            placeholder="Houston"
-                            value={form.city}
-                            onChange={handleChange}
-                            error={localErrors.city}
-                        />
-                        <Field
-                            label={<>State<RequiredMark /></>}
-                            field="state"
-                            placeholder="TX"
-                            value={form.state}
-                            onChange={handleChange}
-                            error={localErrors.state}
-                        />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                        <Field
-                            label={<>Zip / Postal Code<RequiredMark /></>}
-                            field="zip"
-                            placeholder="77001"
-                            value={form.zip}
-                            onChange={handleChange}
-                            error={localErrors.zip}
-                        />
-                        <Field
-                            label={<>Country<RequiredMark /></>}
-                            field="country"
-                            placeholder="USA"
-                            value={form.country}
-                            onChange={handleChange}
-                            error={localErrors.country}
-                        />
+                <div className="bg-white/90 backdrop-blur-2xl rounded-[2.5rem] p-8 md:p-12 shadow-2xl border border-white/40">
+                    <div className="space-y-8">
+                        <section>
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 flex items-center gap-2">
+                                    <span className="w-8 h-1 bg-blue-600 rounded-full" />
+                                    Card Details
+                                </h3>
+                                {cardType && (
+                                    <span className="text-[10px] font-black bg-blue-100 text-blue-600 px-3 py-1 rounded-full uppercase">
+                                        {cardType}
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div className="md:col-span-2">
+                                    <Field
+                                        label={<>Card Number<RequiredMark /></>}
+                                        field="cardNumber"
+                                        placeholder="1234 5678 9012 3456"
+                                        value={form.cardNumber}
+                                        onChange={handleChange}
+                                        error={localErrors.cardNumber}
+                                    />
+                                </div>
+
+                                <Field
+                                    label={<>Name on Card<RequiredMark /></>}
+                                    field="cardName"
+                                    placeholder="John Smith"
+                                    value={form.cardName}
+                                    onChange={handleChange}
+                                    error={localErrors.cardName}
+                                />
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <Field
+                                        label={<>Expiry (MM/YY)<RequiredMark /></>}
+                                        field="expiry"
+                                        placeholder="MM/YY"
+                                        value={form.expiry}
+                                        onChange={handleChange}
+                                        error={localErrors.expiry}
+                                    />
+                                    <Field
+                                        label={<>CVV<RequiredMark /></>}
+                                        field="cvv"
+                                        placeholder="123"
+                                        value={form.cvv}
+                                        onChange={handleChange}
+                                        error={localErrors.cvv}
+                                    />
+                                </div>
+                            </div>
+                        </section>
+
+                        <div className="h-px bg-slate-100" />
+
+                        <section>
+                            <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 mb-6 flex items-center gap-2">
+                                <span className="w-8 h-1 bg-slate-300 rounded-full" />
+                                Billing Address
+                            </h3>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <Field
+                                    label={<>Phone Number<RequiredMark /></>}
+                                    field="phone"
+                                    placeholder="+1 (800) 000-0000"
+                                    value={form.phone}
+                                    onChange={handleChange}
+                                    error={localErrors.phone}
+                                />
+                                <Field
+                                    label={<>Street Address<RequiredMark /></>}
+                                    field="address"
+                                    placeholder="123 Main St"
+                                    value={form.address}
+                                    onChange={handleChange}
+                                    error={localErrors.address}
+                                />
+                                <Field
+                                    label={<>City<RequiredMark /></>}
+                                    field="city"
+                                    placeholder="Houston"
+                                    value={form.city}
+                                    onChange={handleChange}
+                                    error={localErrors.city}
+                                />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <Field
+                                        label={<>State<RequiredMark /></>}
+                                        field="state"
+                                        placeholder="TX"
+                                        value={form.state}
+                                        onChange={handleChange}
+                                        error={localErrors.state}
+                                    />
+                                    <Field
+                                        label={<>Zip / Postal Code<RequiredMark /></>}
+                                        field="zip"
+                                        placeholder="77001"
+                                        value={form.zip}
+                                        onChange={handleChange}
+                                        error={localErrors.zip}
+                                    />
+                                </div>
+                                <div className="md:col-span-2">
+                                    <Field
+                                        label={<>Country<RequiredMark /></>}
+                                        field="country"
+                                        placeholder="USA"
+                                        value={form.country}
+                                        onChange={handleChange}
+                                        error={localErrors.country}
+                                    />
+                                </div>
+                            </div>
+                        </section>
+
+                        <div className="pt-4 flex flex-col sm:flex-row gap-4">
+                            <button
+                                onClick={handleBack}
+                                className="flex-1 py-4 px-6 rounded-2xl font-bold text-slate-500 border border-slate-200 hover:bg-slate-50 transition-all"
+                            >
+                                Back
+                            </button>
+
+                            <button
+                                onClick={handleSubmit}
+                                disabled={submitting}
+                                className="flex-[2] py-4 px-6 rounded-2xl font-black text-white bg-blue-600 hover:bg-blue-700 shadow-xl shadow-blue-600/20 transition-all disabled:opacity-50"
+                            >
+                                {submitting
+                                    ? "Processing Payment..."
+                                    : `Pay ${new Intl.NumberFormat("en-US", {
+                                        style: "currency",
+                                        currency: "USD",
+                                    }).format(totalPrice)}`}
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
-
-            <div className="flex items-center gap-6 mt-10 w-full">
-                <Button 
-                variant="outline" 
-                onClick={handleBack} 
-                className="w-1/2 py-3 text-base rounded-none font-semibold"> 
-                Back 
-                </Button>
-                <button
-                    onClick={handleSubmit}
-                    disabled={submitting}
-                    className="w-1/2 bg-blue-600 text-white py-3 rounded font-semibold hover:bg-blue-700 disabled:opacity-50"
-                >
-                    {submitting ? "Processing..." : `Pay $${totalPrice}`}
-                </button>
             </div>
         </div>
     );

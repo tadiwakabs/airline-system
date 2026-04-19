@@ -37,11 +37,14 @@ function buildPassengerLabel(type, indexWithinType) {
     return `${type} ${indexWithinType + 1}`;
 }
 
+// ─── price calculation ───────────────────────────────────────────────────────
+
+const TAX_RATE = 0.075;
+
 function usePriceBreakdown(selectedItinerary, searchParams) {
     return useMemo(() => {
         const cabinClass = searchParams?.cabinClass ?? "economy";
-        const { adults = 0, children = 0, infants = 0 } =
-            searchParams?.passengers ?? {};
+        const { adults = 0, children = 0, infants = 0 } = searchParams?.passengers ?? {};
 
         const fareBreakdown = selectedItinerary?.quote?.[cabinClass] ?? {};
 
@@ -53,7 +56,9 @@ function usePriceBreakdown(selectedItinerary, searchParams) {
         const childFare = perChild * children;
         const infantFare = perInfant * infants;
 
-        const total = fareBreakdown.total ?? (adultFare + childFare + infantFare);
+        const subtotal = fareBreakdown.total ?? (adultFare + childFare + infantFare);
+        const taxAmount = subtotal * TAX_RATE;
+        const total = subtotal + taxAmount;
 
         return {
             perAdult,
@@ -62,6 +67,8 @@ function usePriceBreakdown(selectedItinerary, searchParams) {
             adultFare,
             childFare,
             infantFare,
+            subtotal,
+            taxAmount,
             total,
             adults,
             children,
@@ -72,17 +79,13 @@ function usePriceBreakdown(selectedItinerary, searchParams) {
 }
 
 function SectionTitle({ children }) {
-    return (
-        <h2 className="text-base font-semibold text-gray-800 mb-3">{children}</h2>
-    );
+    return <h2 className="text-base font-semibold text-gray-800 mb-3">{children}</h2>;
 }
 
 function LabelValue({ label, value }) {
     return (
         <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                {label}
-            </p>
+            <p className="text-xs font-medium uppercase tracking-wide text-gray-400">{label}</p>
             <p className="text-sm font-semibold text-gray-900 mt-0.5">{value || "—"}</p>
         </div>
     );
@@ -164,7 +167,7 @@ function PassengerCard({ passenger, indexWithinType, isDomestic }) {
         (passenger.dlNumber || passenger.dlState);
 
     return (
-        <div className="border border-gray-100 rounded-xl p-4 space-y-3 bg-white">
+        <div className="border border-gray-100 rounded-xl p-4 space-y-3 bg-white/90 backdrop-blur-sm">
             <p className="text-sm font-semibold text-gray-800">{label}</p>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3">
@@ -217,16 +220,20 @@ function PassengerCard({ passenger, indexWithinType, isDomestic }) {
     );
 }
 
-function PriceRow({ label, value, sub, bold }) {
+function PriceRow({ label, value, sub, bold, isTotal }) {
     return (
-        <div className={`flex justify-between items-baseline ${bold ? "font-semibold" : ""}`}>
+        <div className={`flex justify-between items-baseline ${bold ? "font-bold" : ""}`}>
             <div>
                 <span className={`${bold ? "text-gray-900" : "text-gray-600"} text-sm`}>
                     {label}
                 </span>
                 {sub && <span className="ml-1.5 text-xs text-gray-400">{sub}</span>}
             </div>
-            <span className={`text-sm ${bold ? "text-gray-900 text-base" : "text-gray-700"}`}>
+            <span
+                className={`text-sm ${
+                    isTotal ? "text-blue-600 text-xl" : bold ? "text-gray-900" : "text-gray-700"
+                }`}
+            >
                 {value}
             </span>
         </div>
@@ -253,13 +260,17 @@ export default function BookingReview() {
 
     const pricing = usePriceBreakdown(selectedItinerary, searchParams);
     const returnPricing = usePriceBreakdown(returnItinerary, searchParams);
+
+    const totalTax = pricing.taxAmount + (returnItinerary ? returnPricing.taxAmount : 0);
+    const combinedSubtotal =
+        pricing.subtotal + (returnItinerary ? returnPricing.subtotal : 0);
     const combinedTotal = pricing.total + (returnItinerary ? returnPricing.total : 0);
 
     const passengersWithIndex = useMemo(() => {
         const counters = {};
         return passengers.map((p) => {
             const type = p.passengerType;
-            counters[type] = (counters[type] ?? 0);
+            counters[type] = counters[type] ?? 0;
             const idx = counters[type];
             counters[type]++;
             return { ...p, indexWithinType: idx };
@@ -278,7 +289,7 @@ export default function BookingReview() {
         }
 
         navigate("/booking/passengers", {
-            state: { selectedItinerary, searchParams, passengers },
+            state: { selectedItinerary, returnItinerary, searchParams, passengers },
         });
     };
 
@@ -298,18 +309,25 @@ export default function BookingReview() {
                 returnItinerary,
                 searchParams,
                 passengers,
-                pricingSummary: { ...pricing, total: combinedTotal },
+                pricingSummary: {
+                    ...pricing,
+                    subtotal: combinedSubtotal,
+                    taxAmount: totalTax,
+                    total: combinedTotal,
+                },
             },
         });
     };
 
     if (isStandbyBooking) {
         return (
-            <div className="min-h-screen bg-gray-50">
+            <div className="min-h-screen bg-transparent">
                 <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
-                    <h1 className="text-2xl font-semibold text-gray-900">Review Your Booking</h1>
+                    <h1 className="text-3xl font-black text-white drop-shadow-md">
+                        Review Your Booking
+                    </h1>
 
-                    <Card className="p-5">
+                    <Card className="p-5 bg-white/90 backdrop-blur-md border-none shadow-xl">
                         <SectionTitle>Standby Flight</SectionTitle>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                             <LabelValue label="Flight" value={standbyBooking.flightNum} />
@@ -319,7 +337,7 @@ export default function BookingReview() {
                         </div>
                     </Card>
 
-                    <Card className="p-5">
+                    <Card className="p-5 bg-white/90 backdrop-blur-md border-none shadow-xl">
                         <SectionTitle>Passenger</SectionTitle>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                             <LabelValue label="Passenger ID" value={standbyBooking.passengerId} />
@@ -328,27 +346,38 @@ export default function BookingReview() {
                         </div>
                     </Card>
 
-                    <Card className="p-5">
+                    <Card className="p-5 bg-white/90 backdrop-blur-md border-none shadow-xl">
                         <SectionTitle>Price Breakdown</SectionTitle>
                         <div className="space-y-2.5">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600">
+                                Fare Summary
+                            </p>
                             <PriceRow
                                 label="Standby Fare"
                                 value={formatCurrency(Number(standbyBooking.totalPrice ?? 0))}
                             />
                             <Divider />
                             <PriceRow
-                                label="Total"
+                                label="Grand Total"
                                 value={formatCurrency(Number(standbyBooking.totalPrice ?? 0))}
                                 bold
+                                isTotal
                             />
                         </div>
                     </Card>
 
-                    <div className="flex justify-between items-center">
-                        <Button variant="outline" onClick={handleBack}>
+                    <div className="flex justify-between items-center pt-4">
+                        <Button
+                            variant="outline"
+                            onClick={handleBack}
+                            className="bg-white/20 text-white border-white/40 hover:bg-white/30 backdrop-blur-sm"
+                        >
                             Back
                         </Button>
-                        <Button onClick={handleConfirm}>
+                        <Button
+                            onClick={handleConfirm}
+                            className="px-10 shadow-lg shadow-blue-600/30"
+                        >
                             Continue to Payment
                         </Button>
                     </div>
@@ -359,23 +388,25 @@ export default function BookingReview() {
 
     if (!selectedItinerary || !searchParams) return null;
 
-    const flights = selectedItinerary.flights ?? [];
+    const outboundFlights = selectedItinerary.flights ?? [];
+    const inboundFlights = returnItinerary?.flights ?? [];
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-transparent">
             <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
-                <h1 className="text-2xl font-semibold text-gray-900">Review Your Booking</h1>
+                <h1 className="text-3xl font-black text-white drop-shadow-md">
+                    Review Your Booking
+                </h1>
 
-                <Card className="p-5">
+                <Card className="p-5 bg-white/90 backdrop-blur-md border-none shadow-xl">
                     <SectionTitle>
                         {selectedItinerary.type === "connecting" ? "Connecting" : "Direct"}
                     </SectionTitle>
-
                     <div className="space-y-0">
-                        {flights.map((flight, i) => (
+                        {outboundFlights.map((flight, i) => (
                             <div key={i} className="relative">
                                 <FlightSegment flight={flight} />
-                                {i < flights.length - 1 && (
+                                {i < outboundFlights.length - 1 && (
                                     <div
                                         className="absolute left-1 top-5.5 w-px bg-gray-200"
                                         style={{ height: "calc(100% - 10px)" }}
@@ -384,9 +415,7 @@ export default function BookingReview() {
                             </div>
                         ))}
                     </div>
-
                     <Divider />
-
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                         <LabelValue label="Cabin" value={capitalize(searchParams.cabinClass)} />
                         <LabelValue label="Trip Type" value={capitalize(searchParams.flightType)} />
@@ -395,13 +424,13 @@ export default function BookingReview() {
                 </Card>
 
                 {returnItinerary && (
-                    <Card className="p-5">
+                    <Card className="p-5 bg-white/90 backdrop-blur-md border-none shadow-xl">
                         <SectionTitle>Return Flight</SectionTitle>
                         <div className="space-y-0">
-                            {returnItinerary.flights.map((flight, i) => (
+                            {inboundFlights.map((flight, i) => (
                                 <div key={i} className="relative">
                                     <FlightSegment flight={flight} />
-                                    {i < returnItinerary.flights.length - 1 && (
+                                    {i < inboundFlights.length - 1 && (
                                         <div
                                             className="absolute left-1 top-5.5 w-px bg-gray-200"
                                             style={{ height: "calc(100% - 10px)" }}
@@ -410,6 +439,7 @@ export default function BookingReview() {
                                 </div>
                             ))}
                         </div>
+                        <Divider />
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                             <LabelValue label="Cabin" value={capitalize(searchParams.cabinClass)} />
                             <LabelValue label="Trip Type" value={capitalize(searchParams.flightType)} />
@@ -420,26 +450,27 @@ export default function BookingReview() {
                     </Card>
                 )}
 
-                <Card className="p-5">
+                <Card className="p-5 bg-white/90 backdrop-blur-md border-none shadow-xl">
                     <SectionTitle>Passengers</SectionTitle>
-                    <div className="space-y-3">
-                        {passengersWithIndex.map((passenger, i) => (
+                    <div className="grid grid-cols-1 gap-4">
+                        {passengersWithIndex.map((p, i) => (
                             <PassengerCard
                                 key={i}
-                                passenger={passenger}
-                                indexWithinType={passenger.indexWithinType}
+                                passenger={p}
+                                indexWithinType={p.indexWithinType}
                                 isDomestic={isDomesticItinerary}
                             />
                         ))}
                     </div>
                 </Card>
 
-                <Card className="p-5">
+                <Card className="p-5 bg-white/90 backdrop-blur-md border-none shadow-xl">
                     <SectionTitle>Price Breakdown</SectionTitle>
                     <div className="space-y-2.5">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                            Outbound
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600">
+                            Outbound Fare Summary
                         </p>
+
                         {pricing.adults > 0 && (
                             <PriceRow
                                 label={`Adults × ${pricing.adults}`}
@@ -465,9 +496,10 @@ export default function BookingReview() {
                         {returnItinerary && (
                             <>
                                 <Divider />
-                                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                                    Return
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600">
+                                    Return Fare Summary
                                 </p>
+
                                 {returnPricing.adults > 0 && (
                                     <PriceRow
                                         label={`Adults × ${returnPricing.adults}`}
@@ -492,16 +524,36 @@ export default function BookingReview() {
                             </>
                         )}
 
+                        <div className="pt-2 mt-2 border-t border-gray-200">
+                            <PriceRow
+                                label="Estimated Taxes & Fees"
+                                sub="(7.5%)"
+                                value={formatCurrency(totalTax)}
+                            />
+                        </div>
+
                         <Divider />
-                        <PriceRow label="Total" value={formatCurrency(combinedTotal)} bold />
+                        <PriceRow
+                            label="Grand Total"
+                            value={formatCurrency(combinedTotal)}
+                            bold
+                            isTotal
+                        />
                     </div>
                 </Card>
 
-                <div className="flex justify-between items-center">
-                    <Button variant="outline" onClick={handleBack}>
+                <div className="flex justify-between items-center pt-4">
+                    <Button
+                        variant="outline"
+                        onClick={handleBack}
+                        className="bg-white/20 text-white border-white/40 hover:bg-white/30 backdrop-blur-sm"
+                    >
                         Back
                     </Button>
-                    <Button onClick={handleConfirm}>
+                    <Button
+                        onClick={handleConfirm}
+                        className="px-10 shadow-lg shadow-blue-600/30"
+                    >
                         Confirm & Continue
                     </Button>
                 </div>

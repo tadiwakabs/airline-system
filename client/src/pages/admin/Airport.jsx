@@ -1,4 +1,10 @@
 import React, { useEffect, useState } from "react";
+import Card from "../../components/common/Card";
+import Button from "../../components/common/Button";
+import TextInput from "../../components/common/TextInput";
+import Dropdown from "../../components/common/Dropdown";
+import Separator from "../../components/common/Separator";
+import Modal from "../../components/common/Modal";
 import { useAuth } from "../../contexts/AuthContext";
 import {
     getAllAirports,
@@ -17,7 +23,7 @@ const emptyForm = {
     state: "",
     country: "",
     timezone: "",
-    latitude: 0,  
+    latitude: 0,
     longitude: 0
 };
 
@@ -25,7 +31,7 @@ export default function Airports() {
     const [airportList, setAirportList] = useState([]);
     const [filtered, setFiltered] = useState([]);
     const [form, setForm] = useState(emptyForm);
-    const [editingCode, setEditingCode] = useState(null); 
+    const [editingCode, setEditingCode] = useState(null);
     const [showForm, setShowForm] = useState(false);
     const [localErrors,setlocalErrors]= useState([]);
     const {errors: serverErrors, setErrors: setServerErrors, clearErrors}=useFormErrors();
@@ -40,10 +46,8 @@ export default function Airports() {
   
     useEffect(() => {
         fetchAirports();
-        fetchStates(); 
+        fetchStates();
     }, []);
-
-
 
     useEffect(() => {
         let data = [...airportList];
@@ -82,7 +86,6 @@ export default function Airports() {
     const fetchStates = async () => {
         try {
             const res = await getStates();
-            console.log("States received from API:", res.data); 
             setStates(res.data);
         } catch (err) {
             setServerErrors({response:{data:"Failed to load state list"}})
@@ -97,6 +100,7 @@ export default function Airports() {
             setSortDir("asc");
         }
     };
+
     const handleChange = (e) => {
     const { name, value } = e.target;
     
@@ -123,7 +127,7 @@ export default function Airports() {
             state: airport.state || "",
             country: airport.country,
             timezone: airport.timezone || "",
-            latitude: airport.latitude || 0, 
+            latitude: airport.latitude || 0,
             longitude: airport.longitude || 0
         });
         setEditingCode(airport.airportCode);
@@ -175,18 +179,22 @@ export default function Airports() {
         if (sortField !== field) return " ↕";
         return sortDir === "asc" ? " ↑" : " ↓";
     };
+    
+    const stateOptions = [
+        { label: "All States", value: "" },
+        ...states.map(s => ({ label: `${s.code} - ${s.name}`, value: s.code })),
+        { label: "OT - International", value: "OT" }
+    ];
 
     return (
         <div className="p-6">
             <div className="flex items-center justify-between mb-4">
                 <h1 className="text-2xl font-bold">Airports</h1>
                 {canManageAirports && (
-                    <button
-                        onClick={() => { setShowForm(true); setEditingCode(null); setForm(emptyForm); }}
-                        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-                    >
+                    <Button 
+                        onClick={() => { setShowForm(true); setEditingCode(null); setForm(emptyForm); }}>
                         + Add Airport
-                    </button>
+                    </Button>
                 )}
             </div>
 
