@@ -5,6 +5,9 @@ import TextInput from "../../components/common/TextInput";
 import Dropdown from "../../components/common/Dropdown";
 import Separator from "../../components/common/Separator";
 import Modal from "../../components/common/Modal";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
+
 import {
     getAllFlights,
 } from "../../services/flightService";
@@ -52,13 +55,14 @@ export default function CrewAssignments() {
     const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
     const [isCrewModalOpen, setIsCrewModalOpen] = useState(false);
     const [crewModalLoading, setCrewModalLoading] = useState(false);
-
     const [page, setPage] = useState(0);
-
+    
     useEffect(() => {
         loadPageData();
     }, []);
-
+    
+    const navigate = useNavigate();
+    const {user} = useAuth();
     const loadPageData = async () => {
         try {
             setLoading(true);
@@ -155,6 +159,16 @@ export default function CrewAssignments() {
         }
     };
 
+    const handleBack = () => {
+        const role = user?.userRole;
+        
+        if (role == "Administrator"){
+            navigate("/admin/dashboard");
+        } else {
+            navigate("/employee/dashboard")
+        }   
+    };
+
     const filteredFlights = useMemo(() => {
         const term = searchTerm.trim().toLowerCase();
         let result = [...flights];
@@ -231,8 +245,7 @@ export default function CrewAssignments() {
         let isCancelled = false;
 
         const loadCrewCounts = async () => {
-            // Use pagedFlights as the source, but don't put the array itself 
-            // in the dependency bracket below.
+            
             if (pagedFlights.length === 0) {
                 setCrewCounts({});
                 return;
@@ -286,12 +299,23 @@ export default function CrewAssignments() {
 
     return (
         <div className="mx-auto max-w-7xl px-4 py-10">
-            <div className="mb-4">
+            <div className="mb-4 flex justify-between items-start">
+            {/* Left Side: Title and Description */}
+            <div>
                 <h1 className="text-2xl font-semibold text-gray-900">Crew Assignments</h1>
                 <p className="mt-1 text-sm text-gray-500">
                     Assign Cabin Crew employees to flights.
                 </p>
             </div>
+
+            {/* Right Side: Back Button */}
+            <Button 
+                onClick={handleBack} 
+                className="bg-blue-600 text-white hover:bg-blue-700 border-none px-6 py-2 rounded-none font-bold transition-colors"> 
+                Back 
+            </Button>
+            </div>
+
 
             {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
             {successMessage && <p className="mb-4 text-sm text-green-600">{successMessage}</p>}

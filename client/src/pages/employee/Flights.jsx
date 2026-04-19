@@ -7,6 +7,9 @@ import Combobox from "../../components/common/Combobox";
 import Separator from "../../components/common/Separator";
 import Modal from "../../components/common/Modal";
 import Dialog from "../../components/common/Dialog";
+import { useAuth } from "../../contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+
 import {
     getAllFlights,
     createFlight,
@@ -282,6 +285,9 @@ export default function Flights() {
     const [successMessage, setSuccessMessage] = useState("");
     const [aircraftOpts, setAircraftOpts] = useState([]);
     const [filteredAircraftOpts, setFilteredAircraftOpts] = useState([]);
+    const {user} = useAuth();
+    const navigate = useNavigate();
+
 
     // ── Flights tab ───────────────────────────────────────────────────────────
     const [flights, setFlights] = useState([]);
@@ -748,6 +754,16 @@ export default function Flights() {
         }
     };
 
+    const handleBack = () => {
+        const role = user?.userRole;
+        
+        if (role == "Administrator"){
+            navigate("/admin/dashboard");
+        } else {
+            navigate("/employee/dashboard")
+        }   
+    };
+
     // ── Filtered / sorted flights ─────────────────────────────────────────────
     const filteredFlights = useMemo(() => {
         const term = searchTerm.trim().toLowerCase();
@@ -882,6 +898,14 @@ export default function Flights() {
     // ─────────────────────────────────────────────────────────────────────────
     return (
         <div className="mx-auto max-w-7xl px-4 py-10">
+            <div className="mb-4">
+                <Button 
+                    onClick={handleBack} 
+                    className="text-white hover:bg-blue-700 border-none px-6 py-2 rounded-none font-bold transition-colors"
+                > 
+                    Back 
+                </Button>
+            </div>
 
             {/* Page header */}
             <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">

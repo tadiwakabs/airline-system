@@ -13,6 +13,7 @@ import {
     lookupUserByIdOrEmail,
 } from "../../services/employeeService";
 import airportOptions from "../../dropdownData/airports.json";
+import { useNavigate } from "react-router-dom";
 
 // ── Static option lists ───────────────────────────────────────────────────────
 
@@ -156,6 +157,8 @@ export default function Employees() {
     const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
     const [statusTarget, setStatusTarget] = useState(null);
     const [pendingStatus, setPendingStatus] = useState("");
+
+    const navigate = useNavigate();
 
     // ── Initial load ──────────────────────────────────────────────────────────
     useEffect(() => {
@@ -323,6 +326,10 @@ export default function Employees() {
         setEditForm((prev) => ({ ...prev, [name]: value }));
     };
 
+    const handleBack= ()=>{
+        navigate("/admin/dashboard");
+    };
+
     const handleEditSubmit = async (e) => {
         e.preventDefault();
         setError("");
@@ -424,8 +431,24 @@ export default function Employees() {
                     <h1 className="text-2xl font-semibold text-gray-900">Employees</h1>
                     <p className="mt-1 text-sm text-gray-500">Manage employee records and access.</p>
                 </div>
-                <Button onClick={openAddModal}>Add Employee</Button>
+                
+                <div className="flex gap-3">
+                <button 
+                    onClick={handleBack}
+                    className="bg-white text-black border border-gray-300 px-6 py-2 rounded-md font-semibold text-sm uppercase tracking-wider hover:bg-gray-50 transition-colors"
+                >
+                    Back
+                </button>
+
+                <button 
+                    onClick={openAddModal}
+                    className="bg-blue-600 text-white px-6 py-2 rounded-md font-semibold text-sm uppercase tracking-wider hover:bg-blue-700 transition-colors"
+                >
+                    Add Employee
+                </button>
+                </div>
             </div>
+
 
             {/* Feedback */}
             {error          && <p className="mb-4 text-sm text-red-600">{error}</p>}
