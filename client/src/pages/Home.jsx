@@ -8,8 +8,6 @@ import FlightSearchPanel from "../components/home/FlightSearchPanel.jsx";
 import Hero from "../components/home/HeroSection.jsx";
 import FeaturedFlights from "../components/home/FeaturedFlights.jsx";
 import Card from "../components/common/Card.jsx";
-import { getFlightById } from "../services/flightService";
-import { getFlightsByBooking } from "../services/bookingService";
 import { getMyNotifications } from "../services/notificationService";
 import { getStatusByBooking } from "../services/bookingService";
 
@@ -123,26 +121,6 @@ export default function Home() {
             loadNotifications();
         }
     }, [isAuthenticated]);
-
-    const loadNotifications = async () => {
-        try {
-            setNotificationsLoading(true);
-            setNotificationsError("");
-
-            const data = await getMyNotifications();
-            setNotifications(Array.isArray(data) ? data : []);
-        } catch (err) {
-            console.error("Error loading notifications:", err);
-            setNotificationsError(
-                err?.response?.data?.message || "Failed to load notifications."
-            );
-        } finally {
-            setNotificationsLoading(false);
-        }
-    };
-
-    // Added notification loader
-    const { isAuthenticated } = useAuth();
 
     useEffect(() => {
         if (isAuthenticated) {
