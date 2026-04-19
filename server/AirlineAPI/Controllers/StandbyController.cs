@@ -199,7 +199,7 @@ public async Task<IActionResult> AcceptStandbyOffer(int id)
                 {
                     _context.Notification.Add(new Notification
                     {
-                        userId = nextPassenger.UserId,
+                        userId = nextPassenger.UserId!,
                         flightNum = nextStandby.flightNum,
                         message = $"A seat is now available on flight {nextStandby.flightNum}. Please accept within 30 minutes.",
                         createdAt = DateTime.UtcNow,

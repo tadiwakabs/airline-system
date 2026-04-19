@@ -534,7 +534,7 @@ namespace AirlineAPI.Controllers
                     PassengerId = t.passengerId,
                     FirstName = t.Passenger != null ? t.Passenger.FirstName : null,
                     LastName = t.Passenger != null ? t.Passenger.LastName : null,
-                    SeatNumber = t.seatNumber,
+                    SeatNumber = t.seatNumber!,
                     TicketClass = t.ticketClass != null ? t.ticketClass.ToString() : null,
                     TicketStatus = t.status != null ? t.status.ToString() : null
                 })
