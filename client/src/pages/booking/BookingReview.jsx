@@ -3,8 +3,6 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Card from "../../components/common/Card.jsx";
 import Button from "../../components/common/Button.jsx";
 
-// ─── helpers ────────────────────────────────────────────────────────────────
-
 function capitalize(value) {
     if (!value) return "";
     if (value === "first") return "First Class";
@@ -79,8 +77,6 @@ function usePriceBreakdown(selectedItinerary, searchParams) {
         };
     }, [selectedItinerary, searchParams]);
 }
-
-// ─── sub-components ──────────────────────────────────────────────────────────
 
 function SectionTitle({ children }) {
     return <h2 className="text-base font-semibold text-gray-800 mb-3">{children}</h2>;
@@ -243,8 +239,6 @@ function PriceRow({ label, value, sub, bold, isTotal }) {
         </div>
     );
 }
-
-// ─── main page ───────────────────────────────────────────────────────────────
 
 export default function BookingReview() {
     const { state } = useLocation();

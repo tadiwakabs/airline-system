@@ -141,6 +141,32 @@ export default function Home() {
         }
     };
 
+    // Added notification loader
+    const { isAuthenticated } = useAuth();
+
+    useEffect(() => {
+        if (isAuthenticated) {
+            loadNotifications();
+        }
+    }, [isAuthenticated]);
+
+    const loadNotifications = async () => {
+        try {
+            setNotificationsLoading(true);
+            setNotificationsError("");
+
+            const data = await getMyNotifications();
+            setNotifications(Array.isArray(data) ? data : []);
+        } catch (err) {
+            console.error("Error loading notifications:", err);
+            setNotificationsError(
+                err?.response?.data?.message || "Failed to load notifications."
+            );
+        } finally {
+            setNotificationsLoading(false);
+        }
+    };
+
     const handleSearch = (params) => {
         navigate("/flight-search", { state: params });
     };
@@ -301,6 +327,9 @@ export default function Home() {
                                                     <p className="text-xs text-gray-500 mt-1">
                                                         {statusResult.departingCity || "—"} →{" "}
                                                         {statusResult.arrivingCity || "—"}
+                                                    </p>
+                                                    <p className="text-xs text-gray-500">
+                                                        {flight.departingCity || "—"} → {flight.arrivingCity || "—"}
                                                     </p>
                                                 </div>
 
