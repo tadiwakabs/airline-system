@@ -6,6 +6,7 @@ import Button from "../components/common/Button.jsx";
 import Card from "../components/common/Card.jsx";
 import { searchFlightResults } from "../services/flightService";
 import { joinStandby } from "../services/standbyService";
+import { useAuth } from "../contexts/AuthContext";
 
 function formatDate(dateStr) {
     if (!dateStr) return "";
@@ -137,8 +138,16 @@ function useFlightSearch(from, to, date, passengers, enabled) {
 }
 
 export default function FlightSearch() {
+    useEffect(() => {
+        window.scrollTo({ top: 0, behavior: "instant" });
+    }, []);
+    
     const { state } = useLocation();
     const navigate = useNavigate();
+    const { isAuthenticated } = useAuth();
+
+    const [showAuthModal, setShowAuthModal] = useState(false);
+    const [pendingSelection, setPendingSelection] = useState(null);
 
     const fallback = {
         flightType: "one-way",
@@ -205,12 +214,19 @@ export default function FlightSearch() {
     };
 
     const handleSelectOutbound = (itinerary) => {
+        if (!isAuthenticated) {
+            setPendingSelection({
+                type: "outbound",
+                itinerary
+            });
+            setShowAuthModal(true);
+            return;
+        }
+
         if (isReturn) {
-            // Store outbound, switch to return selection
             setSelectedOutbound(itinerary);
             setSelectionStage("return");
         } else {
-            // One-way: go straight to passengers
             navigate("/booking/passengers", {
                 state: { selectedItinerary: itinerary, searchParams },
             });
@@ -218,6 +234,16 @@ export default function FlightSearch() {
     };
 
     const handleSelectReturn = (returnItinerary) => {
+        if (!isAuthenticated) {
+            setPendingSelection({
+                type: "return",
+                returnItinerary,
+                selectedOutbound
+            });
+            setShowAuthModal(true);
+            return;
+        }
+
         navigate("/booking/passengers", {
             state: {
                 selectedItinerary: selectedOutbound,
@@ -369,18 +395,6 @@ export default function FlightSearch() {
                     </p>
                 )}
 
-                {activeResults.loading && (
-                    <Card className="p-6">
-                        <p>Loading flights...</p>
-                    </Card>
-                )}
-
-                {activeResults.error && (
-                    <Card className="p-6 border-red-200">
-                        <p className="text-red-600">{activeResults.error}</p>
-                    </Card>
-                )}
-
                 {standbyMessage && (
                     <Card className="p-4 border-green-200">
                         <p className="text-green-600">{standbyMessage}</p>
@@ -470,6 +484,59 @@ export default function FlightSearch() {
                             ))}
                         </div>
                     )}
+
+
+                {/* Authentication check */}
+                {showAuthModal && (
+                    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+                        <div className="bg-white rounded-xl p-6 w-full max-w-md space-y-4">
+                            <h2 className="text-lg font-semibold">
+                                To continue booking, you must be signed in.
+                            </h2>
+
+                            <div className="flex gap-3 justify-between">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setShowAuthModal(false)}
+                                >
+                                    <span className="mx-2">Back</span>
+                                </Button>
+
+                                <div className="flex gap-3 items-center">
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => {
+                                            navigate("/register", {
+                                                state: {
+                                                    from: "/booking/passengers",
+                                                    pendingSelection,
+                                                    searchParams
+                                                }
+                                            });
+                                        }}
+                                    >
+                                        Register
+                                    </Button>
+
+                                    <Button
+                                        onClick={() => {
+                                            navigate("/login", {
+                                                state: {
+                                                    from: "/booking/passengers",
+                                                    pendingSelection,
+                                                    searchParams
+                                                }
+                                            });
+                                        }}
+                                    >
+                                        Login
+                                    </Button>
+                                </div>
+                                
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

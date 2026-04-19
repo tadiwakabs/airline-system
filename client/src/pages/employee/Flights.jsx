@@ -16,6 +16,7 @@ import {
     upsertFlightPricing,
 } from "../../services/flightService";
 import { getAllAircraft } from "../../services/aircraftService";
+import { getAllAirports } from "../../services/airportService";
 import {
     getAllRecurringSchedules,
     updateRecurringSchedule,
@@ -53,6 +54,124 @@ function parseDays(daysOfWeek) {
     if (!daysOfWeek) return [];
     if (Array.isArray(daysOfWeek)) return daysOfWeek.map(Number);
     return String(daysOfWeek).split(",").map(Number);
+}
+
+function getAirportByCodeFromMeta(code, airportMeta) {
+    return airportMeta.find((a) => a.airportCode === code) ?? null;
+}
+
+function getTimeZoneForCode(code, airportMeta) {
+    return getAirportByCodeFromMeta(code, airportMeta)?.timezone || null;
+}
+
+function zonedTimeToUtc(dateStr, timeStr, timeZone) {
+    if (!dateStr || !timeStr || !timeZone) return null;
+
+    const [year, month, day] = dateStr.split("-").map(Number);
+    const [hour, minute] = timeStr.split(":").map(Number);
+
+    const utcGuess = new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
+
+    const formatter = new Intl.DateTimeFormat("en-US", {
+        timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hourCycle: "h23",
+    });
+
+    const parts = Object.fromEntries(
+        formatter.formatToParts(utcGuess).map((p) => [p.type, p.value])
+    );
+
+    const asIfUtc = Date.UTC(
+        Number(parts.year),
+        Number(parts.month) - 1,
+        Number(parts.day),
+        Number(parts.hour),
+        Number(parts.minute),
+        Number(parts.second)
+    );
+
+    const offset = asIfUtc - utcGuess.getTime();
+
+    return new Date(utcGuess.getTime() - offset);
+}
+
+function formatTimeOnly(date) {
+    if (!date) return "";
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function getRoundTripPreview(recurringData, airportMeta) {
+    const {
+        startDate,
+        departureTimeOfDay,
+        arrivalTimeOfDay,
+        departingPortCode,
+        arrivingPortCode,
+        layoverHours,
+    } = recurringData;
+
+    if (
+        !startDate ||
+        !departureTimeOfDay ||
+        !arrivalTimeOfDay ||
+        !departingPortCode ||
+        !arrivingPortCode ||
+        !layoverHours
+    ) {
+        return null;
+    }
+
+    const depTz = getTimeZoneForCode(departingPortCode, airportMeta);
+    const arrTz = getTimeZoneForCode(arrivingPortCode, airportMeta);
+
+    if (!depTz || !arrTz) return null;
+
+    const layover = parseInt(layoverHours, 10);
+    if (isNaN(layover) || layover < 1) return null;
+
+    let outboundDepartUtc = zonedTimeToUtc(startDate, departureTimeOfDay, depTz);
+    let outboundArriveUtc = zonedTimeToUtc(startDate, arrivalTimeOfDay, arrTz);
+
+    if (!outboundDepartUtc || !outboundArriveUtc) return null;
+
+    if (outboundArriveUtc <= outboundDepartUtc) {
+        const nextDay = new Date(outboundArriveUtc);
+        nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+        outboundArriveUtc = nextDay;
+    }
+
+    const outboundDurationMs = outboundArriveUtc.getTime() - outboundDepartUtc.getTime();
+    const outboundDurationHours = outboundDurationMs / (1000 * 60 * 60);
+
+    const returnDepartUtc = new Date(
+        outboundArriveUtc.getTime() + layover * 60 * 60 * 1000
+    );
+    const returnArriveUtc = new Date(
+        returnDepartUtc.getTime() + outboundDurationMs
+    );
+
+    const totalHours = outboundDurationHours * 2 + layover;
+
+    const returnDepartLocal = new Date(
+        returnDepartUtc.toLocaleString("en-US", { timeZone: arrTz })
+    );
+    const returnArriveLocal = new Date(
+        returnArriveUtc.toLocaleString("en-US", { timeZone: depTz })
+    );
+
+    return {
+        totalHours,
+        outboundDurationHours,
+        returnDurationHours: outboundDurationHours,
+        returnDepartStr: formatTimeOnly(returnDepartLocal),
+        returnArriveStr: formatTimeOnly(returnArriveLocal),
+    };
 }
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -130,6 +249,8 @@ const emptyRecurringForm = {
     economyPrice: "",
     businessPrice: "",
     firstPrice: "",
+    isReturn: false,
+    layoverHours: "",
 };
 
 // ── Small shared sub-component ────────────────────────────────────────────────
@@ -186,6 +307,7 @@ export default function Flights() {
     // ── Recurring Schedules tab ───────────────────────────────────────────────
     const [schedules, setSchedules] = useState([]);
     const [schedulesLoading, setSchedulesLoading] = useState(true);
+    const [schedulePage, setSchedulePage] = useState(0);
     const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
     const [editingScheduleId, setEditingScheduleId] = useState(null);
     const [scheduleForm, setScheduleForm] = useState(emptyRecurringForm);
@@ -195,6 +317,7 @@ export default function Flights() {
     // airport filter states — schedule modal
     const [apDepS, setApDepS] = useState(airportOptions);
     const [apArrS, setApArrS] = useState(airportOptions);
+    const [airportMeta, setAirportMeta] = useState([]);
 
     // CSV importing states
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -208,6 +331,7 @@ export default function Flights() {
         loadFlights();
         loadSchedules();
         loadAircraft();
+        loadAirportMeta();
     }, []);
 
     const loadAircraft = async () => {
@@ -238,10 +362,21 @@ export default function Flights() {
             setSchedulesLoading(true);
             const res = await getAllRecurringSchedules();
             setSchedules(res.data);
+            setSchedulePage(0);
         } catch (err) {
             setError(err?.response?.data?.message || "Failed to load recurring schedules.");
         } finally {
             setSchedulesLoading(false);
+        }
+    };
+
+    const loadAirportMeta = async () => {
+        try {
+            const res = await getAllAirports();
+            setAirportMeta(res.data || []);
+        } catch {
+            // non-critical for preview only
+            setAirportMeta([]);
         }
     };
 
@@ -429,6 +564,28 @@ export default function Flights() {
         e.preventDefault();
         setError("");
         setSuccessMessage("");
+
+        // ── Frontend validation ───────────────────────────────────────────────
+        if (recurringData.isReturn) {
+            const layover = parseInt(recurringData.layoverHours, 10);
+            if (!recurringData.layoverHours || isNaN(layover) || layover < 1) {
+                setError("Layover hours must be a whole number of at least 1.");
+                return;
+            }
+
+            const preview = getRoundTripPreview(recurringData, airportMeta);
+            if (preview && preview.totalHours > 24) {
+                setError(
+                    `Total round-trip time (${preview.totalHours.toFixed(1)} hrs: ` +
+                    `outbound ${preview.outboundDurationHours.toFixed(1)} h + ` +
+                    `${layover} h layover + ` +
+                    `return ${preview.returnDurationHours.toFixed(1)} h) exceeds 24 hours. ` +
+                    `Reduce the layover or choose a shorter route.`
+                );
+                return;
+            }
+        }
+
         const payload = {
             ...recurringData,
             distance: Number(recurringData.distance),
@@ -439,6 +596,8 @@ export default function Flights() {
             economyPrice:  recurringData.economyPrice  ? Number(recurringData.economyPrice)  : null,
             businessPrice: recurringData.businessPrice ? Number(recurringData.businessPrice) : null,
             firstPrice:    recurringData.firstPrice    ? Number(recurringData.firstPrice)    : null,
+            isReturn:      recurringData.isReturn,
+            layoverHours:  recurringData.isReturn ? parseInt(recurringData.layoverHours, 10) : null,
         };
         try {
             await createRecurringFlights(payload);
@@ -496,6 +655,8 @@ export default function Flights() {
             economyPrice:       schedule.economyPrice ?? "",
             businessPrice:      schedule.businessPrice ?? "",
             firstPrice:         schedule.firstPrice ?? "",
+            isReturn:           !!schedule.isReturn,
+            layoverHours:       schedule.layoverHours ?? "",
         });
         setIsScheduleModalOpen(true);
     };
@@ -622,6 +783,12 @@ export default function Flights() {
     const PAGE_SIZE = 50;
     const totalPages = Math.ceil(filteredFlights.length / PAGE_SIZE);
     const pagedFlights = filteredFlights.slice(flightPage * PAGE_SIZE, (flightPage + 1) * PAGE_SIZE);
+
+    const totalSchedulePages = Math.ceil(schedules.length / PAGE_SIZE);
+    const pagedSchedules = schedules.slice(
+        schedulePage * PAGE_SIZE,
+        (schedulePage + 1) * PAGE_SIZE
+    );
 
     // ── Shared helpers ────────────────────────────────────────────────────────
     const searchAircraft = (q) =>
@@ -916,7 +1083,7 @@ export default function Flights() {
                                 </tr>
                                 </thead>
                                 <tbody>
-                                {schedules.map((s) => (
+                                {pagedSchedules.map((s) => (
                                     <tr key={s.id} className="rounded-xl bg-gray-50 text-sm">
                                         <td className="px-3 py-3 font-medium text-gray-900">{s.id}</td>
                                         <td className="px-3 py-3">{s.departingPort} → {s.arrivingPort}</td>
@@ -946,6 +1113,36 @@ export default function Flights() {
                                 ))}
                                 </tbody>
                             </table>
+
+                            {totalSchedulePages > 1 && (
+                                <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
+                                    <span>
+                                        Showing {schedulePage * PAGE_SIZE + 1}–
+                                        {Math.min((schedulePage + 1) * PAGE_SIZE, schedules.length)} of {schedules.length} schedules
+                                    </span>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => setSchedulePage((p) => Math.max(0, p - 1))}
+                                            disabled={schedulePage === 0}
+                                        >
+                                            ← Prev
+                                        </Button>
+                                        <span className="px-2 py-1 text-gray-500">
+                                            Page {schedulePage + 1} of {totalSchedulePages}
+                                        </span>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => setSchedulePage((p) => Math.min(totalSchedulePages - 1, p + 1))}
+                                            disabled={schedulePage >= totalSchedulePages - 1}
+                                        >
+                                            Next →
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </Card>
@@ -1057,6 +1254,71 @@ export default function Flights() {
                         {renderDistanceField(recurringData.distance, handleRecurringChange)}
                         {renderCheckboxes(recurringData, handleRecurringChange)}
                         {renderDaysOfWeek(recurringData.daysOfWeek, toggleDay)}
+
+                        {/* ── Trip type ───────────────────────────────────── */}
+                        <div className="space-y-3">
+                            <p className="text-sm font-medium text-gray-700">Trip Type <span className="text-red-500">*</span></p>
+                            <div className="flex gap-4">
+                                <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                                    <input
+                                        type="radio"
+                                        name="recurringTripType"
+                                        checked={!recurringData.isReturn}
+                                        onChange={() => setRecurringData((p) => ({ ...p, isReturn: false, layoverHours: "" }))}
+                                    />
+                                    One-way
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                                    <input
+                                        type="radio"
+                                        name="recurringTripType"
+                                        checked={recurringData.isReturn}
+                                        onChange={() => setRecurringData((p) => ({ ...p, isReturn: true }))}
+                                    />
+                                    Return
+                                </label>
+                            </div>
+
+                            {recurringData.isReturn && (
+                                <div className="space-y-1">
+                                    <TextInput
+                                        label={<>Layover Hours at Destination <span className="text-red-500">*</span></>}
+                                        name="layoverHours"
+                                        type="number"
+                                        min="1"
+                                        step="1"
+                                        placeholder="e.g. 3"
+                                        value={recurringData.layoverHours}
+                                        onChange={(e) => {
+                                            // Only allow positive integers
+                                            const val = e.target.value.replace(/[^0-9]/g, "");
+                                            setRecurringData((p) => ({ ...p, layoverHours: val }));
+                                        }}
+                                    />
+                                    <p className="text-xs text-gray-500">
+                                        Minimum 1 hour. The return flight departs this many hours after the outbound arrives.
+                                    </p>
+                                    {(() => {
+                                        const preview = getRoundTripPreview(recurringData, airportMeta);
+                                        if (!preview) return null;
+
+                                        return (
+                                            <div
+                                                className={`rounded-lg px-3 py-2 text-xs mt-1 ${
+                                                    preview.totalHours > 24
+                                                        ? "bg-red-50 border border-red-200 text-red-700"
+                                                        : "bg-blue-50 border border-blue-100 text-blue-700"
+                                                }`}
+                                            >
+                                                {preview.totalHours > 24
+                                                    ? `⚠ Total round-trip time (${preview.totalHours.toFixed(1)} hrs) exceeds 24 hours.`
+                                                    : `Return leg: departs ${preview.returnDepartStr} → arrives ${preview.returnArriveStr} · total round-trip ${preview.totalHours.toFixed(1)} hrs`}
+                                            </div>
+                                        );
+                                    })()}
+                                </div>
+                            )}
+                        </div>
                         <Separator />
                         <div>
                             <p className="text-sm font-medium text-gray-700 mb-2">Pricing</p>
@@ -1131,6 +1393,14 @@ export default function Flights() {
                     {renderDistanceField(scheduleForm.distance, handleScheduleFormChange)}
                     {renderCheckboxes(scheduleForm, handleScheduleFormChange)}
                     {renderDaysOfWeek(scheduleForm.daysOfWeek, toggleScheduleDay)}
+
+                    {/* ── Trip type (read-only in edit) ────────────────────── */}
+                    <div className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 text-sm text-gray-600">
+                        <span className="font-medium">Trip Type:</span>{" "}
+                        {scheduleForm.isReturn
+                            ? `Return · ${scheduleForm.layoverHours} hr layover`
+                            : "One-way"}
+                    </div>
                     <Separator />
                     <div>
                         <p className="text-sm font-medium text-gray-700 mb-2">Pricing</p>
