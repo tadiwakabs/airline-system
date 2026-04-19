@@ -73,7 +73,7 @@ export default function Reports() {
             ];
         }
 
-        if (activeReportType === "popularity") {
+        /*if (activeReportType === "popularity") {
             const totalBookings = data.reduce((s, r) => s + Number(r.totalActiveBookings || 0), 0);
             const topDest = [...data].sort((a, b) => Number(b.totalActiveBookings) - Number(a.totalActiveBookings))[0];
             const leastDest = [...data].filter(r => Number(r.totalActiveBookings) > 0).sort((a, b) => Number(a.totalActiveBookings) - Number(b.totalActiveBookings))[0];
@@ -88,6 +88,28 @@ export default function Reports() {
                 { label: "Most Popular", value: topDest?.destination || "—", subLabel: "Total Bookings", subValue: Number(topDest?.totalActiveBookings || 0).toLocaleString(), highlighted: true },
                 { label: "Least Popular", value: leastDest?.destination || "—", subLabel: "Total Bookings", subValue: Number(leastDest?.totalActiveBookings || 0).toLocaleString() },
                 { label: "Peak Travel", value: peakDay, subLabel: "Peak Month", subValue: peakMonth },
+            ];
+        }*/
+        if (activeReportType === "popularity") {
+            const totalBookings = data.reduce((s, r) => s + Number(r.totalActiveBookings || 0), 0);
+            const topDest = [...data].sort((a, b) => Number(b.totalActiveBookings) - Number(a.totalActiveBookings))[0];
+            const activeDestinations = data.filter(r => Number(r.totalActiveBookings) > 0);
+            let leastDestLabel = "—", leastDestValue = "0";
+            if (activeDestinations.length > 0) {
+                const minBookings = Math.min(...activeDestinations.map(r => Number(r.totalActiveBookings)));
+                const tiedLeast = activeDestinations.filter(r => Number(r.totalActiveBookings) === minBookings);
+                leastDestLabel = tiedLeast.map(r => r.destination).join(", ").toUpperCase();
+                leastDestValue = minBookings.toLocaleString();
+            }
+            const monthCounts = data.filter(r => r.peakMonth && r.peakMonth !== "N/A").reduce((acc, r) => { acc[r.peakMonth] = (acc[r.peakMonth] || 0) + 1; return acc; }, {});
+            const peakMonth = Object.entries(monthCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A";
+            const dayCounts = data.filter(r => r.peakDay && r.peakDay !== "N/A").reduce((acc, r) => { acc[r.peakDay] = (acc[r.peakDay] || 0) + 1; return acc; }, {});
+            const peakDay = (Object.entries(dayCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A").toUpperCase();
+            return [
+                { label: "Total Bookings", value: totalBookings.toLocaleString(), subLabel: "Network Wide", subValue: "Booked Tickets" },
+                { label: "Most Popular", value: topDest?.destination?.toUpperCase() || "—", subLabel: "Total Bookings", subValue: Number(topDest?.totalActiveBookings || 0).toLocaleString(), highlighted: true },
+                { label: "Least Popular", value: leastDestLabel, subLabel: "Total Bookings", subValue: leastDestValue },
+                { label: "Peak Travel", value: peakDay, subLabel: "Peak Month", subValue: peakMonth.toUpperCase() },
             ];
         }
 
