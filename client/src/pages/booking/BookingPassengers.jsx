@@ -435,9 +435,10 @@ export default function BookingPassengers() {
     };
 
     const handleBack = () => {
-        navigate("/flight-search", {
+       /* navigate("/flight-search", {
             state: { searchParams,selectedItinerary,fromBooking: true }
-        });
+        });*/
+        navigate(-1);
     };
 
     const isDomesticItinerary =
