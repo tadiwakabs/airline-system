@@ -8,6 +8,7 @@ export default function Combobox({
      onSearch,
      placeholder = "Search...",
      emptyMessage = "No results found",
+                                     disabled = false,
  }) {
     const [isOpen, setIsOpen] = useState(false);
     const [inputValue, setInputValue] = useState("");
@@ -82,7 +83,6 @@ export default function Combobox({
                 type="text"
                 value={inputValue}
                 placeholder={placeholder}
-                onFocus={handleFocus}
                 onChange={(e) => {
                     const newValue = e.target.value;
                     setInputValue(newValue);
@@ -90,7 +90,11 @@ export default function Combobox({
                     setIsOpen(true);
                     onSearch?.(newValue);
                 }}
-                className="w-full rounded-xl border border-gray-300 px-4 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={disabled}
+                onFocus={disabled ? undefined : handleFocus}
+                className={`w-full rounded-xl border border-gray-300 px-4 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    disabled ? "cursor-not-allowed bg-gray-50 text-gray-400 border-gray-200" : ""
+                }`}
             />
 
             {isOpen && (
