@@ -2,6 +2,7 @@ import React, { useState, useEffect,useMemo } from 'react';
 import api from '../services/api'; 
 import { getSeatsForFlight } from "../services/seatingService"; 
 import { useNavigate } from "react-router-dom";
+import Modal from '../components/common/Modal';
 
 
 function formatDateTime(dateStr) {
@@ -215,6 +216,10 @@ const ManageBooking = () => {
     const [allowedClass, setAllowedClass] = useState("economy");
     const [targetFlight, setTargetFlight] = useState(null);
     const navigate = useNavigate();
+    const [cancelTarget, setCancelTarget] = useState(null); 
+    const [error, setError] = useState(""); 
+    const isErrorModalOpen = Boolean(error); 
+    const closeErrorModal = () => setError("");
 
     
     useEffect(() => {
@@ -253,19 +258,22 @@ const ManageBooking = () => {
         }, [bookings]
     );
 
-    const handleCancelBooking = async (bookingId) => {
-        if (!window.confirm("Are you sure you want to cancel this booking?")) return;
+    const promptCancel = (bookingId) => {
+        setCancelTarget(bookingId);
+    };
+
+    const handleCancelBooking = async () => {
+        if (!cancelTarget) return;
 
         try {
-            await api.delete(`/Booking/${bookingId}/cancel`); 
-            alert("Booking successfully cancelled. Your seat has been released.");
-            fetchBookings(); // Refresh the UI
+            await api.delete(`/Booking/${cancelTarget}/cancel`);
+            setCancelTarget(null); 
+            fetchBookings(); 
         } catch (err) {
-            console.error("Cancellation error:", err);
-            alert(err.response?.data || "Could not cancel booking.");
+            setCancelTarget(null); 
+            setError(err.response?.data || "Could not cancel booking."); // Show error in the other modal
         }
     };
-    
     const openSeatModal = async (ticket, flightInfo) => {
     setSelectedTicket(ticket);
     setTargetFlight(flightInfo);
@@ -445,7 +453,7 @@ const ManageBooking = () => {
                         <div className="p-5 bg-gray-50 border-t border-gray-100 flex justify-end">
                             {!isCancelled && (
                                 <button 
-                                    onClick={() => handleCancelBooking(b.bookingId)}
+                                    onClick={() => promptCancel(b.bookingId)}
                                     className="px-8 py-3 bg-red-50 text-red-600 font-bold text-sm rounded-xl transition-all hover:bg-red-100 active:scale-95"
                                 >
                                     Cancel Entire Itinerary
@@ -522,8 +530,52 @@ const ManageBooking = () => {
                 </div>
             </div>
         )}
+        <Modal
+            isOpen={Boolean(cancelTarget)}
+            onClose={() => setCancelTarget(null)}
+            title="Confirm Cancellation"
+            className="max-w-md"
+            footer={
+                <div className="flex gap-3 justify-end">
+                    <button 
+                        onClick={() => setCancelTarget(null)}
+                        className="px-4 py-2 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-all"
+                    >
+                        Keep Booking
+                    </button>
+                    <button 
+                        onClick={handleCancelBooking}
+                        className="px-6 py-2 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 shadow-lg shadow-red-100 transition-all"
+                    >
+                        Yes, Cancel Trip
+                    </button>
+                </div>
+            }
+        >
+            <div className="py-4">
+                <p className="text-gray-600 font-medium">
+                    Are you sure you want to cancel this booking? This will release your seat and cannot be undone.
+                </p>
+                <p className="mt-2 text-xs text-red-400 font-bold uppercase tracking-widest">
+                    Ref: {String(cancelTarget).substring(0, 8)}
+                </p>
+            </div>
+        </Modal>
     </div>
     );
+    <Modal
+        isOpen={isErrorModalOpen}
+        onClose={closeErrorModal}
+        title="Action Failed"
+        className="max-w-md border-t-4 border-red-500"
+        footer={
+            <button onClick={closeErrorModal} className="px-6 py-2 bg-gray-900 text-white rounded-xl">
+                Close
+            </button>
+        }
+    >
+        <p className="text-gray-600 py-4">{error}</p>
+    </Modal>
 };
 
 export default ManageBooking;
