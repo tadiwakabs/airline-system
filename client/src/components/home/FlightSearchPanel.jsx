@@ -63,12 +63,16 @@ export default function FlightSearchPanel({ onSearch, initialValues }) {
         []
     );
 
-    const filteredDeparture = airportOptions.filter((a) =>
-        a.label.toLowerCase().includes(departureSearch.toLowerCase())
+    const filteredDeparture = airportOptions.filter(
+        (a) =>
+            a.value !== arrival &&
+            a.label.toLowerCase().includes(departureSearch.toLowerCase())
     );
 
-    const filteredArrival = airportOptions.filter((a) =>
-        a.label.toLowerCase().includes(arrivalSearch.toLowerCase())
+    const filteredArrival = airportOptions.filter(
+        (a) =>
+            a.value !== departure &&
+            a.label.toLowerCase().includes(arrivalSearch.toLowerCase())
     );
 
     const validate = () => {

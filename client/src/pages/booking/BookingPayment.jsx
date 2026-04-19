@@ -4,6 +4,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { createBooking } from "../../services/bookingService";
 import { completePendingPayment } from "../../services/paymentService";
 import { useFormErrors } from "../../utils/useFormErrors";
+import Button from "../../components/common/Button";
 
 import FormError from "../../components/common/FormError";
 
@@ -188,6 +189,17 @@ export default function BookingPayment() {
         if (!form.country.trim()) newErrors.country = "Country is required";
 
         return newErrors;
+    };
+
+    const handleBack = () => {
+        navigate("/booking/seat-selection", {
+            state:{selectedItinerary,
+            returnItinerary,
+            searchParams,
+            passengers,
+            pricingSummary,
+            seatSelections}
+        });
     };
 
     const handleSubmit = async () => {
@@ -459,14 +471,21 @@ export default function BookingPayment() {
                 </div>
             </div>
 
-            
-            <button
-                onClick={handleSubmit}
-                disabled={submitting}
-                className="w-full bg-blue-600 text-white py-3 rounded font-semibold hover:bg-blue-700 disabled:opacity-50"
-            >
-                {submitting ? "Processing..." : `Pay $${totalPrice}`}
-            </button>
+            <div className="flex items-center gap-6 mt-10 w-full">
+                <Button 
+                variant="outline" 
+                onClick={handleBack} 
+                className="w-1/2 py-3 text-base rounded-none font-semibold"> 
+                Back 
+                </Button>
+                <button
+                    onClick={handleSubmit}
+                    disabled={submitting}
+                    className="w-1/2 bg-blue-600 text-white py-3 rounded font-semibold hover:bg-blue-700 disabled:opacity-50"
+                >
+                    {submitting ? "Processing..." : `Pay $${totalPrice}`}
+                </button>
+            </div>
         </div>
     );
 }

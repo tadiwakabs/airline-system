@@ -8,6 +8,7 @@ import Dropdown from "../../components/common/Dropdown";
 import Separator from "../../components/common/Separator";
 import { useLocation, useNavigate } from "react-router-dom";
 import FormError from "../../components/common/FormError";
+import { useAuth } from "../../contexts/AuthContext";
 
 import { useFormErrors } from "../../utils/useFormErrors";
 import {
@@ -59,6 +60,7 @@ const passengerTypeOptions = [
 ];
 
 export default function Profile() {
+    const { updateUser } = useAuth();
     const location = useLocation();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState(
@@ -323,6 +325,13 @@ export default function Profile() {
 
         try {
             const response = await updateMyProfile(editableData);
+
+            updateUser({
+                firstName: editableData.firstName,
+                lastName: editableData.lastName,
+                email: editableData.email,
+            });
+
             setProfileMessage(response.message || "Profile updated.");
             await loadProfileAndPassenger();
         } catch (err) {
@@ -661,12 +670,6 @@ export default function Profile() {
                             <h1 className="text-lg font-semibold">Account Details</h1>
                             <div className="grid gap-4 md:grid-cols-2">
                                 <TextInput
-                                    label="User ID"
-                                    value={profile.userId}
-                                    disabled
-                                    className="bg-gray-50"
-                                />
-                                <TextInput
                                     label="Username"
                                     value={profile.username}
                                     disabled
@@ -772,12 +775,6 @@ export default function Profile() {
 
                             <form onSubmit={handlePassengerSubmit} className="space-y-4">
                                 <div className="grid gap-4 md:grid-cols-2">
-                                    <TextInput
-                                        label="Passenger ID"
-                                        value={passenger?.passengerId || ""}
-                                        disabled
-                                        className="bg-gray-50"
-                                    />
                                     <TextInput
                                         label="First Name"
                                         value={profile.firstName || ""}

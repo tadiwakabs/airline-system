@@ -8,6 +8,8 @@ import {
     getPassengersForFlight,
     getSeatsForFlight,
 } from "../../services/passengerService";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -210,6 +212,8 @@ export default function PassengerList() {
     const [sortBy, setSortBy] = useState("seat");
     const [searchTerm, setSearchTerm] = useState("");
     const [highlightedSeat, setHighlightedSeat] = useState(null);
+    const {user}= useAuth();
+    const navigate = useNavigate();
 
     // ── Load handler ─────────────────────────────────────────────────────────
 
@@ -266,6 +270,17 @@ export default function PassengerList() {
         const available = seats.filter((s) => s.seatStatus === "Available").length;
         return { total, occupied, reserved, available };
     }, [seats]);
+    
+    const handleBack = () => {
+        const role = user?.userRole;
+        
+        if (role == "Administrator"){
+            navigate("/admin/dashboard");
+        } else {
+            navigate("/employee/dashboard")
+        }   
+    };
+
 
     // Filtered + sorted passenger list
     const filteredTickets = useMemo(() => {
@@ -319,11 +334,16 @@ export default function PassengerList() {
         <div className="mx-auto max-w-7xl px-4 py-10">
 
             {/* Page header */}
-            <div className="mb-6">
+            <div className="mb-4 flex justify-between items-start">
                 <h1 className="text-2xl font-semibold text-gray-900">Passenger List</h1>
                 <p className="mt-1 text-sm text-gray-500">
                     Enter a flight number to view all booked passengers and seat assignments.
                 </p>
+                <Button 
+                    onClick={handleBack} 
+                    className="bg-blue-600 text-white hover:bg-blue-700 border-none px-6 py-2 rounded-none font-bold transition-colors"> 
+                    Back 
+                </Button>
             </div>
 
             {/* Flight number lookup */}

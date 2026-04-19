@@ -295,11 +295,10 @@ const ManageBooking = () => {
                 JSON.stringify(newSeatNumber), 
                 { headers: { 'Content-Type': 'application/json' } }
             );
-            alert("Seat updated successfully!");
             handleCloseModal();
             fetchBookings(); // Refresh list
         } catch (err) {
-            alert("Failed to update seat.");
+            setError("Failed to update seat. Please try again. ")
         }
     };
 
@@ -334,10 +333,12 @@ const ManageBooking = () => {
             </div>
         ):(
         <div className="space-y-6">
-            {groupedBookings.map((b) => {
+            {(groupedBookings|| [])
+                    .filter((b) => b.bookingStatus !== "Cancelled" )
+                    .map((b) => {
+                const flight = flightDetails[b.bookingId];
                 const isCancelled = b.bookingStatus === "Cancelled" || b.bookingStatus === 2;
-                const statusColor = isCancelled ? 'bg-red-500' : 'bg-green-500';
-                const statusText = isCancelled ? "Cancelled" : "Confirmed";
+                
 
                 return (
                     <div key={b.bookingId} className="bg-white rounded-2xl border border-gray-100 shadow-lg mb-8 overflow-hidden">
@@ -347,8 +348,8 @@ const ManageBooking = () => {
                                 <span className="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-black rounded-full uppercase">
                                     Ref: {b.bookingId.substring(0, 8)}
                                 </span>
-                                <div className={`h-2.5 w-2.5 rounded-full ${statusColor}`} />
-                                <span className="text-sm font-bold text-gray-700">{statusText}</span>
+                                <div className="h-2.5 w-2.5 rounded-full" />
+                                <span className="text-sm font-bold text-gray-700"></span>
                             </div>
 
                             {/* --- NESTED FLIGHTS LOOP --- */}

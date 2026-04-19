@@ -66,6 +66,34 @@ namespace AirlineAPI.Controllers
 
                 if (dto.DaysOfWeek == null || dto.DaysOfWeek.Count == 0)
                 { errors.Add(new { index, message = "At least one day of week must be selected." }); continue; }
+
+                // Return-trip validation
+                if (dto.IsReturn)
+                {
+                    if (!dto.LayoverHours.HasValue || dto.LayoverHours.Value < 1)
+                    { errors.Add(new { index, message = "Layover hours must be at least 1 when creating a return schedule." }); continue; }
+
+                    var sampleDate = dto.StartDate.Date;
+                    var sampleDepartLocal = sampleDate.Add(dto.DepartureTimeOfDay);
+                    var sampleArrivalLocal = sampleDate.Add(dto.ArrivalTimeOfDay);
+                    if (sampleArrivalLocal <= sampleDepartLocal)
+                        sampleArrivalLocal = sampleArrivalLocal.AddDays(1);
+
+                    var sampleAirports = await GetFlightAirportsAsync(dto.DepartingPortCode, dto.ArrivingPortCode);
+                    if (sampleAirports == null)
+                    {
+                        errors.Add(new { index, message = "One or both airports are invalid, or missing timezone data." });
+                        continue;
+                    }
+
+                    var sampleDepartUtc = ConvertLocalToUtc(sampleDepartLocal, sampleAirports.Value.dep.timezone!);
+                    var sampleArrivalUtc = ConvertLocalToUtc(sampleArrivalLocal, sampleAirports.Value.arr.timezone!);
+
+                    var outboundDuration = sampleArrivalUtc - sampleDepartUtc;
+                    var totalRoundTripHours = outboundDuration.TotalHours * 2 + dto.LayoverHours.Value;
+                    if (totalRoundTripHours > 24)
+                    { errors.Add(new { index, message = $"Total round-trip time ({totalRoundTripHours:F1} hrs) exceeds 24 hours." }); continue; }
+                }
                 
                 var airports = await GetFlightAirportsAsync(dto.DepartingPortCode, dto.ArrivingPortCode);
                 if (airports == null)
@@ -132,6 +160,35 @@ namespace AirlineAPI.Controllers
                         flightChange = dto.FlightChange,
                         recurringScheduleId = schedule.Id,
                     });
+
+                    // Return leg
+                    if (dto.IsReturn && dto.LayoverHours.HasValue)
+                    {
+                        var outboundDuration = arrivalUtc - departUtc;
+                        var returnDepartLocal = scheduledArrivalLocal.AddHours(dto.LayoverHours.Value);
+                        var returnDepartUtc = ConvertLocalToUtc(returnDepartLocal, airports.Value.arr.timezone!);
+                        var returnArrivalUtc = returnDepartUtc.Add(outboundDuration);
+
+                        var originTz = ResolveTimeZone(airports.Value.dep.timezone!);
+                        var returnArrivalLocal = TimeZoneInfo.ConvertTimeFromUtc(returnArrivalUtc, originTz);
+
+                        flightsCreated.Add(new Flight
+                        {
+                            flightNum = nextFlightNum++,
+                            departTime = returnDepartUtc,
+                            arrivalTime = returnArrivalUtc,
+                            scheduledDepartLocal = returnDepartLocal,
+                            scheduledArrivalLocal = returnArrivalLocal,
+                            aircraftUsed = dto.AircraftUsed,
+                            status = dto.Status,
+                            departingPort = dto.ArrivingPortCode,  // reversed
+                            arrivingPort = dto.DepartingPortCode,  // reversed
+                            isDomestic = dto.IsDomestic,
+                            distance = dto.Distance,
+                            flightChange = dto.FlightChange,
+                            recurringScheduleId = schedule.Id,
+                        });
+                    }
                 }
 
                 _context.Flights.AddRange(flightsCreated);
@@ -177,6 +234,35 @@ namespace AirlineAPI.Controllers
 
             if (dto.DaysOfWeek == null || dto.DaysOfWeek.Count == 0)
                 return BadRequest(new { message = "At least one day of week must be selected." });
+
+            // Return-trip validation
+            if (dto.IsReturn)
+            {
+                if (!dto.LayoverHours.HasValue || dto.LayoverHours.Value < 1)
+                    return BadRequest(new { message = "Layover hours must be at least 1 when creating a return schedule." });
+
+                var sampleDate = dto.StartDate.Date;
+                var sampleDepartLocal = sampleDate.Add(dto.DepartureTimeOfDay);
+                var sampleArrivalLocal = sampleDate.Add(dto.ArrivalTimeOfDay);
+                if (sampleArrivalLocal <= sampleDepartLocal)
+                    sampleArrivalLocal = sampleArrivalLocal.AddDays(1);
+
+                var sampleAirports = await GetFlightAirportsAsync(dto.DepartingPortCode, dto.ArrivingPortCode);
+                if (sampleAirports == null)
+                    return BadRequest(new { message = "One or both airports are invalid, or missing timezone data." });
+
+                var sampleDepartUtc = ConvertLocalToUtc(sampleDepartLocal, sampleAirports.Value.dep.timezone!);
+                var sampleArrivalUtc = ConvertLocalToUtc(sampleArrivalLocal, sampleAirports.Value.arr.timezone!);
+
+                var outboundDuration = sampleArrivalUtc - sampleDepartUtc;
+                var layoverHours = dto.LayoverHours!.Value;
+                var totalRoundTripHours = outboundDuration.TotalHours * 2 + layoverHours;
+                if (totalRoundTripHours > 24)
+                    return BadRequest(new
+                    {
+                        message = $"Total round-trip time ({totalRoundTripHours:F1} hrs) exceeds 24 hours. Reduce the layover or choose a shorter route."
+                    });
+            }
             
             var airports = await GetFlightAirportsAsync(dto.DepartingPortCode, dto.ArrivingPortCode);
             if (airports == null)
@@ -247,7 +333,36 @@ namespace AirlineAPI.Controllers
                     flightChange = dto.FlightChange,
                     recurringScheduleId = id
                 });
-            }
+
+                // Return leg
+                if (dto.IsReturn && dto.LayoverHours.HasValue)
+                {
+                    var outboundDuration = arrivalUtc - departUtc;
+                    var returnDepartLocal = scheduledArrivalLocal.AddHours(dto.LayoverHours.Value);
+                    var returnDepartUtc = ConvertLocalToUtc(returnDepartLocal, airports.Value.arr.timezone!);
+                    var returnArrivalUtc = returnDepartUtc.Add(outboundDuration);
+
+                    var originTz = ResolveTimeZone(airports.Value.dep.timezone!);
+                    var returnArrivalLocal = TimeZoneInfo.ConvertTimeFromUtc(returnArrivalUtc, originTz);
+
+                    flightsToCreate.Add(new Flight
+                    {
+                        flightNum = nextFlightNum++,
+                        departTime = returnDepartUtc,
+                        arrivalTime = returnArrivalUtc,
+                        scheduledDepartLocal = returnDepartLocal,
+                        scheduledArrivalLocal = returnArrivalLocal,
+                        aircraftUsed = dto.AircraftUsed,
+                        status = dto.Status,
+                        departingPort = dto.ArrivingPortCode,  // reversed
+                        arrivingPort = dto.DepartingPortCode,  // reversed
+                        isDomestic = dto.IsDomestic,
+                        distance = dto.Distance,
+                        flightChange = dto.FlightChange,
+                        recurringScheduleId = id
+                    });
+                }
+            } // end date loop
 
             _context.Flights.AddRange(flightsToCreate);
             await _context.SaveChangesAsync();

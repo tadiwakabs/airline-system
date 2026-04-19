@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 
 import TabBar from "../components/home/TabBar.jsx";
 import FlightStatusPanel from "../components/home/FlightStatus.jsx";
@@ -114,9 +115,13 @@ export default function Home() {
     const navigate = useNavigate();
 
     // Added notification loader
+    const { isAuthenticated } = useAuth();
+
     useEffect(() => {
-        loadNotifications();
-    }, []);
+        if (isAuthenticated) {
+            loadNotifications();
+        }
+    }, [isAuthenticated]);
 
     const loadNotifications = async () => {
         try {
@@ -174,96 +179,71 @@ export default function Home() {
                 <Hero />
 
                 {/* Added notifications section */}
-                <section className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h2 className="text-xl font-semibold text-gray-900">
-                                Notifications
-                            </h2>
-                            <p className="text-sm text-gray-500">
-                                Important flight and standby updates for your account.
-                            </p>
+                {isAuthenticated && notifications.length > 0 && (
+                    <section className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h2 className="text-xl font-semibold text-gray-900">
+                                    Notifications
+                                </h2>
+                                <p className="text-sm text-gray-500">
+                                    Important flight and standby updates for your account.
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    navigate("/profile", {
+                                        state: { defaultTab: "notifications" },
+                                    })
+                                }
+                                className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
+                            >
+                                View All
+                            </button>
                         </div>
 
-                        <button
-                            type="button"
-                            onClick={() => navigate("/profile", { state: { defaultTab: "notifications" } })}
-                            className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
-                        >
-                            View All
-                        </button>
-                    </div>
+                        <div className="space-y-3">
+                            {notifications.slice(0, 3).map((notification) => (
+                                <Card
+                                    key={notification.notificationId}
+                                    className="p-5"
+                                >
+                                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                        <div>
+                                            <p className="text-sm font-semibold text-gray-900">
+                                                {notification.message}
+                                            </p>
 
-                    {notificationsLoading && (
-                        <Card className="p-5">
-                            <p>Loading notifications...</p>
-                        </Card>
-                    )}
-
-                    {!notificationsLoading && notificationsError && (
-                        <Card className="p-5 border-red-200">
-                            <p className="text-red-600">{notificationsError}</p>
-                        </Card>
-                    )}
-
-                    {!notificationsLoading &&
-                        !notificationsError &&
-                        notifications.length === 0 && (
-                            <Card className="p-5">
-                                <p className="text-sm text-gray-600">
-                                    No notifications right now.
-                                </p>
-                            </Card>
-                        )}
-
-                    {!notificationsLoading &&
-                        !notificationsError &&
-                        notifications.length > 0 && (
-                            <div className="space-y-3">
-                                {notifications.slice(0, 3).map((notification) => (
-                                    <Card
-                                        key={notification.notificationId}
-                                        className="p-5"
-                                    >
-                                        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                                            <div>
-                                                <p className="text-sm font-semibold text-gray-900">
-                                                    {notification.message}
+                                            <div className="mt-2 space-y-1 text-xs text-gray-500">
+                                                <p>
+                                                    Flight: {notification.flightNum || "—"}
                                                 </p>
-
-                                                <div className="mt-2 space-y-1 text-xs text-gray-500">
-                                                    <p>
-                                                        Flight:{" "}
-                                                        {notification.flightNum || "—"}
-                                                    </p>
-                                                    <p>
-                                                        Created:{" "}
-                                                        {notification.createdAt
-                                                            ? formatDateTime(
-                                                                  notification.createdAt
-                                                              )
-                                                            : "—"}
-                                                    </p>
-                                                </div>
+                                                <p>
+                                                    Created:{" "}
+                                                    {notification.createdAt
+                                                        ? formatDateTime(notification.createdAt)
+                                                        : "—"}
+                                                </p>
                                             </div>
-
-                                            <span
-                                                className={`inline-flex w-fit rounded-full px-3 py-1 text-sm font-semibold ${
-                                                    (
-                                                        notification.notificationStatus || ""
-                                                    ).toLowerCase() === "unread"
-                                                        ? "bg-blue-100 text-blue-700"
-                                                        : "bg-gray-100 text-gray-700"
-                                                }`}
-                                            >
-                                                {notification.notificationStatus || "Unknown"}
-                                            </span>
                                         </div>
-                                    </Card>
-                                ))}
-                            </div>
-                        )}
-                </section>
+
+                                        <span
+                                            className={`inline-flex w-fit rounded-full px-3 py-1 text-sm font-semibold ${
+                                                (notification.notificationStatus || "").toLowerCase() === "unread"
+                                                    ? "bg-blue-100 text-blue-700"
+                                                    : "bg-gray-100 text-gray-700"
+                                            }`}
+                                        >
+                            {notification.notificationStatus || "Unknown"}
+                        </span>
+                                    </div>
+                                </Card>
+                            ))}
+                        </div>
+                    </section>
+                )}
 
                 <section className="space-y-4">
                     <TabBar active={activeTab} onChange={setActiveTab} />

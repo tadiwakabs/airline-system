@@ -189,7 +189,10 @@ export default function BookingPassengers() {
     const { state } = useLocation();
     const navigate = useNavigate();
 
-    const selectedItinerary = state?.selectedItinerary;
+    const selectedItinerary =
+        state?.selectedItinerary ||
+        state?.itinerary ||
+        state?.selectedOutbound;
     const searchParams = state?.searchParams;
 
     const initialPassengerForms = useMemo(
@@ -429,6 +432,12 @@ export default function BookingPassengers() {
         } catch (err) {
             setServerErrors(err);
         }
+    };
+
+    const handleBack = () => {
+        navigate("/flight-search", {
+            state: { searchParams,selectedItinerary,fromBooking: true }
+        });
     };
 
     const isDomesticItinerary =
@@ -681,7 +690,8 @@ export default function BookingPassengers() {
                     })}
 
                 {!loading && (
-                    <div className="flex justify-end">
+                    <div className="flex justify-center mt-8">
+                        <Button variant="outline" onClick={handleBack} className="mr-auto"> Back </Button>
                         <Button onClick={handleContinue}>Continue</Button>
                     </div>
                 )}
