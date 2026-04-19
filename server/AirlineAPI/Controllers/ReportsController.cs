@@ -92,6 +92,31 @@ namespace AirlineAPI.Controllers
             } catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
         }
 
+        [HttpGet("heatmap")]
+        public async Task<IActionResult> GetHeatmap()
+        {
+           try {
+                var data = await _context.Database.SqlQueryRaw<HeatmapRow>(@"
+                    SELECT 
+                        DAYOFWEEK(MIN(f.departTime)) - 1 AS dayOfWeek,
+                        WEEK(MIN(f.departTime), 1) - WEEK(DATE_SUB(MIN(f.departTime), INTERVAL DAYOFMONTH(MIN(f.departTime)) - 1 DAY), 1) + 1 AS weekOfMonth,
+                        MONTH(MIN(f.departTime)) AS month,
+                        YEAR(MIN(f.departTime)) AS year,
+                        CAST(COUNT(DISTINCT CASE WHEN t.status = 'Booked' THEN t.ticketCode END) AS SIGNED) AS passengers
+                    FROM Flight f
+                    LEFT JOIN Ticket t ON t.flightCode = f.flightNum
+                    GROUP BY 
+                        YEAR(f.departTime),
+                        MONTH(f.departTime),
+                        WEEK(f.departTime, 1),
+                        DAYOFWEEK(f.departTime)
+                    ORDER BY year, month, weekOfMonth, dayOfWeek").ToListAsync();
+                return Ok(data);
+            } catch (Exception ex) {
+                return StatusCode(500, new { message = ex.Message });
+            }
+        }
+
         [HttpGet("activity")]
         public async Task<IActionResult> GetActivity([FromQuery] string? startDate, [FromQuery] string? endDate)
         {
@@ -145,6 +170,14 @@ namespace AirlineAPI.Controllers
         public string peakDay { get; set; } = "";
         public double networkScore { get; set; }
         public string? marketTier { get; set; }
+    }
+
+    public class HeatmapRow {
+        public int dayOfWeek { get; set; }
+        public int weekOfMonth { get; set; }
+        public int month { get; set; }
+        public int year { get; set; }
+        public long passengers { get; set; }
     }
 
     public class ActivityRow {
