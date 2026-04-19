@@ -216,6 +216,18 @@ const ManageBooking = () => {
     const [loadingSeats, setLoadingSeats]     = useState(false);
     const [allowedClass, setAllowedClass]     = useState("economy");
     const [targetFlight, setTargetFlight]     = useState(null);
+    const [expandedBookings, setExpandedBookings] = useState({});
+
+    const toggleBookingCard = (bookingId) => {
+        setExpandedBookings((prev) => ({
+            ...prev,
+            [bookingId]: !prev[bookingId],
+        }));
+    };
+
+    const getPassengerCount = (booking) => {
+        return booking?.tickets?.length || 0;
+    };
 
     // cancellation modal
     const [cancelTarget, setCancelTarget]     = useState(null);
@@ -410,126 +422,198 @@ const ManageBooking = () => {
             ) : (
                 <div className="space-y-6">
                     {groupedBookings
-                        .filter((b) => b.bookingStatus !== "Cancelled")
-                        .map((b) => {
-                            const isCancelled = b.bookingStatus === "Cancelled" || b.bookingStatus === 2;
+                        .filter((booking) => booking.bookingStatus !== "Cancelled")
+                        .map((booking) => {
+                            const isExpanded = expandedBookings[booking.bookingId] || false;
+                            const passengerCount = getPassengerCount(booking);
+                            const firstFlight = booking.flights?.[0]?.flightInfo;
+                            const origin = firstFlight?.departingPortCode || "—";
+                            const destination = firstFlight?.arrivingPortCode || "—";
+                            const departureDisplay = firstFlight?.departTime
+                                ? formatDateTime(firstFlight.departTime)
+                                : "—";
 
                             return (
-                                <div key={b.bookingId} className="bg-white rounded-2xl border border-gray-100 shadow-lg mb-8 overflow-hidden">
-                                    <div className="p-8">
-                                        <div className="flex items-center gap-4 mb-8">
-                                            <span className="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-black rounded-full uppercase">
-                                                Ref: {b.bookingId.substring(0, 8)}
-                                            </span>
-                                        </div>
+                                <div
+                                    key={booking.bookingId}
+                                    className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden"
+                                >
+                                    {/* Collapsed header */}
+                                    <button
+                                        type="button"
+                                        onClick={() => toggleBookingCard(booking.bookingId)}
+                                        className="w-full text-left px-6 py-5 hover:bg-gray-50 transition"
+                                    >
+                                        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                                            <div>
+                                                <p className="text-xs font-bold tracking-widest text-blue-600 uppercase">
+                                                    Ref: {booking.bookingId?.slice(0, 8)}
+                                                </p>
 
-                                        {b.flights.map((flightGroup, index) => (
-                                            <div key={index} className="mt-10 pt-10 first:mt-0 first:pt-0 border-t border-dashed border-gray-100 relative">
-                                                {b.flights.length > 1 && (
-                                                    <p className="absolute top-3 left-0 text-[10px] font-black text-blue-400 uppercase tracking-widest">
-                                                        {index === 0 ? "Outbound Flight" : "Return Flight"}
+                                                <div className="mt-2 flex items-center gap-3">
+                                                    <h3 className="text-2xl font-extrabold text-[#0B1F44]">
+                                                        {origin}
+                                                    </h3>
+                                                    <span className="text-blue-500 text-lg">✈</span>
+                                                    <h3 className="text-2xl font-extrabold text-[#0B1F44]">
+                                                        {destination}
+                                                    </h3>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:min-w-[520px]">
+                                                <div>
+                                                    <p className="text-[11px] font-bold tracking-widest text-gray-400 uppercase">
+                                                        Departure
                                                     </p>
-                                                )}
-
-                                                {/* Route header */}
-                                                <div className="flex items-center gap-6 py-2">
-                                                    <div className="text-center min-w-[80px]">
-                                                        <p className="text-3xl font-black text-gray-900">{flightGroup.flightInfo.departingPortCode}</p>
-                                                        <p className="text-[10px] text-gray-400 uppercase font-bold">Departure</p>
-                                                    </div>
-                                                    <div className="flex-1 flex items-center gap-2">
-                                                        <div className="h-px flex-1 bg-gray-200" />
-                                                        <svg className="w-5 h-5 text-blue-500 rotate-90" fill="currentColor" viewBox="0 0 24 24">
-                                                            <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
-                                                        </svg>
-                                                        <div className="h-px flex-1 bg-gray-200" />
-                                                    </div>
-                                                    <div className="text-center min-w-[80px]">
-                                                        <p className="text-3xl font-black text-gray-900">{flightGroup.flightInfo.arrivingPortCode}</p>
-                                                        <p className="text-[10px] text-gray-400 uppercase font-bold">Arrival</p>
-                                                    </div>
+                                                    <p className="text-sm font-semibold text-gray-900 mt-1">
+                                                        {departureDisplay}
+                                                    </p>
                                                 </div>
 
-                                                {/* Info row */}
-                                                <div className="grid grid-cols-2 md:grid-cols-5 gap-y-6 gap-x-4 mt-8 pt-6 border-t border-gray-100">
-                                                    <div>
-                                                        <p className="text-[11px] text-gray-400 font-black uppercase tracking-wider mb-1">Departure</p>
-                                                        <p className="text-base font-bold text-gray-900">
-                                                            {new Date(flightGroup.flightInfo.departTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                                        </p>
-                                                        <p className="text-sm font-medium text-gray-500">{formatDateTime(flightGroup.flightInfo.departTime)}</p>
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-[11px] text-gray-400 font-black uppercase tracking-wider mb-1">Arrival Est.</p>
-                                                        <p className="text-base font-bold text-gray-900">
-                                                            {flightGroup.flightInfo.arrivalTime
-                                                                ? new Date(flightGroup.flightInfo.arrivalTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                                                                : "Same Day"}
-                                                        </p>
-                                                        <p className="text-sm font-medium text-gray-500">
-                                                            {flightGroup.flightInfo.arrivalTime ? formatDateTime(flightGroup.flightInfo.arrivalTime) : "TBD"}
-                                                        </p>
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-[11px] text-gray-400 font-black uppercase tracking-wider mb-1">Flight Details</p>
-                                                        <p className="text-base font-bold text-gray-900">#{flightGroup.flightInfo.flightNum}</p>
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-[11px] text-gray-400 font-black uppercase tracking-wider mb-1">Cabin Class</p>
-                                                        <p className="text-base font-bold text-blue-600 uppercase tracking-tight">
-                                                            {flightGroup.passengers[0]?.ticketClass || "Economy"}
-                                                        </p>
-                                                    </div>
-                                                    <div className="md:text-right">
-                                                        <p className="text-[11px] text-gray-400 font-black uppercase tracking-wider mb-1">Flight Status</p>
-                                                        <p className="text-s font-black text-green-600 uppercase">On Time</p>
-                                                    </div>
+                                                <div>
+                                                    <p className="text-[11px] font-bold tracking-widest text-gray-400 uppercase">
+                                                        Passengers
+                                                    </p>
+                                                    <p className="text-sm font-semibold text-gray-900 mt-1">
+                                                        {passengerCount}
+                                                    </p>
                                                 </div>
 
-                                                {/* Passenger cards */}
-                                                <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                    {flightGroup.passengers.map((ticket) => {
-                                                        const ticketBaggage = baggageByTicket[ticket.ticketCode] ?? [];
+                                                <div className="flex items-center lg:justify-end">
+                                        <span className="text-sm font-bold text-blue-600">
+                                            {isExpanded ? "Hide Details ▲" : "View Details ▼"}
+                                        </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </button>
+
+                                    {/* Expanded content */}
+                                    {isExpanded && (
+                                        <div className="border-t border-gray-100 px-6 py-6">
+                                            <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden">
+                                                <div className="p-8">
+                                                    <div className="flex items-center gap-4 mb-8">
+                                            <span className="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-black rounded-full uppercase">
+                                                Ref: {booking.bookingId.substring(0, 8)}
+                                            </span>
+                                                    </div>
+
+                                                    {booking.flights.map((flightGroup, index) => {
+                                                        const isCancelled = booking.bookingStatus === "Cancelled" || booking.bookingStatus === 2;
+
                                                         return (
-                                                            <div key={ticket.ticketCode} className="flex justify-between items-start p-5 bg-gray-50 rounded-2xl border border-gray-100 shadow-inner gap-3">
-                                                                <div className="min-w-0 flex-1">
-                                                                    <p className="font-black text-gray-900">
-                                                                        {ticket.passenger?.firstName} {ticket.passenger?.lastName}
+                                                            <div
+                                                                key={index}
+                                                                className="mt-10 pt-10 first:mt-0 first:pt-0 border-t border-dashed border-gray-100 relative"
+                                                            >
+                                                                {booking.flights.length > 1 && (
+                                                                    <p className="absolute top-3 left-0 text-[10px] font-black text-blue-400 uppercase tracking-widest">
+                                                                        {index === 0 ? "Outbound Flight" : "Return Flight"}
                                                                     </p>
-                                                                    <p className="text-s font-bold text-gray-500">
-                                                                        Seat <span className="text-blue-600 font-black">{ticket.seatNumber}</span>
-                                                                    </p>
-                                                                    <BaggageSummary
-                                                                        baggageList={ticketBaggage}
-                                                                        onRemoveExtra={promptRemoveBag}
-                                                                    />
+                                                                )}
+
+                                                                <div className="flex items-center gap-6 py-2">
+                                                                    <div className="text-center min-w-[80px]">
+                                                                        <p className="text-3xl font-black text-gray-900">{flightGroup.flightInfo.departingPortCode}</p>
+                                                                        <p className="text-[10px] text-gray-400 uppercase font-bold">Departure</p>
+                                                                    </div>
+                                                                    <div className="flex-1 flex items-center gap-2">
+                                                                        <div className="h-px flex-1 bg-gray-200" />
+                                                                        <svg className="w-5 h-5 text-blue-500 rotate-90" fill="currentColor" viewBox="0 0 24 24">
+                                                                            <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
+                                                                        </svg>
+                                                                        <div className="h-px flex-1 bg-gray-200" />
+                                                                    </div>
+                                                                    <div className="text-center min-w-[80px]">
+                                                                        <p className="text-3xl font-black text-gray-900">{flightGroup.flightInfo.arrivingPortCode}</p>
+                                                                        <p className="text-[10px] text-gray-400 uppercase font-bold">Arrival</p>
+                                                                    </div>
                                                                 </div>
-                                                                <button
-                                                                    onClick={() => openSeatModal(ticket, flightGroup.flightInfo)}
-                                                                    disabled={isCancelled}
-                                                                    className="text-xs font-black text-blue-600 hover:text-blue-800 uppercase tracking-widest transition-all shrink-0"
-                                                                >
-                                                                    Change Seat
-                                                                </button>
+
+                                                                <div className="grid grid-cols-2 md:grid-cols-5 gap-y-6 gap-x-4 mt-8 pt-6 border-t border-gray-100">
+                                                                    <div>
+                                                                        <p className="text-[11px] text-gray-400 font-black uppercase tracking-wider mb-1">Departure</p>
+                                                                        <p className="text-base font-bold text-gray-900">
+                                                                            {new Date(flightGroup.flightInfo.departTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                                        </p>
+                                                                        <p className="text-sm font-medium text-gray-500">{formatDateTime(flightGroup.flightInfo.departTime)}</p>
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="text-[11px] text-gray-400 font-black uppercase tracking-wider mb-1">Arrival Est.</p>
+                                                                        <p className="text-base font-bold text-gray-900">
+                                                                            {flightGroup.flightInfo.arrivalTime
+                                                                                ? new Date(flightGroup.flightInfo.arrivalTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                                                                                : "Same Day"}
+                                                                        </p>
+                                                                        <p className="text-sm font-medium text-gray-500">
+                                                                            {flightGroup.flightInfo.arrivalTime ? formatDateTime(flightGroup.flightInfo.arrivalTime) : "TBD"}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="text-[11px] text-gray-400 font-black uppercase tracking-wider mb-1">Flight Details</p>
+                                                                        <p className="text-base font-bold text-gray-900">#{flightGroup.flightInfo.flightNum}</p>
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="text-[11px] text-gray-400 font-black uppercase tracking-wider mb-1">Cabin Class</p>
+                                                                        <p className="text-base font-bold text-blue-600 uppercase tracking-tight">
+                                                                            {flightGroup.passengers[0]?.ticketClass || "Economy"}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="md:text-right">
+                                                                        <p className="text-[11px] text-gray-400 font-black uppercase tracking-wider mb-1">Flight Status</p>
+                                                                        <p className="text-s font-black text-green-600 uppercase">On Time</p>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                                    {flightGroup.passengers.map((ticket) => {
+                                                                        const ticketBaggage = baggageByTicket[ticket.ticketCode] ?? [];
+
+                                                                        return (
+                                                                            <div key={ticket.ticketCode} className="flex justify-between items-start p-5 bg-gray-50 rounded-2xl border border-gray-100 shadow-inner gap-3">
+                                                                                <div className="min-w-0 flex-1">
+                                                                                    <p className="font-black text-gray-900">
+                                                                                        {ticket.passenger?.firstName} {ticket.passenger?.lastName}
+                                                                                    </p>
+                                                                                    <p className="text-s font-bold text-gray-500">
+                                                                                        Seat <span className="text-blue-600 font-black">{ticket.seatNumber}</span>
+                                                                                    </p>
+                                                                                    <BaggageSummary
+                                                                                        baggageList={ticketBaggage}
+                                                                                        onRemoveExtra={promptRemoveBag}
+                                                                                    />
+                                                                                </div>
+                                                                                <button
+                                                                                    onClick={() => openSeatModal(ticket, flightGroup.flightInfo)}
+                                                                                    disabled={isCancelled}
+                                                                                    className="text-xs font-black text-blue-600 hover:text-blue-800 uppercase tracking-widest transition-all shrink-0"
+                                                                                >
+                                                                                    Change Seat
+                                                                                </button>
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
                                                             </div>
                                                         );
                                                     })}
                                                 </div>
-                                            </div>
-                                        ))}
-                                    </div>
 
-                                    {/* Cancel action */}
-                                    <div className="p-5 bg-gray-50 border-t border-gray-100 flex justify-end">
-                                        {!isCancelled && (
-                                            <button
-                                                onClick={() => promptCancel(b.bookingId)}
-                                                className="px-8 py-3 bg-red-50 text-red-600 font-bold text-sm rounded-xl transition-all hover:bg-red-100 active:scale-95"
-                                            >
-                                                Cancel Entire Itinerary
-                                            </button>
-                                        )}
-                                    </div>
+                                                <div className="p-5 bg-gray-50 border-t border-gray-100 flex justify-end">
+                                                    {booking.bookingStatus !== "Cancelled" && booking.bookingStatus !== 2 && (
+                                                        <button
+                                                            onClick={() => promptCancel(booking.bookingId)}
+                                                            className="px-8 py-3 bg-red-50 text-red-600 font-bold text-sm rounded-xl transition-all hover:bg-red-100 active:scale-95"
+                                                        >
+                                                            Cancel Entire Itinerary
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}
