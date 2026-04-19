@@ -6,7 +6,7 @@ import Dropdown from "../../components/common/Dropdown";
 import Separator from "../../components/common/Separator";
 import Modal from "../../components/common/Modal";
 import Combobox from "../../components/common/Combobox";
-import airportData from "../../dropdownData/airports.json";
+import { getAllAirports } from "../../services/airportService";
 import {
     getAllAircraft,
     createAircraft,
@@ -24,11 +24,6 @@ const emptyForm = {
     flightRange: "",
     currentAirportCode: "",
 };
-
-const airportOptions = airportData.map((a) => ({
-    label: a.label,
-    value: a.value,
-}));
 
 // ── CSV helpers ───────────────────────────────────────────────────────────────
 
@@ -122,6 +117,8 @@ export default function Aircraft() {
     const [sortField,    setSortField]    = useState("tailnumber");
     const [sortDir,      setSortDir]      = useState("asc");
     const { errors: serverErrors, setErrors: setServerErrors, clearErrors } = useFormErrors();
+    const [airportOptions, setAirportOptions] = useState([]);
+
 
     const [page, setPage] = useState(1);
     const PAGE_SIZE = 50;
@@ -135,7 +132,16 @@ export default function Aircraft() {
     const fileRef = useRef(null);
 
     // ── Load ──────────────────────────────────────────────────────────────────
-    useEffect(() => { fetchAircraft(); }, []);
+    useEffect(() => { 
+        fetchAircraft();
+        getAllAirports()
+            .then((res) =>
+                setAirportOptions(
+                    res.data.map((a) => ({ label: `${a.airportCode} - ${a.airportName}`, value: a.airportCode }))
+                )
+            )
+            .catch(() => {});
+        }, []);
 
     useEffect(() => {
         let data = [...aircraftList];

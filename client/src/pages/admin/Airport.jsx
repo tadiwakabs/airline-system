@@ -148,15 +148,21 @@ export default function Airports() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        const payload = {
+            ...form,
+            state: form.country === "US" ? (form.state || null) : null,
+        };
+
         try {
             clearErrors();
             if (editingCode) {
-                await updateAirport(editingCode, form);
+                await updateAirport(editingCode, payload);
                 setAirportList((prev) =>
-                    prev.map((a) => (a.airportCode === editingCode ? { ...a, ...form } : a))
+                    prev.map((a) => (a.airportCode === editingCode ? { ...a, ...payload } : a))
                 );
             } else {
-                const res = await createAirport(form);
+                const res = await createAirport(payload);
                 setAirportList((prev) => [...prev, res.data]);
             }
             setShowForm(false);

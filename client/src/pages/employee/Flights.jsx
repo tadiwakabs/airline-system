@@ -26,7 +26,6 @@ import {
     deleteRecurringSchedule,
     bulkImportRecurringSchedules,
 } from "../../services/recurringScheduleService";
-import airportOptions from "../../dropdownData/airports.json";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -41,8 +40,8 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
     return Math.round(R * 2 * Math.asin(Math.sqrt(a)));
 }
 
-function getAirportCoords(code) {
-    return airportOptions.find((a) => a.value === code) ?? null;
+function getAirportCoords(code, airportMeta) {
+    return airportMeta.find((a) => a.airportCode === code) ?? null;
 }
 
 function formatTime(timeStr) {
@@ -305,10 +304,10 @@ export default function Flights() {
     const [isDeleteFlightDialogOpen, setIsDeleteFlightDialogOpen] = useState(false);
     const [flightToDelete, setFlightToDelete] = useState(null);
     // airport filter states — flights tab
-    const [apDepF,  setApDepF]  = useState(airportOptions);
-    const [apArrF,  setApArrF]  = useState(airportOptions);
-    const [apDepRF, setApDepRF] = useState(airportOptions);
-    const [apArrRF, setApArrRF] = useState(airportOptions);
+    const [apDepF,  setApDepF]  = useState([]);
+    const [apArrF,  setApArrF]  = useState([]);
+    const [apDepRF, setApDepRF] = useState([]);
+    const [apArrRF, setApArrRF] = useState([]);
 
     // ── Recurring Schedules tab ───────────────────────────────────────────────
     const [schedules, setSchedules] = useState([]);
@@ -321,8 +320,8 @@ export default function Flights() {
     const [scheduleToDelete, setScheduleToDelete] = useState(null);
     const [deleteScheduleMode, setDeleteScheduleMode] = useState("unlink"); // "unlink" | "delete"
     // airport filter states — schedule modal
-    const [apDepS, setApDepS] = useState(airportOptions);
-    const [apArrS, setApArrS] = useState(airportOptions);
+    const [apDepS,  setApDepS]  = useState([]);
+    const [apArrS,  setApArrS]  = useState([]);
     const [airportMeta, setAirportMeta] = useState([]);
 
     // CSV importing states
@@ -339,6 +338,19 @@ export default function Flights() {
         loadAircraft();
         loadAirportMeta();
     }, []);
+
+    useEffect(() => {
+        const opts = airportMeta.map((a) => ({
+            label: `${a.airportCode} - ${a.airportName}`,
+            value: a.airportCode,
+        }));
+        setApDepF(opts);
+        setApArrF(opts);
+        setApDepRF(opts);
+        setApArrRF(opts);
+        setApDepS(opts);
+        setApArrS(opts);
+    }, [airportMeta]);
 
     const loadAircraft = async () => {
         try {
@@ -410,31 +422,31 @@ export default function Flights() {
 
     // ── Auto-distance effects ─────────────────────────────────────────────────
     useEffect(() => {
-        const dep = getAirportCoords(formData.departingPortCode);
-        const arr = getAirportCoords(formData.arrivingPortCode);
+        const dep = getAirportCoords(formData.departingPortCode, airportMeta);
+        const arr = getAirportCoords(formData.arrivingPortCode, airportMeta);
         setFormData((p) => ({
             ...p,
-            distance: dep && arr ? haversineDistance(dep.lat, dep.lng, arr.lat, arr.lng) : "",
+            distance: dep && arr ? haversineDistance(dep.latitude, dep.longitude, arr.latitude, arr.longitude) : "",
         }));
-    }, [formData.departingPortCode, formData.arrivingPortCode]);
+    }, [formData.departingPortCode, formData.arrivingPortCode, airportMeta]);
 
     useEffect(() => {
-        const dep = getAirportCoords(recurringData.departingPortCode);
-        const arr = getAirportCoords(recurringData.arrivingPortCode);
+        const dep = getAirportCoords(recurringData.departingPortCode, airportMeta);
+        const arr = getAirportCoords(recurringData.arrivingPortCode, airportMeta);
         setRecurringData((p) => ({
             ...p,
-            distance: dep && arr ? haversineDistance(dep.lat, dep.lng, arr.lat, arr.lng) : "",
+            distance: dep && arr ? haversineDistance(dep.latitude, dep.longitude, arr.latitude, arr.longitude) : "",
         }));
-    }, [recurringData.departingPortCode, recurringData.arrivingPortCode]);
+    }, [recurringData.departingPortCode, recurringData.arrivingPortCode, airportMeta]);
 
     useEffect(() => {
-        const dep = getAirportCoords(scheduleForm.departingPortCode);
-        const arr = getAirportCoords(scheduleForm.arrivingPortCode);
+        const dep = getAirportCoords(scheduleForm.departingPortCode, airportMeta);
+        const arr = getAirportCoords(scheduleForm.arrivingPortCode, airportMeta);
         setScheduleForm((p) => ({
             ...p,
-            distance: dep && arr ? haversineDistance(dep.lat, dep.lng, arr.lat, arr.lng) : "",
+            distance: dep && arr ? haversineDistance(dep.latitude, dep.longitude, arr.latitude, arr.longitude) : "",
         }));
-    }, [scheduleForm.departingPortCode, scheduleForm.arrivingPortCode]);
+    }, [scheduleForm.departingPortCode, scheduleForm.arrivingPortCode, airportMeta]);
 
     // ── Flights tab handlers ──────────────────────────────────────────────────
 
@@ -813,7 +825,9 @@ export default function Flights() {
         );
 
     const filterAirports = (q) =>
-        airportOptions.filter((o) => o.label.toLowerCase().includes(q.toLowerCase()));
+        airportMeta
+            .map((a) => ({ label: `${a.airportCode} - ${a.airportName}`, value: a.airportCode }))
+            .filter((o) => o.label.toLowerCase().includes(q.toLowerCase()));
 
     // Reusable form sections
     const renderAircraftAndStatus = (data, setData) => (
