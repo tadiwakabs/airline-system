@@ -1,10 +1,11 @@
 import React from 'react';
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import './globals.css'
 import AppLayout from "./components/layout/AppLayout.jsx";
 import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
 import PublicOnlyRoute from "./components/auth/PublicOnlyRoute.jsx";
 import RoleProtectedRoute from "./components/auth/RoleProtectedRoute.jsx";
+import BackgroundSlider from "./components/layout/BackgroundSlider.jsx"
 
 // Route Imports
 import Home from './pages/Home'
@@ -34,11 +35,29 @@ import Admin from './pages/admin/AdminDashboard.jsx';
 import Employee from './pages/employee/EmployeeDashboard.jsx';
 import Reports from './pages/admin/Reports'
 
-
+// Other
+import FlightAutoFill from "./pages/admin/FlightAutoFill";
 
 function App() {
+    const location = useLocation();
+
+    const animatedPaths = ["/", "/login", "/register", "/book"];
+    const isAnimatedPage = animatedPaths.includes(location.pathname);
+
     return (
         <AuthProvider>
+            {isAnimatedPage ? (
+                <BackgroundSlider />
+            ) : (
+                <div 
+                    className="fixed inset-0 -z-10 bg-cover bg-center"
+                    style={{ 
+                        backgroundImage: `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('https://images.unsplash.com/photo-1542296332-2e4473faf563?q=80&w=1920&auto=format&fit=crop')`,
+                        backgroundAttachment: 'fixed'
+                    }}
+                />
+            )}
+
             <AppLayout>
                 <Routes>
                     {/* Open Routes */}
@@ -151,6 +170,15 @@ function App() {
                             <Reports />
                         </RoleProtectedRoute>} />
 
+
+                    <Route
+                        path="/internal/flight-auto-fill"
+                        element={
+                            <RoleProtectedRoute allowedRoles={["Administrator"]}>
+                                <FlightAutoFill />
+                            </RoleProtectedRoute>
+                        }
+                    />
                 </Routes>
             </AppLayout>
         </AuthProvider>

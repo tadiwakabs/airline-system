@@ -64,30 +64,41 @@ function Admin() {
     ];
 
     return (
-        <div className="max-w-6xl mx-auto px-4 py-10">
-            <header className="mb-8">
-                <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-                <p className="font-semibold text-gray-500 mt-2">Welcome back. Select an operation below to get started.</p>
+        <div className="max-w-6xl mx-auto px-4 py-12">
+            
+            <header className="mb-12">
+                <h1 className="text-5xl font-black text-white drop-shadow-2xl tracking-tight">
+                    Admin Dashboard
+                </h1>
+                <p className="text-lg font-bold text-white mt-3 drop-shadow-lg opacity-90">
+                    Welcome back. Select an operation below to get started.
+                </p>
             </header>
 
-            <div className="flex flex-wrap justify-center gap-6">
+            {/* --- Dashboard Grid --- */}
+            <div className="flex flex-wrap justify-center gap-8">
                 {menuItems.map((item) => (
                     <button
                         key={item.label}
                         onClick={() => navigate(item.path)}
-                        className="group relative flex flex-col items-center justify-center p-8 bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-xl hover:border-blue-500 transition-all duration-300 text-center w-full sm:w-64"
+                        className="group relative flex flex-col items-center justify-center p-10 bg-white/95 backdrop-blur-md border-none rounded-[2.5rem] shadow-xl hover:shadow-blue-500/20 hover:-translate-y-2 transition-all duration-300 text-center w-full sm:w-72"
                     >
-                        <div className={`w-16 h-16 ${item.color} rounded-full flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform shadow-inner`}>
+                        {/* Icon Container */}
+                        <div className={`w-20 h-20 ${item.color} rounded-3xl flex items-center justify-center text-4xl mb-6 group-hover:scale-110 transition-transform shadow-lg`}>
                             {item.icon}
                         </div>
 
-                        <h3 className="text-lg font-bold text-gray-800 group-hover:text-blue-600">
+                        {/* Text Content */}
+                        <h3 className="text-xl font-black text-slate-900 group-hover:text-blue-600 transition-colors">
                             {item.label}
                         </h3>
 
-                        <span className="font-semibold text-sm text-gray-500 mt-1 leading-tight">
+                        <p className="text-sm font-semibold text-slate-500 mt-2 leading-relaxed">
                             {item.description}
-                        </span>
+                        </p>
+
+                        {/* Subtle bottom indicator on hover */}
+                        <div className="absolute bottom-4 w-12 h-1.5 bg-transparent group-hover:bg-blue-600/20 rounded-full transition-all" />
                     </button>
                 ))}
             </div>

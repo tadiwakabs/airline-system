@@ -3,6 +3,7 @@ using AirlineAPI.DTOs.Flight;
 using AirlineAPI.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Linq;
 
 namespace AirlineAPI.Controllers
 {
@@ -16,6 +17,49 @@ namespace AirlineAPI.Controllers
         {
             _context = context;
         }
+        
+        [HttpGet("featured")]
+        public async Task<ActionResult<IEnumerable<FlightResponseDto>>> GetFeaturedFlights(
+            [FromQuery] int count = 8)
+        {
+            var now = DateTime.UtcNow;
+ 
+            var flights = await _context.Flights
+                .Include(f => f.Pricing)
+                .Where(f =>
+                    f.departTime > now &&
+                    f.status != "Cancelled" &&
+                    f.departingPort == "IAH" &&
+                    f.Pricing.Any(p => p.CabinClass == CabinClass.Economy))
+                .OrderBy(f => f.departTime)
+                .Take(count)
+                .ToListAsync();
+ 
+            var response = flights.Select(f => new FlightResponseDto
+            {
+                FlightNum             = f.flightNum,
+                DepartTime            = f.departTime,
+                ArrivalTime           = f.arrivalTime,
+                ScheduledDepartLocal  = f.scheduledDepartLocal ?? f.departTime,
+                ScheduledArrivalLocal = f.scheduledArrivalLocal ?? f.arrivalTime,
+                AircraftUsed          = f.aircraftUsed,
+                Status                = f.status,
+                DepartingPortCode     = f.departingPort,
+                ArrivingPortCode      = f.arrivingPort,
+                IsDomestic            = f.isDomestic,
+                Distance              = f.distance,
+                FlightChange          = f.flightChange,
+                RecurringScheduleId   = f.recurringScheduleId,
+                BookedPassengerCount  = 0,
+                Pricing               = f.Pricing.Select(p => new FlightPricingDto
+                {
+                    CabinClass = p.CabinClass.ToString(),
+                    Price      = p.Price
+                }).ToList()
+            });
+ 
+            return Ok(response);
+        }
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<FlightResponseDto>>> GetFlights()
@@ -25,20 +69,37 @@ namespace AirlineAPI.Controllers
                 .OrderBy(f => f.departTime)
                 .ToListAsync();
 
+            var flightNums = flights.Select(f => f.flightNum).ToList();
+
+            var bookedCounts = await _context.Ticket
+                .Where(t => t.flightCode.HasValue &&
+                            flightNums.Contains(t.flightCode.Value) &&
+                            t.status != TicketStatus.Cancelled)
+                .GroupBy(t => t.flightCode!.Value)
+                .Select(g => new
+                {
+                    FlightNum = g.Key,
+                    Count = g.Count()
+                })
+                .ToDictionaryAsync(x => x.FlightNum, x => x.Count);
+
             var response = flights.Select(f => new FlightResponseDto
             {
-                FlightNum          = f.flightNum,
-                DepartTime         = f.departTime,
-                ArrivalTime        = f.arrivalTime,
-                AircraftUsed       = f.aircraftUsed,
-                Status             = f.status,
-                DepartingPortCode  = f.departingPort,
-                ArrivingPortCode   = f.arrivingPort,
-                IsDomestic         = f.isDomestic,
-                Distance           = f.distance,
-                FlightChange       = f.flightChange,
-                RecurringScheduleId = f.recurringScheduleId,
-                Pricing            = f.Pricing.Select(p => new FlightPricingDto
+                FlightNum             = f.flightNum,
+                DepartTime            = f.departTime,
+                ArrivalTime           = f.arrivalTime,
+                ScheduledDepartLocal  = f.scheduledDepartLocal ?? f.departTime,
+                ScheduledArrivalLocal = f.scheduledArrivalLocal ?? f.arrivalTime,
+                AircraftUsed          = f.aircraftUsed,
+                Status                = f.status,
+                DepartingPortCode     = f.departingPort,
+                ArrivingPortCode      = f.arrivingPort,
+                IsDomestic            = f.isDomestic,
+                Distance              = f.distance,
+                FlightChange          = f.flightChange,
+                RecurringScheduleId   = f.recurringScheduleId,
+                BookedPassengerCount  = bookedCounts.TryGetValue(f.flightNum, out var count) ? count : 0,
+                Pricing               = f.Pricing.Select(p => new FlightPricingDto
                 {
                     CabinClass = p.CabinClass.ToString(),
                     Price      = p.Price
@@ -63,6 +124,8 @@ namespace AirlineAPI.Controllers
                 FlightNum          = flight.flightNum,
                 DepartTime         = flight.departTime,
                 ArrivalTime        = flight.arrivalTime,
+                ScheduledDepartLocal  = flight.scheduledDepartLocal ?? flight.departTime,
+                ScheduledArrivalLocal = flight.scheduledArrivalLocal ?? flight.arrivalTime,
                 AircraftUsed       = flight.aircraftUsed,
                 Status             = flight.status,
                 DepartingPortCode  = flight.departingPort,
@@ -87,10 +150,17 @@ namespace AirlineAPI.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
+            var airports = await GetFlightAirportsAsync(dto.DepartingPortCode, dto.ArrivingPortCode);
+            if (airports == null)
+                return BadRequest(new { message = "One or both airports are invalid, or missing timezone data." });
+
+            var departUtc = ConvertLocalToUtc(dto.ScheduledDepartLocal, airports.Value.dep.timezone!);
+            var arrivalUtc = ConvertLocalToUtc(dto.ScheduledArrivalLocal, airports.Value.arr.timezone!);
+
             var validationError = await ValidateFlightAsync(
                 dto.AircraftUsed,
-                dto.DepartTime,
-                dto.ArrivalTime,
+                departUtc,
+                arrivalUtc,
                 dto.DepartingPortCode,
                 dto.ArrivingPortCode,
                 null
@@ -102,8 +172,10 @@ namespace AirlineAPI.Controllers
             var flight = new Flight
             {
                 flightNum = dto.FlightNum,
-                departTime = dto.DepartTime,
-                arrivalTime = dto.ArrivalTime,
+                departTime = departUtc,
+                arrivalTime = arrivalUtc,
+                scheduledDepartLocal = dto.ScheduledDepartLocal,
+                scheduledArrivalLocal = dto.ScheduledArrivalLocal,
                 aircraftUsed = dto.AircraftUsed,
                 status = dto.Status,
                 departingPort = dto.DepartingPortCode,
@@ -115,7 +187,7 @@ namespace AirlineAPI.Controllers
 
             _context.Flights.Add(flight);
             await _context.SaveChangesAsync();
-            
+
             var aircraft = await _context.Aircraft
                 .FirstOrDefaultAsync(a => a.tailnumber == flight.aircraftUsed);
 
@@ -123,7 +195,6 @@ namespace AirlineAPI.Controllers
                 return BadRequest("Assigned aircraft not found.");
 
             var seats = GenerateSeatsForFlight(flight.flightNum, aircraft.numSeats);
-
             _context.Seating.AddRange(seats);
             await _context.SaveChangesAsync();
 
@@ -156,6 +227,41 @@ namespace AirlineAPI.Controllers
                 if (dto.EconomyPrice >= dto.BusinessPrice || dto.BusinessPrice >= dto.FirstPrice)
                     return BadRequest(new { message = "Prices must follow the order: Economy < Business < First." });
             }
+
+            // ── Return-trip validation ────────────────────────────────────────
+            if (dto.IsReturn)
+            {
+                if (!dto.LayoverHours.HasValue || dto.LayoverHours.Value < 1)
+                    return BadRequest(new { message = "Layover hours must be at least 1 when creating a return schedule." });
+
+                // Total round-trip time = outbound duration + layover + return duration (same as outbound).
+                // Return departs from arr and arrives at dep, so duration is identical to outbound.
+                var sampleDate = dto.StartDate.Date;
+
+                var sampleDepartLocal = sampleDate.Add(dto.DepartureTimeOfDay);
+                var sampleArrivalLocal = sampleDate.Add(dto.ArrivalTimeOfDay);
+                if (sampleArrivalLocal <= sampleDepartLocal)
+                    sampleArrivalLocal = sampleArrivalLocal.AddDays(1);
+
+                var sampleAirports = await GetFlightAirportsAsync(dto.DepartingPortCode, dto.ArrivingPortCode);
+                if (sampleAirports == null)
+                    return BadRequest(new { message = "One or both airports are invalid, or missing timezone data." });
+
+                var sampleDepartUtc = ConvertLocalToUtc(sampleDepartLocal, sampleAirports.Value.dep.timezone!);
+                var sampleArrivalUtc = ConvertLocalToUtc(sampleArrivalLocal, sampleAirports.Value.arr.timezone!);
+
+                var outboundDuration = sampleArrivalUtc - sampleDepartUtc;
+                var totalRoundTripHours = outboundDuration.TotalHours * 2 + dto.LayoverHours.Value;
+                if (totalRoundTripHours > 24)
+                    return BadRequest(new
+                    {
+                        message = $"The total round-trip time ({totalRoundTripHours:F1} hrs: outbound {outboundDuration.TotalHours:F1} h + {dto.LayoverHours.Value} h layover + return {outboundDuration.TotalHours:F1} h) exceeds 24 hours. Reduce the layover or choose a shorter route."
+                    });
+            }
+            
+            var airports = await GetFlightAirportsAsync(dto.DepartingPortCode, dto.ArrivingPortCode);
+            if (airports == null)
+                return BadRequest(new { message = "One or both airports are invalid, or missing timezone data." });
 
             var schedule = new RecurringSchedule
             {
@@ -190,16 +296,19 @@ namespace AirlineAPI.Controllers
                 if (!selectedDays.Contains(dayNum))
                     continue;
 
-                var departDateTime = date.Add(dto.DepartureTimeOfDay);
-                var arrivalDateTime = date.Add(dto.ArrivalTimeOfDay);
+                var scheduledDepartLocal = date.Add(dto.DepartureTimeOfDay);
+                var scheduledArrivalLocal = date.Add(dto.ArrivalTimeOfDay);
 
-                if (arrivalDateTime <= departDateTime)
-                    arrivalDateTime = arrivalDateTime.AddDays(1);
+                if (scheduledArrivalLocal <= scheduledDepartLocal)
+                    scheduledArrivalLocal = scheduledArrivalLocal.AddDays(1);
+
+                var departUtc = ConvertLocalToUtc(scheduledDepartLocal, airports.Value.dep.timezone!);
+                var arrivalUtc = ConvertLocalToUtc(scheduledArrivalLocal, airports.Value.arr.timezone!);
 
                 var validationError = await ValidateFlightAsync(
                     dto.AircraftUsed,
-                    departDateTime,
-                    arrivalDateTime,
+                    departUtc,
+                    arrivalUtc,
                     dto.DepartingPortCode,
                     dto.ArrivingPortCode,
                     null
@@ -216,8 +325,10 @@ namespace AirlineAPI.Controllers
                 flightsToCreate.Add(new Flight
                 {
                     flightNum = nextFlightNum++,
-                    departTime = departDateTime,
-                    arrivalTime = arrivalDateTime,
+                    departTime = departUtc,
+                    arrivalTime = arrivalUtc,
+                    scheduledDepartLocal = scheduledDepartLocal,
+                    scheduledArrivalLocal = scheduledArrivalLocal,
                     aircraftUsed = dto.AircraftUsed,
                     status = dto.Status,
                     departingPort = dto.DepartingPortCode,
@@ -227,7 +338,58 @@ namespace AirlineAPI.Controllers
                     flightChange = dto.FlightChange,
                     recurringScheduleId = schedule.Id
                 });
-            }
+
+                // ── Return leg ────────────────────────────────────────────────
+                if (dto.IsReturn && dto.LayoverHours.HasValue)
+                {
+                    var outboundDuration = arrivalUtc - departUtc;
+
+                    // Return departs after layover in destination local time
+                    var returnDepartLocal = scheduledArrivalLocal.AddHours(dto.LayoverHours.Value);
+                    var returnDepartUtc = ConvertLocalToUtc(returnDepartLocal, airports.Value.arr.timezone!);
+
+                    // Add true elapsed duration in UTC
+                    var returnArrivalUtc = returnDepartUtc.Add(outboundDuration);
+
+                    // Convert UTC arrival back into origin local time for scheduledArrivalLocal
+                    var originTz = ResolveTimeZone(airports.Value.dep.timezone!);
+                    var returnArrivalLocal = TimeZoneInfo.ConvertTimeFromUtc(returnArrivalUtc, originTz);
+
+                    var returnValidationError = await ValidateFlightAsync(
+                        dto.AircraftUsed,
+                        returnDepartUtc,
+                        returnArrivalUtc,
+                        dto.ArrivingPortCode,   // reversed
+                        dto.DepartingPortCode,  // reversed
+                        null
+                    );
+
+                    if (returnValidationError != null)
+                    {
+                        return BadRequest(new
+                        {
+                            message = $"Could not create return flight on {date:yyyy-MM-dd}: {returnValidationError}"
+                        });
+                    }
+
+                    flightsToCreate.Add(new Flight
+                    {
+                        flightNum = nextFlightNum++,
+                        departTime = returnDepartUtc,
+                        arrivalTime = returnArrivalUtc,
+                        scheduledDepartLocal = returnDepartLocal,
+                        scheduledArrivalLocal = returnArrivalLocal,
+                        aircraftUsed = dto.AircraftUsed,
+                        status = dto.Status,
+                        departingPort = dto.ArrivingPortCode,   // reversed
+                        arrivingPort = dto.DepartingPortCode,   // reversed
+                        isDomestic = dto.IsDomestic,
+                        distance = dto.Distance,
+                        flightChange = dto.FlightChange,
+                        recurringScheduleId = schedule.Id
+                    });
+                }
+            } // end date loop
 
             if (flightsToCreate.Count == 0)
             {
@@ -288,10 +450,17 @@ namespace AirlineAPI.Controllers
             if (flight == null)
                 return NotFound(new { message = "Flight not found." });
 
+            var airports = await GetFlightAirportsAsync(dto.DepartingPortCode, dto.ArrivingPortCode);
+            if (airports == null)
+                return BadRequest(new { message = "One or both airports are invalid, or missing timezone data." });
+
+            var departUtc = ConvertLocalToUtc(dto.ScheduledDepartLocal, airports.Value.dep.timezone!);
+            var arrivalUtc = ConvertLocalToUtc(dto.ScheduledArrivalLocal, airports.Value.arr.timezone!);
+
             var validationError = await ValidateFlightAsync(
                 dto.AircraftUsed,
-                dto.DepartTime,
-                dto.ArrivalTime,
+                departUtc,
+                arrivalUtc,
                 dto.DepartingPortCode,
                 dto.ArrivingPortCode,
                 id
@@ -300,8 +469,10 @@ namespace AirlineAPI.Controllers
             if (validationError != null)
                 return BadRequest(new { message = validationError });
 
-            flight.departTime = dto.DepartTime;
-            flight.arrivalTime = dto.ArrivalTime;
+            flight.departTime = departUtc;
+            flight.arrivalTime = arrivalUtc;
+            flight.scheduledDepartLocal = dto.ScheduledDepartLocal;
+            flight.scheduledArrivalLocal = dto.ScheduledArrivalLocal;
             flight.aircraftUsed = dto.AircraftUsed;
             flight.status = dto.Status;
             flight.departingPort = dto.DepartingPortCode;
@@ -314,17 +485,159 @@ namespace AirlineAPI.Controllers
             return Ok(new { message = "Flight successfully updated!" });
         }
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteFlight(int id)
+        [HttpPut("{id}/cancel")]
+        public async Task<IActionResult> CancelFlight(int id)
         {
             var flight = await _context.Flights.FindAsync(id);
 
             if (flight == null)
+            {
                 return NotFound(new { message = "Flight not found." });
+            }
 
-            _context.Flights.Remove(flight);
+            if (flight.status == "Cancelled")
+            {
+                return BadRequest(new { message = "Flight is already cancelled." });
+            }
+
+            flight.status = "Cancelled";
+
             await _context.SaveChangesAsync();
-            return Ok(new { message = "Flight deleted." });
+
+            return Ok(new { message = "Flight cancelled successfully." });
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteFlight(int id)
+        {
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
+            try
+            {
+                var flight = await _context.Flights.FindAsync(id);
+
+                if (flight == null)
+                    return NotFound(new { message = "Flight not found." });
+
+                // Mark cancelled first so AFTER UPDATE trigger can notify passengers
+                if (flight.status != "Cancelled")
+                {
+                    flight.status = "Cancelled";
+                    await _context.SaveChangesAsync();
+                }
+
+                var affectedTickets = await _context.Ticket
+                    .Where(t => t.flightCode == id)
+                    .ToListAsync();
+
+                var affectedBookingIds = affectedTickets
+                    .Select(t => t.bookingId)
+                    .Distinct()
+                    .ToList();
+
+                var bookings = await _context.Bookings
+                    .Where(b => affectedBookingIds.Contains(b.bookingId))
+                    .ToDictionaryAsync(b => b.bookingId);
+
+                var payments = await _context.Payments
+                    .Where(p => affectedBookingIds.Contains(p.bookingId))
+                    .ToDictionaryAsync(p => p.bookingId);
+
+                var compensationByBooking = affectedTickets
+                    .GroupBy(t => t.bookingId)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => new
+                        {
+                            RefundAmount = g.Sum(t => (double)t.price),
+                            ReimbursementAmount = g.Sum(t => (double)t.price * 0.10)
+                        }
+                    );
+
+                foreach (var ticket in affectedTickets)
+                {
+                    if (!string.IsNullOrEmpty(ticket.seatNumber))
+                    {
+                        var seat = await _context.Seating
+                            .FirstOrDefaultAsync(s => s.flightNum == id && s.seatNumber == ticket.seatNumber);
+
+                        if (seat != null)
+                        {
+                            seat.seatStatus = SeatStatus.Available;
+                            seat.passengerId = null;
+                            seat.holdExpiresAt = null;
+                        }
+                    }
+
+                    ticket.seatNumber = null;
+                    ticket.status = TicketStatus.Cancelled;
+                    ticket.reservationTime = null;
+                    ticket.expiresAt = null;
+                }
+
+                var remainingActiveTicketTotals = await _context.Ticket
+                    .Where(t => affectedBookingIds.Contains(t.bookingId)
+                                && t.status != TicketStatus.Cancelled
+                                && t.flightCode != null)
+                    .GroupBy(t => t.bookingId)
+                    .Select(g => new
+                    {
+                        BookingId = g.Key,
+                        Total = g.Sum(x => x.price),
+                        Count = g.Count()
+                    })
+                    .ToDictionaryAsync(x => x.BookingId, x => new { x.Total, x.Count });
+
+                foreach (var bookingId in affectedBookingIds)
+                {
+                    var remainingBookingTotal = 0m;
+                    var hasRemainingActiveTickets = false;
+
+                    if (payments.TryGetValue(bookingId, out var payment))
+                    {
+                        var comp = compensationByBooking.GetValueOrDefault(
+                            bookingId,
+                            new { RefundAmount = 0.0, ReimbursementAmount = 0.0 }
+                        );
+
+                        payment.bookingPrice = (double)remainingBookingTotal;
+                        payment.totalPrice = (double)remainingBookingTotal;
+                        payment.refundAmount = (payment.refundAmount ?? 0) + comp.RefundAmount;
+                        payment.reimbursementAmount = (payment.reimbursementAmount ?? 0) + comp.ReimbursementAmount;
+                        payment.paymentStatus = PaymentStatus.Refunded;
+                    }
+
+                    if (bookings.TryGetValue(bookingId, out var booking))
+                    {
+                        booking.totalPrice = remainingBookingTotal;
+                        booking.bookingStatus = hasRemainingActiveTickets
+                            ? BookingStatus.Confirmed
+                            : BookingStatus.Cancelled;
+                    }
+                }
+                
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return Ok(new
+                {
+                    message = "Flight canceled successfully. Tickets were retained, cancelled, detached from the flight, and refunds recorded.",
+                    refundedPassengerCount = affectedTickets.Count,
+                    affectedBookingCount = affectedBookingIds.Count,
+                    totalRefundAmount = compensationByBooking.Values.Sum(x => x.RefundAmount),
+                    totalReimbursementAmount = compensationByBooking.Values.Sum(x => x.ReimbursementAmount)
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return StatusCode(500, new
+                {
+                    message = "Failed to delete flight.",
+                    error = ex.Message
+                });
+            }
         }
 
         [HttpGet("search")]
@@ -368,8 +681,8 @@ namespace AirlineAPI.Controllers
                 .Where(f =>
                     (f.departingPort ?? "").Trim().ToUpper() == from &&
                     (f.arrivingPort ?? "").Trim().ToUpper() == to &&
-                    f.departTime >= dayStart &&
-                    f.departTime < dayEnd)
+                    f.scheduledDepartLocal.HasValue &&
+                    f.scheduledDepartLocal.Value.Date == dayStart)
                 .Select(f =>
                 {
                     var economyBase = f.Pricing.FirstOrDefault(p => p.CabinClass == CabinClass.Economy)?.Price;
@@ -386,12 +699,17 @@ namespace AirlineAPI.Controllers
                                 FlightNum = f.flightNum,
                                 DepartingPortCode = f.departingPort,
                                 ArrivingPortCode = f.arrivingPort,
-                                DepartTime = f.departTime,
-                                ArrivalTime = f.arrivalTime,
+                                DepartTime = f.scheduledDepartLocal ?? f.departTime,
+                                ArrivalTime = f.scheduledArrivalLocal ?? f.arrivalTime,
+                                DepartTimeUtc = f.departTime,
+                                ArrivalTimeUtc = f.arrivalTime,
                                 Status = f.status,
                                 AircraftUsed = f.aircraftUsed,
                                 Distance = f.distance,
-                                IsDomestic = f.isDomestic
+                                IsDomestic = f.isDomestic,
+                                IsFull = !_context.Seating.Any(s =>
+                                s.flightNum == f.flightNum &&
+                                s.seatStatus == SeatStatus.Available)
                             }
                         },
                         Pricing = new FlightSearchPricingDto
@@ -409,16 +727,17 @@ namespace AirlineAPI.Controllers
                 .Where(f =>
                     (f.departingPort ?? "").Trim().ToUpper() == from &&
                     (f.arrivingPort ?? "").Trim().ToUpper() != to &&
-                    f.departTime >= dayStart &&
-                    f.departTime < dayEnd)
+                    f.scheduledDepartLocal.HasValue &&
+                    f.scheduledDepartLocal.Value.Date == dayStart)
                 .ToList();
 
             var candidateSecondLegs = allFlights
                 .Where(f =>
                     (f.departingPort ?? "").Trim().ToUpper() != from &&
                     (f.arrivingPort ?? "").Trim().ToUpper() == to &&
-                    f.departTime >= dayStart &&
-                    f.departTime < dayEnd.AddDays(1))
+                    f.scheduledDepartLocal.HasValue &&
+                    f.scheduledDepartLocal.Value.Date >= dayStart &&
+                    f.scheduledDepartLocal.Value.Date < dayEnd.AddDays(1))
                 .ToList();
 
             // Load airports for geographic filtering
@@ -481,19 +800,37 @@ namespace AirlineAPI.Controllers
                         {
                             new FlightLegDto
                             {
-                                FlightNum = x.leg1.flightNum, DepartingPortCode = x.leg1.departingPort,
-                                ArrivingPortCode = x.leg1.arrivingPort, DepartTime = x.leg1.departTime,
-                                ArrivalTime = x.leg1.arrivalTime, Status = x.leg1.status,
-                                AircraftUsed = x.leg1.aircraftUsed, Distance = x.leg1.distance,
-                                IsDomestic = x.leg1.isDomestic
+                                FlightNum = x.leg1.flightNum,
+                                DepartingPortCode = x.leg1.departingPort,
+                                ArrivingPortCode = x.leg1.arrivingPort,
+                                DepartTime = x.leg1.scheduledDepartLocal ?? x.leg1.departTime,
+                                ArrivalTime = x.leg1.scheduledArrivalLocal ?? x.leg1.arrivalTime,
+                                DepartTimeUtc = x.leg1.departTime,
+                                ArrivalTimeUtc = x.leg1.arrivalTime,
+                                Status = x.leg1.status,
+                                AircraftUsed = x.leg1.aircraftUsed,
+                                Distance = x.leg1.distance,
+                                IsDomestic = x.leg1.isDomestic,
+                                IsFull = !_context.Seating.Any(s =>
+                                    s.flightNum == x.leg1.flightNum &&
+                                    s.seatStatus == SeatStatus.Available)
                             },
                             new FlightLegDto
                             {
-                                FlightNum = x.leg2.flightNum, DepartingPortCode = x.leg2.departingPort,
-                                ArrivingPortCode = x.leg2.arrivingPort, DepartTime = x.leg2.departTime,
-                                ArrivalTime = x.leg2.arrivalTime, Status = x.leg2.status,
-                                AircraftUsed = x.leg2.aircraftUsed, Distance = x.leg2.distance,
-                                IsDomestic = x.leg2.isDomestic
+                                FlightNum = x.leg2.flightNum,
+                                DepartingPortCode = x.leg2.departingPort,
+                                ArrivingPortCode = x.leg2.arrivingPort,
+                                DepartTime = x.leg2.scheduledDepartLocal ?? x.leg2.departTime,
+                                ArrivalTime = x.leg2.scheduledArrivalLocal ?? x.leg2.arrivalTime,
+                                DepartTimeUtc = x.leg2.departTime,
+                                ArrivalTimeUtc = x.leg2.arrivalTime,
+                                Status = x.leg2.status,
+                                AircraftUsed = x.leg2.aircraftUsed,
+                                Distance = x.leg2.distance,
+                                IsDomestic = x.leg2.isDomestic,
+                                IsFull = !_context.Seating.Any(s =>
+                                    s.flightNum == x.leg2.flightNum &&
+                                    s.seatStatus == SeatStatus.Available)
                             }
                         },
                         Pricing = new FlightSearchPricingDto
@@ -706,6 +1043,34 @@ namespace AirlineAPI.Controllers
             }
 
             return null;
+        }
+        
+        private async Task<(Airport dep, Airport arr)?> GetFlightAirportsAsync(string departingPortCode, string arrivingPortCode)
+        {
+            var dep = await _context.Airports.FindAsync(departingPortCode);
+            var arr = await _context.Airports.FindAsync(arrivingPortCode);
+
+            if (dep == null || arr == null)
+                return null;
+
+            if (string.IsNullOrWhiteSpace(dep.timezone) || string.IsNullOrWhiteSpace(arr.timezone))
+                return null;
+
+            return (dep, arr);
+        }
+
+        private static TimeZoneInfo ResolveTimeZone(string tz)
+        {
+            // Linux / MySQL IANA names like America/Chicago should work on your LXC
+            return TimeZoneInfo.FindSystemTimeZoneById(tz);
+        }
+
+        private static DateTime ConvertLocalToUtc(DateTime localDateTime, string timeZoneId)
+        {
+            var tz = ResolveTimeZone(timeZoneId);
+
+            var unspecified = DateTime.SpecifyKind(localDateTime, DateTimeKind.Unspecified);
+            return TimeZoneInfo.ConvertTimeToUtc(unspecified, tz);
         }
     }
 }

@@ -96,7 +96,7 @@ namespace AirlineAPI.Controllers
 
             newSeat = newSeat.Trim().ToUpper();
 
-            if (ticket.seatNumber.Equals(newSeat, StringComparison.OrdinalIgnoreCase))
+            if (ticket.seatNumber!.Equals(newSeat, StringComparison.OrdinalIgnoreCase))
                 return BadRequest("Passenger is already assigned to that seat.");
 
             var oldSeat = await _context.Seating

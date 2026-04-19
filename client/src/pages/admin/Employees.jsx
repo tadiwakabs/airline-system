@@ -13,6 +13,7 @@ import {
     lookupUserByIdOrEmail,
 } from "../../services/employeeService";
 import airportOptions from "../../dropdownData/airports.json";
+import { useNavigate } from "react-router-dom";
 
 // ── Static option lists ───────────────────────────────────────────────────────
 
@@ -80,7 +81,7 @@ const emptyEditForm = {
     status:       "Active",
 };
 
-// ── Status badge helper ───────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────
 
 function StatusBadge({ status }) {
     const map = {
@@ -98,6 +99,28 @@ function StatusBadge({ status }) {
             {label[status] ?? status}
         </span>
     );
+}
+
+function formatPersonName(firstName, lastName) {
+    return `${firstName || ""} ${lastName || ""}`.trim() || "—";
+}
+
+function sanitizeNameForEmailPart(value) {
+    return (value || "")
+        .toLowerCase()
+        .replace(/\s+/g, "")
+        .replace(/[^a-z]/g, "");
+}
+
+function buildAirlineEmail(firstName, lastName) {
+    const first = sanitizeNameForEmailPart(firstName);
+    const last = sanitizeNameForEmailPart(lastName);
+
+    if (!first && !last) return "";
+    if (!first) return `${last}@airline.com`;
+    if (!last) return `${first}@airline.com`;
+
+    return `${first}.${last}@airline.com`;
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -134,6 +157,8 @@ export default function Employees() {
     const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
     const [statusTarget, setStatusTarget] = useState(null);
     const [pendingStatus, setPendingStatus] = useState("");
+
+    const navigate = useNavigate();
 
     // ── Initial load ──────────────────────────────────────────────────────────
     useEffect(() => {
@@ -190,6 +215,7 @@ export default function Employees() {
     const PAGE_SIZE = 50;
     const totalPages = Math.ceil(filteredEmployees.length / PAGE_SIZE);
     const pagedEmployees = filteredEmployees.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+    const editingEmployee = employees.find((emp) => emp.employeeId === editingEmployeeId) || null;
 
     // ── Add modal handlers ────────────────────────────────────────────────────
 
@@ -226,7 +252,11 @@ export default function Employees() {
             // employeeService returns response.data directly — res IS the user object
             const res = await lookupUserByIdOrEmail(val);
             setLookedUpUser(res);
-            setAddForm((prev) => ({ ...prev, userId: res.userId }));
+            setAddForm((prev) => ({
+                ...prev,
+                userId: res.userId,
+                workEmail: buildAirlineEmail(res.firstName, res.lastName),
+            }));
         } catch (err) {
             setLookupError(
                 err?.response?.status === 404
@@ -294,6 +324,10 @@ export default function Employees() {
     const handleEditFormChange = (e) => {
         const { name, value } = e.target;
         setEditForm((prev) => ({ ...prev, [name]: value }));
+    };
+
+    const handleBack= ()=>{
+        navigate("/admin/dashboard");
     };
 
     const handleEditSubmit = async (e) => {
@@ -389,7 +423,7 @@ export default function Employees() {
     // Render
     // ─────────────────────────────────────────────────────────────────────────
     return (
-        <div className="mx-auto max-w-7xl px-4 py-10">
+        <div className="mx-auto max-w-7xl xl:max-w-[80vw] px-4 py-10">
 
             {/* Page header */}
             <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -397,8 +431,24 @@ export default function Employees() {
                     <h1 className="text-2xl font-semibold text-gray-900">Employees</h1>
                     <p className="mt-1 text-sm text-gray-500">Manage employee records and access.</p>
                 </div>
-                <Button onClick={openAddModal}>Add Employee</Button>
+                
+                <div className="flex gap-3">
+                <button 
+                    onClick={handleBack}
+                    className="bg-white text-black border border-gray-300 px-6 py-2 rounded-md font-semibold text-sm uppercase tracking-wider hover:bg-gray-50 transition-colors"
+                >
+                    Back
+                </button>
+
+                <button 
+                    onClick={openAddModal}
+                    className="bg-blue-600 text-white px-6 py-2 rounded-md font-semibold text-sm uppercase tracking-wider hover:bg-blue-700 transition-colors"
+                >
+                    Add Employee
+                </button>
+                </div>
             </div>
+
 
             {/* Feedback */}
             {error          && <p className="mb-4 text-sm text-red-600">{error}</p>}
@@ -456,6 +506,7 @@ export default function Employees() {
                             <thead>
                             <tr className="text-left text-sm text-gray-500">
                                 <th className="px-3 py-2">Employee ID</th>
+                                <th className="px-3 py-2">Name</th>
                                 <th className="px-3 py-2">Work Email</th>
                                 <th className="px-3 py-2">Job Title</th>
                                 <th className="px-3 py-2">Department</th>
@@ -470,6 +521,9 @@ export default function Employees() {
                             {pagedEmployees.map((emp) => (
                                 <tr key={emp.employeeId} className="rounded-xl bg-gray-50 text-sm">
                                     <td className="px-3 py-3 font-medium text-gray-900">{emp.employeeId}</td>
+                                    <td className="px-3 py-3">
+                                        {`${emp.firstName || ""} ${emp.lastName || ""}`.trim() || "—"}
+                                    </td>
                                     <td className="px-3 py-3">{emp.workEmail}</td>
                                     <td className="px-3 py-3">{emp.jobTitle ?? "—"}</td>
                                     <td className="px-3 py-3">{emp.department ?? "—"}</td>
@@ -481,8 +535,8 @@ export default function Employees() {
                                     <td className="px-3 py-3">
                                         {emp.isAdmin ? (
                                             <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">
-                                                    Yes
-                                                </span>
+                                                Yes
+                                            </span>
                                         ) : (
                                             <span className="text-gray-400">No</span>
                                         )}
@@ -514,7 +568,7 @@ export default function Employees() {
                                                     On Leave
                                                 </Button>
                                             )}
-                                            {emp.status !== "Terminated" && (
+                                            {emp.status !== "Terminated" && !emp.isAdmin && (
                                                 <Button
                                                     size="sm"
                                                     variant="outline"
@@ -620,14 +674,21 @@ export default function Employees() {
                     <form onSubmit={handleAddSubmit} className="space-y-4">
                         <p className="text-sm font-medium text-gray-700">Step 2 — Employment details</p>
 
+                        <TextInput
+                            label="Employee Name"
+                            value={formatPersonName(lookedUpUser.firstName, lookedUpUser.lastName)}
+                            disabled
+                            className="bg-gray-50"
+                        />
+
                         <div className="grid grid-cols-2 gap-4">
                             <TextInput
                                 label="Work Email"
                                 name="workEmail"
                                 type="email"
-                                placeholder="name@airline.com"
                                 value={addForm.workEmail}
-                                onChange={handleAddFormChange}
+                                disabled
+                                className="bg-gray-50"
                                 required
                             />
                             <TextInput
@@ -708,6 +769,13 @@ export default function Employees() {
                     Changing status to <span className="font-medium">Terminated</span> will update the user's role to Passenger.
                 </p>
 
+                <TextInput
+                    label="Employee Name"
+                    value={formatPersonName(editingEmployee?.firstName, editingEmployee?.lastName)}
+                    disabled
+                    className="bg-gray-50 mb-4"
+                />
+
                 <form onSubmit={handleEditSubmit} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                         <TextInput
@@ -715,7 +783,8 @@ export default function Employees() {
                             name="workEmail"
                             type="email"
                             value={editForm.workEmail}
-                            onChange={handleEditFormChange}
+                            disabled
+                            className="bg-gray-50"
                             required
                         />
                         <TextInput

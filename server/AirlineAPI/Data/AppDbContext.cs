@@ -24,6 +24,8 @@ namespace AirlineAPI.Data
         public DbSet<Booking> Bookings { get; set; }
         public DbSet<Employee> Employees { get; set; }
         public DbSet<Ticket> Ticket { get; set; }
+        public DbSet<Standby> Standby { get; set; }
+        public DbSet<Notification> Notification { get; set; }
         public DbSet<Baggage> Baggage { get; set; }
         public DbSet<FlightCrewAssignment> FlightCrewAssignments { get; set; }
 
@@ -442,6 +444,10 @@ namespace AirlineAPI.Data
                     .HasForeignKey(b => b.ticketCode)
                     .OnDelete(DeleteBehavior.Restrict);
             });
+            
+            modelBuilder.Entity<Payment>()
+                .Property(p => p.paymentStatus)
+                .HasConversion<string>();
             
         }
 

@@ -10,7 +10,8 @@ import {
     markPassengerBoarded,
 } from "../../services/employeeService";
 import { getSeatsForFlight } from "../../services/passengerService";
-
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
 // ── Helpers copied/adapted from PassengerList.jsx ─────────────────────────────
 
 function groupSeatsForRender(seats) {
@@ -163,7 +164,8 @@ export default function MyFlights() {
     const [passengerSearchTerm, setPassengerSearchTerm] = useState("");
     const [passengerSortBy, setPassengerSortBy] = useState("seat");
     const [highlightedSeat, setHighlightedSeat] = useState(null);
-
+    const {user}= useAuth();
+    const navigate = useNavigate();
     useEffect(() => {
         loadFlights();
     }, []);
@@ -183,6 +185,16 @@ export default function MyFlights() {
         } finally {
             setLoadingFlights(false);
         }
+    };
+
+    const handleBack = () => {
+        const role = user?.userRole;
+        
+        if (role == "Administrator"){
+            navigate("/admin/dashboard");
+        } else {
+            navigate("/employee/dashboard")
+        }   
     };
 
     const handleSelectFlight = async (flight) => {
@@ -318,11 +330,17 @@ export default function MyFlights() {
 
     return (
         <div className="mx-auto max-w-7xl px-4 py-10">
-            <div className="mb-6">
+            <div className="mb-4 flex justify-between items-start">
                 <h1 className="text-2xl font-semibold text-gray-900">My Flights</h1>
                 <p className="mt-1 text-sm text-gray-500">
                     View your upcoming assigned flights and passenger manifests.
                 </p>
+                <Button 
+                    onClick={handleBack} 
+                    className="bg-blue-600 text-white hover:bg-blue-700 border-none px-6 py-2 rounded-none font-bold transition-colors"> 
+                    Back 
+                </Button>
+                
             </div>
 
             {error && <p className="mb-4 text-sm text-red-600">{error}</p>}

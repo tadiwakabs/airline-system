@@ -32,44 +32,35 @@ function formatCurrency(amount) {
     return new Intl.NumberFormat("en-US", {
         style: "currency",
         currency: "USD",
-    }).format(amount);
+    }).format(amount ?? 0);
 }
-
 
 function buildPassengerLabel(type, indexWithinType) {
     return `${type} ${indexWithinType + 1}`;
 }
 
 // ─── price calculation ───────────────────────────────────────────────────────
-// Rates mirror the backend constants in FlightsController.cs:
-//   ChildMultiplier  = 0.8
-//   InfantMultiplier = 0.1
-// The backend already computes these in BuildQuote and returns them as
-// selectedItinerary.quote[cabinClass].{ perAdult, perChild, perInfant, total }
-// We use those values directly so the review page always matches what the
-// backend calculated — no risk of drift if the multipliers ever change.
+
+const TAX_RATE = 0.075;
 
 function usePriceBreakdown(selectedItinerary, searchParams) {
     return useMemo(() => {
         const cabinClass = searchParams?.cabinClass ?? "economy";
-        const { adults = 0, children = 0, infants = 0 } =
-        searchParams?.passengers ?? {};
+        const { adults = 0, children = 0, infants = 0 } = searchParams?.passengers ?? {};
 
-        // quote is shaped as: { economy, business, first }
-        // each cabin object: { perAdult, perChild, perInfant, total }
         const fareBreakdown = selectedItinerary?.quote?.[cabinClass] ?? {};
 
-        const perAdult  = fareBreakdown.perAdult  ?? 0;
-        const perChild  = fareBreakdown.perChild  ?? 0;
+        const perAdult = fareBreakdown.perAdult ?? 0;
+        const perChild = fareBreakdown.perChild ?? 0;
         const perInfant = fareBreakdown.perInfant ?? 0;
 
-        const adultFare  = perAdult  * adults;
-        const childFare  = perChild  * children;
+        const adultFare = perAdult * adults;
+        const childFare = perChild * children;
         const infantFare = perInfant * infants;
 
-        // Use the backend's pre-calculated total as the source of truth.
-        // It equals adultFare + childFare + infantFare already rounded.
-        const total = fareBreakdown.total ?? (adultFare + childFare + infantFare);
+        const subtotal = fareBreakdown.total ?? (adultFare + childFare + infantFare);
+        const taxAmount = subtotal * TAX_RATE;
+        const total = subtotal + taxAmount;
 
         return {
             perAdult,
@@ -78,6 +69,8 @@ function usePriceBreakdown(selectedItinerary, searchParams) {
             adultFare,
             childFare,
             infantFare,
+            subtotal,
+            taxAmount,
             total,
             adults,
             children,
@@ -87,20 +80,14 @@ function usePriceBreakdown(selectedItinerary, searchParams) {
     }, [selectedItinerary, searchParams]);
 }
 
-// ─── sub-components ──────────────────────────────────────────────────────────
-
 function SectionTitle({ children }) {
-    return (
-        <h2 className="text-base font-semibold text-gray-800 mb-3">{children}</h2>
-    );
+    return <h2 className="text-base font-semibold text-gray-800 mb-3">{children}</h2>;
 }
 
 function LabelValue({ label, value }) {
     return (
         <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                {label}
-            </p>
+            <p className="text-xs font-medium uppercase tracking-wide text-gray-400">{label}</p>
             <p className="text-sm font-semibold text-gray-900 mt-0.5">{value || "—"}</p>
         </div>
     );
@@ -110,13 +97,11 @@ function Divider() {
     return <hr className="border-gray-100 my-4" />;
 }
 
-function FlightSegment({ flight, index }) {
+function FlightSegment({ flight }) {
     return (
         <div className="flex items-start gap-4">
-            {/* step indicator */}
             <div className="flex flex-col items-center pt-1">
                 <div className="w-2.5 h-2.5 rounded-full bg-blue-500 ring-2 ring-blue-100" />
-                {/* connector line — only shown between segments, handled by parent */}
             </div>
 
             <div className="flex-1 pb-4">
@@ -184,7 +169,7 @@ function PassengerCard({ passenger, indexWithinType, isDomestic }) {
         (passenger.dlNumber || passenger.dlState);
 
     return (
-        <div className="border border-gray-100 rounded-xl p-4 space-y-3 bg-white">
+        <div className="border border-gray-100 rounded-xl p-4 space-y-3 bg-white/90 backdrop-blur-sm">
             <p className="text-sm font-semibold text-gray-800">{label}</p>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3">
@@ -194,12 +179,8 @@ function PassengerCard({ passenger, indexWithinType, isDomestic }) {
                 />
                 <LabelValue label="Date of Birth" value={formatDate(passenger.dateOfBirth)} />
                 <LabelValue label="Gender" value={capitalize(passenger.gender)} />
-                {passenger.email && (
-                    <LabelValue label="Email" value={passenger.email} />
-                )}
-                {passenger.phoneNumber && (
-                    <LabelValue label="Phone" value={passenger.phoneNumber} />
-                )}
+                {passenger.email && <LabelValue label="Email" value={passenger.email} />}
+                {passenger.phoneNumber && <LabelValue label="Phone" value={passenger.phoneNumber} />}
             </div>
 
             {hasPassport && (
@@ -285,18 +266,20 @@ function BaggageSection({ count, onAdd, onRemove, fee }) {
     );
 }
 
-function PriceRow({ label, value, sub, bold }) {
+function PriceRow({ label, value, sub, bold, isTotal }) {
     return (
-        <div className={`flex justify-between items-baseline ${bold ? "font-semibold" : ""}`}>
+        <div className={`flex justify-between items-baseline ${bold ? "font-bold" : ""}`}>
             <div>
                 <span className={`${bold ? "text-gray-900" : "text-gray-600"} text-sm`}>
                     {label}
                 </span>
-                {sub && (
-                    <span className="ml-1.5 text-xs text-gray-400">{sub}</span>
-                )}
+                {sub && <span className="ml-1.5 text-xs text-gray-400">{sub}</span>}
             </div>
-            <span className={`text-sm ${bold ? "text-gray-900 text-base" : "text-gray-700"}`}>
+            <span
+                className={`text-sm ${
+                    isTotal ? "text-blue-600 text-xl" : bold ? "text-gray-900" : "text-gray-700"
+                }`}
+            >
                 {value}
             </span>
         </div>
@@ -309,23 +292,29 @@ export default function BookingReview() {
     const { state } = useLocation();
     const navigate = useNavigate();
 
+    const standbyBooking = state?.standbyBooking ?? null;
+    const isStandbyBooking = !!standbyBooking;
+
     const selectedItinerary = state?.selectedItinerary;
-    const searchParams      = state?.searchParams;
-    const passengers        = state?.passengers ?? [];
+    const searchParams = state?.searchParams;
+    const passengers = state?.passengers ?? [];
+    const returnItinerary = state?.returnItinerary ?? null;
 
     const [baggageCount, setBaggageCount] = useState(0)
 
     // Guard: if state is missing, send user back
     useEffect(() => {
-        if (!selectedItinerary || !searchParams || !passengers.length) {
+        if (!isStandbyBooking && (!selectedItinerary || !searchParams || !passengers.length)) {
             navigate("/flight-search");
         }
-    }, [selectedItinerary, searchParams, passengers, navigate]);
-
-    const returnItinerary = state?.returnItinerary ?? null;
+    }, [isStandbyBooking, selectedItinerary, searchParams, passengers, navigate]);
 
     const pricing = usePriceBreakdown(selectedItinerary, searchParams);
     const returnPricing = usePriceBreakdown(returnItinerary, searchParams);
+
+    const totalTax = pricing.taxAmount + (returnItinerary ? returnPricing.taxAmount : 0);
+    const combinedSubtotal =
+        pricing.subtotal + (returnItinerary ? returnPricing.subtotal : 0);
 
     const baggageTotal = baggageCount * BAGGAGE_FEE_PER_BAG;
     const combinedTotal = pricing.total + (returnItinerary ? returnPricing.total : 0) + baggageTotal;
@@ -336,7 +325,7 @@ export default function BookingReview() {
         const counters = {};
         return passengers.map((p) => {
             const type = p.passengerType;
-            counters[type] = (counters[type] ?? 0);
+            counters[type] = counters[type] ?? 0;
             const idx = counters[type];
             counters[type]++;
             return { ...p, indexWithinType: idx };
@@ -347,8 +336,15 @@ export default function BookingReview() {
         selectedItinerary?.flights?.every((f) => f.isDomestic) ?? true;
 
     const handleBack = () => {
+        if (isStandbyBooking) {
+            navigate("/profile", {
+                state: { defaultTab: "standby" },
+            });
+            return;
+        }
+
         navigate("/booking/passengers", {
-            state: { selectedItinerary, searchParams, passengers },
+            state: { selectedItinerary, returnItinerary, searchParams, passengers },
         });
     };
 
@@ -373,6 +369,15 @@ export default function BookingReview() {
             return passengerBags;
         }).flat();
         
+        if (isStandbyBooking) {
+            navigate("/booking/payment", {
+                state: {
+                    standbyBooking,
+                },
+            });
+            return;
+        }
+
         navigate("/booking/seat-selection", {
             state: {
                 selectedItinerary,
@@ -380,44 +385,115 @@ export default function BookingReview() {
                 searchParams,
                 passengers,
                 baggageData,
-                pricingSummary: { ...pricing, total: combinedTotal },
+                pricingSummary: {
+                    ...pricing,
+                    subtotal: combinedSubtotal,
+                    taxAmount: totalTax,
+                    total: combinedTotal,
+                },
             },
         });
     };
 
+    if (isStandbyBooking) {
+        return (
+            <div className="min-h-screen bg-transparent">
+                <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+                    <h1 className="text-3xl font-black text-white drop-shadow-md">
+                        Review Your Booking
+                    </h1>
+
+                    <Card className="p-5 bg-white/90 backdrop-blur-md border-none shadow-xl">
+                        <SectionTitle>Standby Flight</SectionTitle>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            <LabelValue label="Flight" value={standbyBooking.flightNum} />
+                            <LabelValue label="Seat" value={standbyBooking.seatNumber} />
+                            <LabelValue label="From" value={standbyBooking.origin} />
+                            <LabelValue label="To" value={standbyBooking.destination} />
+                        </div>
+                    </Card>
+
+                    <Card className="p-5 bg-white/90 backdrop-blur-md border-none shadow-xl">
+                        <SectionTitle>Passenger</SectionTitle>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                            <LabelValue label="Passenger ID" value={standbyBooking.passengerId} />
+                            <LabelValue label="Status" value="Standby Accepted" />
+                            <LabelValue label="Seat Hold" value="Reserved" />
+                        </div>
+                    </Card>
+
+                    <Card className="p-5 bg-white/90 backdrop-blur-md border-none shadow-xl">
+                        <SectionTitle>Price Breakdown</SectionTitle>
+                        <div className="space-y-2.5">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600">
+                                Fare Summary
+                            </p>
+                            <PriceRow
+                                label="Standby Fare"
+                                value={formatCurrency(Number(standbyBooking.totalPrice ?? 0))}
+                            />
+                            <Divider />
+                            <PriceRow
+                                label="Grand Total"
+                                value={formatCurrency(Number(standbyBooking.totalPrice ?? 0))}
+                                bold
+                                isTotal
+                            />
+                        </div>
+                    </Card>
+
+                    <div className="flex justify-between items-center pt-4">
+                        <Button
+                            variant="outline"
+                            onClick={handleBack}
+                            className="bg-white/20 text-white border-white/40 hover:bg-white/30 backdrop-blur-sm"
+                        >
+                            Back
+                        </Button>
+                        <Button
+                            onClick={handleConfirm}
+                            className="px-10 shadow-lg shadow-blue-600/30"
+                        >
+                            Continue to Payment
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     if (!selectedItinerary || !searchParams) return null;
 
-    const flights = selectedItinerary.flights ?? [];
+    const outboundFlights = selectedItinerary.flights ?? [];
+    const inboundFlights = returnItinerary?.flights ?? [];
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-transparent">
             <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
-                <h1 className="text-2xl font-semibold text-gray-900">Review Your Booking</h1>
+                <h1 className="text-3xl font-black text-white drop-shadow-md">
+                    Review Your Booking
+                </h1>
 
-                {/* ── Flight summary ── */}
-                <Card className="p-5">
+                <Card className="p-5 bg-white/90 backdrop-blur-md border-none shadow-xl">
                     <SectionTitle>
                         {selectedItinerary.type === "connecting"
                                 ? "Connecting"
                                 : "Direct"}
                     </SectionTitle>
-
                     <div className="space-y-0">
-                        {flights.map((flight, i) => (
+                        {outboundFlights.map((flight, i) => (
                             <div key={i} className="relative">
-                                <FlightSegment flight={flight} index={i} />
-                                {/* connector line between segments */}
-                                {i < flights.length - 1 && (
-                                    <div className="absolute left-1 top-5.5 w-px bg-gray-200"
-                                         style={{ height: "calc(100% - 10px)" }}
+                                <FlightSegment flight={flight} />
+                                {i < outboundFlights.length - 1 && (
+                                    <div
+                                        className="absolute left-1 top-5.5 w-px bg-gray-200"
+                                        style={{ height: "calc(100% - 10px)" }}
                                     />
                                 )}
                             </div>
                         ))}
                     </div>
-
                     <Divider />
-
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                         <LabelValue label="Cabin" value={capitalize(searchParams.cabinClass)} />
                         <LabelValue label="Trip Type" value={capitalize(searchParams.flightType)} />
@@ -426,41 +502,40 @@ export default function BookingReview() {
                 </Card>
 
                 {returnItinerary && (
-                    <Card className="p-5">
+                    <Card className="p-5 bg-white/90 backdrop-blur-md border-none shadow-xl">
                         <SectionTitle>Return Flight</SectionTitle>
                         <div className="space-y-0">
-                            {returnItinerary.flights.map((flight, i) => (
+                            {inboundFlights.map((flight, i) => (
                                 <div key={i} className="relative">
-                                    <FlightSegment flight={flight} index={i} />
-                                    {i < returnItinerary.flights.length - 1 && (
-                                        <div className="absolute left-1 top-5.5 w-px bg-gray-200"
-                                             style={{ height: "calc(100% - 10px)" }} />
+                                    <FlightSegment flight={flight} />
+                                    {i < inboundFlights.length - 1 && (
+                                        <div
+                                            className="absolute left-1 top-5.5 w-px bg-gray-200"
+                                            style={{ height: "calc(100% - 10px)" }}
+                                        />
                                     )}
                                 </div>
                             ))}
                         </div>
+                        <Divider />
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                             <LabelValue label="Cabin" value={capitalize(searchParams.cabinClass)} />
                             <LabelValue label="Trip Type" value={capitalize(searchParams.flightType)} />
                             {searchParams.flightType === "return" && searchParams.dateReturn && (
-                                <LabelValue
-                                    label="Date"
-                                    value={formatDate(searchParams.dateReturn)}
-                                />
+                                <LabelValue label="Date" value={formatDate(searchParams.dateReturn)} />
                             )}
                         </div>
                     </Card>
                 )}
 
-                {/* ── Passengers ── */}
-                <Card className="p-5">
+                <Card className="p-5 bg-white/90 backdrop-blur-md border-none shadow-xl">
                     <SectionTitle>Passengers</SectionTitle>
-                    <div className="space-y-3">
-                        {passengersWithIndex.map((passenger, i) => (
+                    <div className="grid grid-cols-1 gap-4">
+                        {passengersWithIndex.map((p, i) => (
                             <PassengerCard
                                 key={i}
-                                passenger={passenger}
-                                indexWithinType={passenger.indexWithinType}
+                                passenger={p}
+                                indexWithinType={p.indexWithinType}
                                 isDomestic={isDomesticItinerary}
                             />
                         ))}
@@ -475,35 +550,96 @@ export default function BookingReview() {
                 />
 
                 {/* ── Price breakdown ── */}
-                <Card className="p-5">
+                <Card className="p-5 bg-white/90 backdrop-blur-md border-none shadow-xl">
                     <SectionTitle>Price Breakdown</SectionTitle>
                     <div className="space-y-2.5">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Outbound</p>
-                        {pricing.adults   > 0 && <PriceRow label={`Adults × ${pricing.adults}`}     sub={`${formatCurrency(pricing.perAdult)} each`}          value={formatCurrency(pricing.adultFare)} />}
-                        {pricing.children > 0 && <PriceRow label={`Children × ${pricing.children}`} sub={`${formatCurrency(pricing.perChild)} each (80%)`}    value={formatCurrency(pricing.childFare)} />}
-                        {pricing.infants  > 0 && <PriceRow label={`Infants × ${pricing.infants}`}   sub={`${formatCurrency(pricing.perInfant)} each (10%)`}   value={formatCurrency(pricing.infantFare)} />}
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600">
+                            Outbound Fare Summary
+                        </p>
+
+                        {pricing.adults > 0 && (
+                            <PriceRow
+                                label={`Adults × ${pricing.adults}`}
+                                sub={`${formatCurrency(pricing.perAdult)} each`}
+                                value={formatCurrency(pricing.adultFare)}
+                            />
+                        )}
+                        {pricing.children > 0 && (
+                            <PriceRow
+                                label={`Children × ${pricing.children}`}
+                                sub={`${formatCurrency(pricing.perChild)} each (80%)`}
+                                value={formatCurrency(pricing.childFare)}
+                            />
+                        )}
+                        {pricing.infants > 0 && (
+                            <PriceRow
+                                label={`Infants × ${pricing.infants}`}
+                                sub={`${formatCurrency(pricing.perInfant)} each (10%)`}
+                                value={formatCurrency(pricing.infantFare)}
+                            />
+                        )}
 
                         {returnItinerary && (
                             <>
                                 <Divider />
-                                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Return</p>
-                                {returnPricing.adults   > 0 && <PriceRow label={`Adults × ${returnPricing.adults}`}     sub={`${formatCurrency(returnPricing.perAdult)} each`}        value={formatCurrency(returnPricing.adultFare)} />}
-                                {returnPricing.children > 0 && <PriceRow label={`Children × ${returnPricing.children}`} sub={`${formatCurrency(returnPricing.perChild)} each (80%)`}  value={formatCurrency(returnPricing.childFare)} />}
-                                {returnPricing.infants  > 0 && <PriceRow label={`Infants × ${returnPricing.infants}`}   sub={`${formatCurrency(returnPricing.perInfant)} each (10%)`} value={formatCurrency(returnPricing.infantFare)} />}
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600">
+                                    Return Fare Summary
+                                </p>
+
+                                {returnPricing.adults > 0 && (
+                                    <PriceRow
+                                        label={`Adults × ${returnPricing.adults}`}
+                                        sub={`${formatCurrency(returnPricing.perAdult)} each`}
+                                        value={formatCurrency(returnPricing.adultFare)}
+                                    />
+                                )}
+                                {returnPricing.children > 0 && (
+                                    <PriceRow
+                                        label={`Children × ${returnPricing.children}`}
+                                        sub={`${formatCurrency(returnPricing.perChild)} each (80%)`}
+                                        value={formatCurrency(returnPricing.childFare)}
+                                    />
+                                )}
+                                {returnPricing.infants > 0 && (
+                                    <PriceRow
+                                        label={`Infants × ${returnPricing.infants}`}
+                                        sub={`${formatCurrency(returnPricing.perInfant)} each (10%)`}
+                                        value={formatCurrency(returnPricing.infantFare)}
+                                    />
+                                )}
                             </>
                         )}
 
+                        <div className="pt-2 mt-2 border-t border-gray-200">
+                            <PriceRow
+                                label="Estimated Taxes & Fees"
+                                sub="(7.5%)"
+                                value={formatCurrency(totalTax)}
+                            />
+                        </div>
+
                         <Divider />
-                        <PriceRow label="Total" value={formatCurrency(combinedTotal)} bold />
+                        <PriceRow
+                            label="Grand Total"
+                            value={formatCurrency(combinedTotal)}
+                            bold
+                            isTotal
+                        />
                     </div>
                 </Card>
 
-                {/* ── Actions ── */}
-                <div className="flex justify-between items-center">
-                    <Button variant="outline" onClick={handleBack}>
+                <div className="flex justify-between items-center pt-4">
+                    <Button
+                        variant="outline"
+                        onClick={handleBack}
+                        className="bg-white/20 text-white border-white/40 hover:bg-white/30 backdrop-blur-sm"
+                    >
                         Back
                     </Button>
-                    <Button onClick={handleConfirm}>
+                    <Button
+                        onClick={handleConfirm}
+                        className="px-10 shadow-lg shadow-blue-600/30"
+                    >
                         Confirm & Continue
                     </Button>
                 </div>

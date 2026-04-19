@@ -130,8 +130,20 @@ namespace AirlineAPI.Controllers
                 return BadRequest(new { message = "An employee record already exists for this user." });
 
             // Generate a new employee ID
-            var count    = await _context.Employees.CountAsync();
-            var newId    = $"EMP{(count + 1):D4}";
+            var lastEmployee = await _context.Employees
+                .OrderByDescending(e => e.employeeId)
+                .Select(e => e.employeeId)
+                .FirstOrDefaultAsync();
+
+            int nextNumber = 1;
+
+            if (lastEmployee != null)
+            {
+                var numPart = int.Parse(lastEmployee.Substring(3));
+                nextNumber = numPart + 1;
+            }
+
+            var newId = $"EMP{nextNumber:D4}";
 
             var parsedStatus = ParseStatus(request.Status);
             if (parsedStatus == null)
@@ -199,6 +211,9 @@ namespace AirlineAPI.Controllers
             var parsedDepartment = ParseDepartment(request.Department);
             if (parsedDepartment == null)
                 return BadRequest(new { message = "Invalid department value." });
+            
+            if (employee.IsAdmin && parsedStatus == WorkStatus.Terminated)
+                return BadRequest(new { message = "Admins cannot be terminated." });
 
             var previousStatus = employee.status;
 
@@ -519,7 +534,7 @@ namespace AirlineAPI.Controllers
                     PassengerId = t.passengerId,
                     FirstName = t.Passenger != null ? t.Passenger.FirstName : null,
                     LastName = t.Passenger != null ? t.Passenger.LastName : null,
-                    SeatNumber = t.seatNumber,
+                    SeatNumber = t.seatNumber!,
                     TicketClass = t.ticketClass != null ? t.ticketClass.ToString() : null,
                     TicketStatus = t.status != null ? t.status.ToString() : null
                 })

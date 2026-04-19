@@ -243,7 +243,7 @@ export default function BookingSeats() {
     const [flightIndex, setFlightIndex] = useState(0);
     const [activePassengerIndex, setActivePassengerIndex] = useState(0);
     const [seatsByFlight, setSeatsByFlight] = useState({});
-    const [seatSelections, setSeatSelections] = useState({});
+    const [seatSelections, setSeatSelections] = useState(state?.seatSelections || {});
 
     useEffect(() => {
         if (!selectedItinerary || !searchParams || !passengers.length) {
