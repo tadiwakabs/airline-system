@@ -285,9 +285,9 @@ export default function Aircraft() {
                     <Button onClick={() => { setShowForm(true); setEditingTail(null); setForm(emptyForm); clearErrors(); }}>
                         + Add Aircraft
                     </Button>
-                    <Button variant="outline" onClick={openImport}>
+                    {/* <Button variant="outline" onClick={openImport}>
                         Import CSV
-                    </Button>
+                    </Button> */}
                 </div>
             </div>
 
@@ -346,7 +346,7 @@ export default function Aircraft() {
                             <th className="px-3 py-2 cursor-pointer select-none" onClick={() => handleSort("tailnumber")}>
                                 Tail Number{sortArrow("tailnumber")}
                             </th>
-                            <th className="px-3 py-2">Model</th>
+                            <th className="px-3 py-2">Plane Type</th>
                             <th className="px-3 py-2 text-center">Seats</th>
                             <th className="px-3 py-2">Manufacturer</th>
                             <th className="px-3 py-2 text-center">Airport</th>
