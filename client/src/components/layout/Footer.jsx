@@ -23,7 +23,7 @@ export default function Footer() {
                         </div>
                     </div>
                     <p className="text-sm leading-relaxed text-slate-400">
-                        Experience world-class travel with Divided Airline. From luxury seating to seamless bookings, we make every journey feel like home.
+                        Experience world-class travel with Divided Airlines. From luxury seating to seamless bookings, we make every journey feel like home.
                     </p>
                 </div>
 

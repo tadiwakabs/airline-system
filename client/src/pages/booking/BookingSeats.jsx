@@ -21,7 +21,7 @@ function buildPassengerLabel(type, indexWithinType) {
 function normalizeCabinClass(cabinClass) {
     const lower = String(cabinClass || "").toLowerCase();
 
-    if (lower === "business") return "Business"; 
+    if (lower === "business") return "Business";
     if (lower === "first") return "First";
     return "Economy";
 }
@@ -228,6 +228,7 @@ export default function BookingSeats() {
     const searchParams = state?.searchParams;
     const passengers = state?.passengers ?? [];
     const pricingSummary = state?.pricingSummary ?? null;
+    const baggageData = state?.baggageData ?? [];
 
     const flights = useMemo(() => {
         return [
@@ -304,6 +305,7 @@ export default function BookingSeats() {
 
     const handleSelectSeat = async (seat) => {
         if (!currentFlight || !currentPassenger?.passengerId) return;
+        if (currentPassenger.passengerType?.toLowerCase() === "infant") return;
 
         try {
             setSaving(true);
@@ -357,9 +359,11 @@ export default function BookingSeats() {
         if (!flights.length || !passengersWithIndex.length) return false;
 
         return flights.every((flight) =>
-            passengersWithIndex.every(
-                (passenger) => !!seatSelections?.[flight.flightNum]?.[passenger.passengerId]
-            )
+            passengersWithIndex
+                .filter((p) => p.passengerType?.toLowerCase() !== "infant")
+                .every(
+                    (passenger) => !!seatSelections?.[flight.flightNum]?.[passenger.passengerId]
+                )
         );
     }, [flights, passengersWithIndex, seatSelections]);
 
@@ -371,6 +375,7 @@ export default function BookingSeats() {
                 searchParams,
                 passengers,
                 pricingSummary,
+                baggageData,
             },
         });
     };
@@ -389,6 +394,7 @@ export default function BookingSeats() {
                 passengers,
                 pricingSummary,
                 seatSelections,
+                baggageData,
             },
         });
     };
@@ -468,6 +474,7 @@ export default function BookingSeats() {
                             <p className="text-sm font-semibold text-gray-800 mb-2">Passengers</p>
                             <div className="space-y-2">
                                 {passengersWithIndex.map((passenger, index) => {
+                                    const isInfant = passenger.passengerType?.toLowerCase() === "infant";
                                     const assigned =
                                         seatSelections?.[currentFlight.flightNum]?.[passenger.passengerId];
 
@@ -475,11 +482,14 @@ export default function BookingSeats() {
                                         <button
                                             key={passenger.passengerId || index}
                                             type="button"
-                                            onClick={() => setActivePassengerIndex(index)}
+                                            disabled={isInfant}
+                                            onClick={() => !isInfant && setActivePassengerIndex(index)}
                                             className={`w-full text-left rounded-xl border px-3 py-3 transition ${
-                                                index === activePassengerIndex
-                                                    ? "border-blue-300 bg-blue-50"
-                                                    : "border-gray-200 bg-white hover:bg-gray-50"
+                                                isInfant
+                                                    ? "border-gray-100 bg-gray-50 cursor-not-allowed opacity-60"
+                                                    : index === activePassengerIndex
+                                                        ? "border-blue-300 bg-blue-50"
+                                                        : "border-gray-200 bg-white hover:bg-gray-50"
                                             }`}
                                         >
                                             <p className="text-sm font-medium text-gray-900">
@@ -491,8 +501,8 @@ export default function BookingSeats() {
                                             <p className="text-xs text-gray-500 mt-1">
                                                 {passenger.firstName} {passenger.lastName}
                                             </p>
-                                            <p className="text-xs text-gray-500 mt-1">
-                                                Seat: {assigned || "Not selected"}
+                                            <p className="text-xs mt-1 italic text-gray-400">
+                                                {isInfant ? "Travels with guardian" : `Seat: ${assigned || "Not selected"}`}
                                             </p>
                                         </button>
                                     );
@@ -504,6 +514,17 @@ export default function BookingSeats() {
                     <Card className="p-5 space-y-4">
                         {loading ? (
                             <p className="text-sm text-gray-500">Loading seats...</p>
+                        ) : currentPassenger.passengerType?.toLowerCase() === "infant" ? (
+                            <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
+                                <div className="w-12 h-12 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center text-2xl">
+                                    👶
+                                </div>
+                                <p className="text-sm font-semibold text-gray-700">No seat required</p>
+                                <p className="text-xs text-gray-400 max-w-xs">
+                                    Infants travel on a guardian's lap and do not need a seat assignment.
+                                    Please select a different passenger to continue.
+                                </p>
+                            </div>
                         ) : (
                             <>
                                 <div className="flex items-center justify-between">
@@ -549,3 +570,4 @@ export default function BookingSeats() {
         </div>
     );
 }
+
