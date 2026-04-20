@@ -31,11 +31,11 @@ namespace AirlineAPI.Controllers
                     FROM Flight f
                     LEFT JOIN Ticket t ON t.flightCode = f.flightNum
                     LEFT JOIN Payment p ON p.bookingId = t.bookingId
-                    WHERE (t.issueDate >= {0} OR {0} IS NULL) AND (t.issueDate <= {1} OR {1} IS NULL)
+                    WHERE (f.departTime >= {0} OR {0} IS NULL) AND (f.departTime <= {1} OR {1} IS NULL)
                     GROUP BY f.departingPort, f.arrivingPort
                     ORDER BY totalRevenue DESC";
 
-                var data = await _context.Database.SqlQueryRaw<RevenueRow>(sql, startDate!, endDate!).ToListAsync();
+                var data = await _context.Database.SqlQueryRaw<RevenueRow>(sql, startDate, endDate).ToListAsync();
                 return Ok(data);
             } catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
         }
@@ -49,37 +49,76 @@ namespace AirlineAPI.Controllers
                         f.arrivingPort AS destination,
                         CAST(COUNT(DISTINCT CASE WHEN t.status = 'Booked' THEN t.ticketCode END) AS SIGNED) AS totalActiveBookings,
                         CAST(COUNT(DISTINCT CASE WHEN t.status = 'Booked' THEN t.ticketCode END) / 4 AS SIGNED) AS passengersPerWeek,
-                        ROUND(COALESCE(SUM(CASE WHEN t.status = 'Booked' THEN t.price ELSE 0 END), 0) / NULLIF((SELECT SUM(t2.price) FROM Ticket t2 WHERE t2.status = 'Booked'), 0) * 100, 2) AS revenueContributionPercent,
-                        COALESCE((SELECT MONTHNAME(MIN(t3.issueDate)) FROM Ticket t3 JOIN Flight f3 ON f3.flightNum = t3.flightCode WHERE f3.arrivingPort = f.arrivingPort AND t3.status = 'Booked' GROUP BY MONTH(t3.issueDate) ORDER BY COUNT(*) DESC LIMIT 1), 'N/A') AS peakMonth,
-                        COALESCE((SELECT DAYNAME(MIN(f4.departTime)) FROM Flight f4 JOIN Ticket t4 ON t4.flightCode = f4.flightNum WHERE f4.arrivingPort = f.arrivingPort AND t4.status = 'Booked' GROUP BY DAYOFWEEK(f4.departTime) ORDER BY COUNT(*) DESC LIMIT 1), 'N/A') AS peakDay,
+                        ROUND(COALESCE(SUM(CASE WHEN t.status = 'Booked' THEN t.price ELSE 0 END), 0) / NULLIF((
+                            SELECT SUM(t2.price) FROM Ticket t2 
+                            JOIN Flight f2 ON f2.flightNum = t2.flightCode
+                            WHERE t2.status = 'Booked'
+                            AND (f2.departTime >= {0} OR {0} IS NULL) 
+                            AND (f2.departTime <= {1} OR {1} IS NULL)
+                        ), 0) * 100, 2) AS revenueContributionPercent,
+                        COALESCE((
+                            SELECT MONTHNAME(MIN(f3.departTime)) 
+                            FROM Ticket t3 
+                            JOIN Flight f3 ON f3.flightNum = t3.flightCode 
+                            WHERE f3.arrivingPort = f.arrivingPort 
+                            AND t3.status = 'Booked'
+                            AND (f3.departTime >= {0} OR {0} IS NULL)
+                            AND (f3.departTime <= {1} OR {1} IS NULL)
+                            GROUP BY MONTH(f3.departTime) 
+                            ORDER BY COUNT(*) DESC 
+                            LIMIT 1
+                        ), 'N/A') AS peakMonth,
+                        COALESCE((
+                            SELECT DAYNAME(MIN(f4.departTime)) 
+                            FROM Flight f4 
+                            JOIN Ticket t4 ON t4.flightCode = f4.flightNum 
+                            WHERE f4.arrivingPort = f.arrivingPort 
+                            AND t4.status = 'Booked'
+                            AND (f4.departTime >= {0} OR {0} IS NULL)
+                            AND (f4.departTime <= {1} OR {1} IS NULL)
+                            GROUP BY DAYOFWEEK(f4.departTime) 
+                            ORDER BY COUNT(*) DESC 
+                            LIMIT 1
+                        ), 'N/A') AS peakDay,
                         ROUND(
                             (
                                 COALESCE(SUM(CASE WHEN t.status = 'Booked' THEN t.price ELSE 0 END), 0) / 
-                                NULLIF((SELECT SUM(t2.price) FROM Ticket t2 WHERE t2.status = 'Booked'), 0) * 100 * 0.6
+                                NULLIF((
+                                    SELECT SUM(t2.price) FROM Ticket t2
+                                    JOIN Flight f2 ON f2.flightNum = t2.flightCode
+                                    WHERE t2.status = 'Booked'
+                                    AND (f2.departTime >= {0} OR {0} IS NULL)
+                                    AND (f2.departTime <= {1} OR {1} IS NULL)
+                                ), 0) * 100 * 0.6
                             ) + (
                                 COUNT(DISTINCT CASE WHEN t.status = 'Booked' THEN t.ticketCode END) /
-                                NULLIF((SELECT COUNT(*) FROM Ticket t3 WHERE t3.status = 'Booked'), 0) * 100 * 0.4
+                                NULLIF((
+                                    SELECT COUNT(*) FROM Ticket t3
+                                    JOIN Flight f3 ON f3.flightNum = t3.flightCode
+                                    WHERE t3.status = 'Booked'
+                                    AND (f3.departTime >= {0} OR {0} IS NULL)
+                                    AND (f3.departTime <= {1} OR {1} IS NULL)
+                                ), 0) * 100 * 0.4
                             )
                         , 4) AS networkScore,
                         CAST(NULL AS CHAR) AS marketTier
                     FROM Flight f
                     LEFT JOIN Ticket t ON t.flightCode = f.flightNum
-                    WHERE (t.issueDate >= {0} OR {0} IS NULL) AND (t.issueDate <= {1} OR {1} IS NULL)
+                    WHERE (f.departTime >= {0} OR {0} IS NULL) AND (f.departTime <= {1} OR {1} IS NULL)
                     GROUP BY f.arrivingPort
                     ORDER BY totalActiveBookings DESC";
-        
-                var data = await _context.Database.SqlQueryRaw<PopularityRow>(sql, startDate!, endDate!).ToListAsync();
+
+                var data = await _context.Database.SqlQueryRaw<PopularityRow>(sql, startDate, endDate).ToListAsync();
                 var sorted = data.OrderByDescending(r => r.networkScore).ToList();
                 double totalRevShare = sorted.Sum(r => r.revenueContributionPercent);
                 double cumulative = 0;
                 double primaryThreshold = totalRevShare * 0.75;
                 double avgPaxPerWeek = sorted.Where(r => r.passengersPerWeek > 0).Average(r => (double)r.passengersPerWeek);
-                
+
                 foreach (var row in sorted)
                 {
                     double prevCumulative = cumulative;
                     cumulative += row.revenueContributionPercent;
-                    
                     if (prevCumulative < primaryThreshold && row.passengersPerWeek >= avgPaxPerWeek)
                         row.marketTier = "Primary";
                     else if (row.networkScore > 0)
@@ -87,7 +126,7 @@ namespace AirlineAPI.Controllers
                     else
                         row.marketTier = "Inactive";
                 }
-                
+
                 return Ok(sorted);
             } catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
         }
@@ -95,7 +134,7 @@ namespace AirlineAPI.Controllers
         [HttpGet("heatmap")]
         public async Task<IActionResult> GetHeatmap()
         {
-           try {
+            try {
                 var data = await _context.Database.SqlQueryRaw<HeatmapRow>(@"
                     SELECT 
                         DAYOFWEEK(MIN(f.departTime)) - 1 AS dayOfWeek,
@@ -123,29 +162,67 @@ namespace AirlineAPI.Controllers
             try {
                 var sql = @"
                     SELECT 
-                        f.departingPort AS origin,
-                        f.arrivingPort AS destination,
-                        f.aircraftUsed AS tailNumber,
-                        COALESCE(a.planeType, f.aircraftUsed) AS planeModel,
-                        CAST(ROUND(COUNT(DISTINCT f.flightNum) / NULLIF(COUNT(DISTINCT YEARWEEK(f.departTime, 0)), 0)) AS SIGNED) AS weeklyFrequency,
-                        ROUND(COALESCE(SUM(t.passengers), 0) / NULLIF(COUNT(DISTINCT f.flightNum) * AVG(a.numSeats), 0) * 100, 2) AS avgLoadFactorPercent,
+                        base.origin,
+                        base.destination,
+                        base.tailNumber,
+                        base.planeModel,
+                        base.weeklyFrequency,
+                        base.avgLoadFactorPercent,
                         CASE
-                            WHEN ROUND(COALESCE(SUM(t.passengers), 0) / NULLIF(COUNT(DISTINCT f.flightNum) * AVG(a.numSeats), 0) * 100, 2) >= 95
-                                THEN 'Upsize Aircraft'
-                            WHEN ROUND(COALESCE(SUM(t.passengers), 0) / NULLIF(COUNT(DISTINCT f.flightNum) * AVG(a.numSeats), 0) * 100, 2) BETWEEN 80 AND 94.99
-                                THEN 'Optimal'
-                            WHEN ROUND(COALESCE(SUM(t.passengers), 0) / NULLIF(COUNT(DISTINCT f.flightNum) * AVG(a.numSeats), 0) * 100, 2) BETWEEN 70 AND 79.99
-                                THEN 'Monitor'
+                            WHEN base.avgLoadFactorPercent >= 95 THEN 'Upsize Aircraft'
+                            WHEN base.avgLoadFactorPercent BETWEEN 80 AND 94.99 THEN 'Optimal'
+                            WHEN base.avgLoadFactorPercent BETWEEN 70 AND 79.99 THEN 'Monitor'
                             ELSE 'Downsize Aircraft'
                         END AS recommendedAction
-                    FROM Flight f
-                    LEFT JOIN Aircraft a ON f.aircraftUsed = a.tailNumber
-                    LEFT JOIN (SELECT flightCode, COUNT(ticketCode) AS passengers FROM Ticket WHERE status = 'Booked' GROUP BY flightCode) t ON t.flightCode = f.flightNum
-                    WHERE (f.departTime >= {0} OR {0} IS NULL) AND (f.departTime <= {1} OR {1} IS NULL)
-                    GROUP BY f.departingPort, f.arrivingPort, f.aircraftUsed, a.planeType
-                    ORDER BY avgLoadFactorPercent DESC";
-        
-                var data = await _context.Database.SqlQueryRaw<ActivityRow>(sql, startDate!, endDate!).ToListAsync();
+                    FROM (
+                        SELECT 
+                            f.departingPort AS origin,
+                            f.arrivingPort AS destination,
+                            f.aircraftUsed AS tailNumber,
+                            COALESCE(a.planeType, f.aircraftUsed) AS planeModel,
+                            CAST(ROUND(
+                                COUNT(DISTINCT f.flightNum) / 
+                                NULLIF(COUNT(DISTINCT YEARWEEK(f.departTime, 0)), 0)
+                            ) AS SIGNED) AS weeklyFrequency,
+                            ROUND(
+                                COALESCE(
+                                    (SELECT COUNT(t2.ticketCode) 
+                                     FROM Ticket t2 
+                                     JOIN Flight f2 ON t2.flightCode = f2.flightNum
+                                     WHERE f2.departingPort = f.departingPort 
+                                       AND f2.arrivingPort = f.arrivingPort
+                                       AND f2.aircraftUsed = f.aircraftUsed
+                                       AND t2.status = 'Booked'
+                                       AND f2.departTime >= NOW() 
+                                       AND f2.departTime <= DATE_ADD(NOW(), INTERVAL 30 DAY)
+                                    ), 0
+                                ) /
+                                NULLIF(
+                                    (SELECT COUNT(DISTINCT f3.flightNum) * AVG(a3.numSeats)
+                                     FROM Flight f3
+                                     JOIN Aircraft a3 ON f3.aircraftUsed = a3.tailNumber
+                                     WHERE f3.departingPort = f.departingPort
+                                       AND f3.arrivingPort = f.arrivingPort
+                                       AND f3.aircraftUsed = f.aircraftUsed
+                                       AND f3.departTime >= NOW()
+                                       AND f3.departTime <= DATE_ADD(NOW(), INTERVAL 30 DAY)
+                                    ), 0
+                                ) * 100
+                            , 2) AS avgLoadFactorPercent
+                        FROM Flight f
+                        LEFT JOIN Aircraft a ON f.aircraftUsed = a.tailNumber
+                        LEFT JOIN (
+                            SELECT flightCode, COUNT(ticketCode) AS passengers
+                            FROM Ticket
+                            WHERE status = 'Booked'
+                            GROUP BY flightCode
+                        ) t ON t.flightCode = f.flightNum
+                        WHERE (f.departTime >= {0} OR {0} IS NULL) AND (f.departTime <= {1} OR {1} IS NULL)
+                        GROUP BY f.departingPort, f.arrivingPort, f.aircraftUsed, a.planeType
+                    ) base
+                    ORDER BY base.avgLoadFactorPercent DESC";
+
+                var data = await _context.Database.SqlQueryRaw<ActivityRow>(sql, startDate, endDate).ToListAsync();
                 return Ok(data);
             } catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
         }
