@@ -1,4 +1,4 @@
-import { act, useEffect, useState } from "react";
+﻿import { act, useEffect, useState } from "react";
 import Card from "../../components/common/Card";
 import TextInput from "../../components/common/TextInput";
 import Modal from "../../components/common/Modal";
@@ -16,7 +16,7 @@ import {
     updateMyProfile,
     changeMyPassword,
 } from "../../services/authService";
-import { getMyNotifications } from "../../services/notificationService";
+import { getMyNotifications, markNotificationAsRead } from "../../services/notificationService";
 import {
     getPassengerByUserId,
     updatePassenger,
@@ -256,6 +256,22 @@ export default function Profile() {
             setNotificationLoading(false);
         }
     };
+    const handleMarkAsRead = async (id) => {
+    try {
+        await markNotificationAsRead(id);
+
+        setNotifications((prev) =>
+            prev.map((n) =>
+                n.notificationId === id
+                    ? { ...n, notificationStatus: "Read" }
+                    : n
+            )
+        );
+
+    } catch (err) {
+        console.error("Error marking notification as read:", err);
+    }
+};
 
     // Added loader for standby offers
     const loadStandbyOffers = async () => {

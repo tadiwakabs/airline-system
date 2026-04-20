@@ -33,5 +33,20 @@ namespace AirlineAPI.Controllers
 
             return Ok(notifications);
         }
+
+        [HttpPut("{id}/read")]
+public async Task<IActionResult> MarkAsRead(int id)
+{
+    var notification = await _context.Notification.FindAsync(id);
+
+    if (notification == null)
+        return NotFound(new { message = "Notification not found." });
+
+    notification.notificationStatus = "Read";
+
+    await _context.SaveChangesAsync();
+
+    return Ok(new { message = "Notification marked as read." });
+}
     }
 }

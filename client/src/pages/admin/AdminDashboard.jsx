@@ -41,6 +41,13 @@ function Admin() {
             description: "Assign cabin crew to flights"
         },
         {
+            label: "Bag Check",
+            icon: "🧳",
+            path: "/cabin-crew/bag-check",
+            color: "bg-emerald-500",
+            description: "Check passenger bags for assigned flights",
+        },
+        {
             label: "Passenger List",
             icon: "👥",
             path: "/passenger-list",
