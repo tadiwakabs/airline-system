@@ -331,8 +331,8 @@ export default function MyFlights() {
     return (
         <div className="mx-auto max-w-7xl px-4 py-10">
             <div className="mb-4 flex justify-between items-start">
-                <h1 className="text-2xl font-semibold text-gray-900">My Flights</h1>
-                <p className="mt-1 text-sm text-gray-500">
+                <h1 className="text-2xl font-semibold text-gray-100">My Flights</h1>
+                <p className="mt-1 text-sm text-gray-200">
                     View your upcoming assigned flights and passenger manifests.
                 </p>
                 <Button 
