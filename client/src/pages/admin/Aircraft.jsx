@@ -466,7 +466,9 @@ export default function Aircraft() {
                 <form onSubmit={handleSubmit} className="space-y-4 pt-2">
                     <FormError errors={serverErrors} />
                     <TextInput
-                        label="Tail Number"
+                        label={
+                            <>Tail Number <span className="text-red-500">*</span></>
+                        }
                         value={form.tailnumber}
                         disabled={!!editingTail}
                         placeholder="e.g. N12345"
@@ -480,7 +482,9 @@ export default function Aircraft() {
                             onChange={(e) => setForm({ ...form, planeType: e.target.value })}
                         />
                         <TextInput
-                            label="Seats"
+                            label={
+                                <>Seats <span className="text-red-500">*</span></>
+                            }
                             type="number"
                             value={form.numSeats}
                             placeholder="90 – 140"
@@ -495,14 +499,18 @@ export default function Aircraft() {
                     />
                     <div className="grid grid-cols-2 gap-4">
                         <TextInput
-                            label="Range (miles)"
+                            label={
+                                <>Range (miles) <span className="text-red-500">*</span></>
+                            }
                             type="number"
                             value={form.flightRange}
                             placeholder="9000 – 11000"
                             onChange={(e) => setForm({ ...form, flightRange: parseInt(e.target.value) })}
                         />
                         <Combobox
-                            label="Airport Code"
+                            label={
+                                <>Airport Code <span className="text-red-500">*</span></>
+                            }
                             value={form.currentAirportCode}
                             onChange={(val) => setForm({ ...form, currentAirportCode: val })}
                             options={airportOptions}
