@@ -83,7 +83,6 @@ export default function BookingPayment() {
         clearErrors,
     } = useFormErrors();
 
-    // Read state passed from BookingSeats
     const booking = location.state || {};
     const standbyBooking = booking.standbyBooking || null;
     const isStandbyPayment = !!standbyBooking;

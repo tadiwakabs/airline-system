@@ -4,8 +4,6 @@ import Card from "../../components/common/Card.jsx";
 import Button from "../../components/common/Button.jsx";
 import { createBaggageBulk } from "../../services/baggageService.js";
 
-// ─── helpers ────────────────────────────────────────────────────────────────
-
 function capitalize(value) {
     if (!value) return "";
     if (value === "first") return "First Class";
@@ -304,8 +302,6 @@ function PriceRow({ label, value, sub, bold, isTotal }) {
         </div>
     );
 }
-
-// ─── main page ───────────────────────────────────────────────────────────────
 
 export default function BookingReview() {
     const { state } = useLocation();
