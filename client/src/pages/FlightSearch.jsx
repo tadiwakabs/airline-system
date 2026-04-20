@@ -436,52 +436,19 @@ export default function FlightSearch() {
                                         {...result}
                                         cabinClass={searchParams.cabinClass}
                                         passengers={searchParams.passengers}
+                                        isFull={
+                                            result.flights?.length > 0 &&
+                                            result.flights.every((flight) => flight.isFull)
+                                        }
+                                        onJoinStandby={() => handleJoinStandby(result.flights[0].flightNum)}
+                                        joiningStandby={joiningFlight === result.flights[0].flightNum}
                                         onSelect={
                                             selectionStage === "return"
                                                 ? handleSelectReturn
                                                 : handleSelectOutbound
                                         }
                                     />
-
-                                    {result.flights?.length > 0 &&
-                                        result.flights.every(
-                                            (flight) => flight.isFull
-                                        ) && (
-                                            <Card className="p-4">
-                                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                                    <div>
-                                                        <p className="text-sm font-semibold text-gray-900">
-                                                            This flight is full
-                                                        </p>
-                                                        <p className="text-sm text-gray-600">
-                                                            Join standby to be
-                                                            notified if a seat
-                                                            opens.
-                                                        </p>
-                                                    </div>
-
-                                                    <Button
-                                                        onClick={() =>
-                                                            handleJoinStandby(
-                                                                result.flights[0]
-                                                                    .flightNum
-                                                            )
-                                                        }
-                                                        disabled={
-                                                            joiningFlight ===
-                                                            result.flights[0]
-                                                                .flightNum
-                                                        }
-                                                    >
-                                                        {joiningFlight ===
-                                                        result.flights[0]
-                                                            .flightNum
-                                                            ? "Joining..."
-                                                            : "Join Standby"}
-                                                    </Button>
-                                                </div>
-                                            </Card>
-                                        )}
+                                    
                                 </div>
                             ))}
                         </div>
