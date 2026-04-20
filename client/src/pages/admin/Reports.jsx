@@ -387,6 +387,7 @@ export default function Reports() {
 
     const formatHeader = (key) => {
         if (key === 'refunds') return 'DEDUCTIONS';
+        if (key === 'avgLoadFactorPercent') return 'ROLLING 30D LOAD FACTOR (%)';
         return key.replace(/([A-Z])/g, ' $1').trim().toUpperCase();
     };
 
@@ -482,7 +483,7 @@ export default function Reports() {
                                             data: [{
                                                 x: Number(r.passengersPerWeek || 0),
                                                 y: Number(r.revenueContributionPercent || 0),
-                                                r: Math.max(4, Math.sqrt(Number(r.totalActiveBookings || 0)) * 1.5),
+                                                r: Math.max(4, Math.min(30, Math.sqrt(Number(r.totalActiveBookings || 0)) * 1.5)),
                                             }],
                                             backgroundColor: r.marketTier === 'Primary' ? 'rgba(15,23,42,0.8)' :
                                                 r.marketTier === 'Secondary' ? 'rgba(59,130,246,0.7)' : 'rgba(203,213,225,0.7)',
