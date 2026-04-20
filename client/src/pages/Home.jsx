@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-
 import TabBar from "../components/home/TabBar.jsx";
 import FlightStatusPanel from "../components/home/FlightStatus.jsx";
 import FlightSearchPanel from "../components/home/FlightSearchPanel.jsx";
 import Hero from "../components/home/HeroSection.jsx";
 import FeaturedFlights from "../components/home/FeaturedFlights.jsx";
 import Card from "../components/common/Card.jsx";
-import { getMyNotifications } from "../services/notificationService";
+import { getFlightById } from "../services/flightService";
+import { getFlightsByBooking } from "../services/bookingService";
+import { getMyNotifications, markNotificationAsRead } from "../services/notificationService";
 import { getStatusByBooking } from "../services/bookingService";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -145,6 +146,22 @@ export default function Home() {
         }
     };
 
+    const handleMarkAsRead = async (id) => {
+    try {
+        await markNotificationAsRead(id);
+
+        setNotifications((prev) =>
+            prev.map((n) =>
+                n.notificationId === id
+                    ? { ...n, notificationStatus: "Read" }
+                    : n
+            )
+        );
+    } catch (err) {
+        console.error("Error marking notification as read:", err);
+    }
+};
+
     const handleSearch = (params) => {
         navigate("/flight-search", { state: params });
     };
@@ -186,10 +203,10 @@ export default function Home() {
                     <section className="space-y-4">
                         <div className="flex items-center justify-between">
                             <div>
-                                <h2 className="text-xl font-semibold text-gray-900">
+                                <h2 className="text-xl font-semibold text-gray-800">
                                     Notifications
                                 </h2>
-                                <p className="text-sm text-gray-500">
+                                <p className="text-sm text-gray-200">
                                     Important flight and standby updates for your account.
                                 </p>
                             </div>
@@ -201,7 +218,7 @@ export default function Home() {
                                         state: { defaultTab: "notifications" },
                                     })
                                 }
-                                className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
+                                className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-200 transition hover:bg-gray-600 cursor-pointer"
                             >
                                 View All
                             </button>
@@ -240,6 +257,14 @@ export default function Home() {
                                                             : "—"}
                                                     </p>
                                                 </div>
+                                                {(notification.notificationStatus || "").toLowerCase() === "unread" && (
+        <button
+            onClick={() => handleMarkAsRead(notification.notificationId)}
+            className="mt-2 text-xs text-blue-600 hover:underline"
+        >
+            Mark as Read
+        </button>
+    )}
                                             </div>
 
                                             <span
