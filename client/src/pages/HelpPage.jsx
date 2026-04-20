@@ -47,7 +47,7 @@ const HelpPage = () => {
     Payments: [
       {
         q: "What payment methods are accepted?",
-        a: "We accept all credit cards and PayPal too!",
+        a: "We accept all credit cards and PayPal too! We Broke!!",
       },
       {
         q: "Can I pay with multiple cards?",
