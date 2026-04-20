@@ -447,9 +447,9 @@ export default function BookingPassengers() {
     if (!selectedItinerary || !searchParams) return null;
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen">
             <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
-                <h1 className="text-2xl font-semibold">Passenger Details</h1>
+                <h1 className="text-3xl font-black text-white drop-shadow-md">Passenger Details</h1>
 
                 <Card className="p-5">
                     <p className="text-sm text-gray-500">Selected itinerary</p>
@@ -692,7 +692,12 @@ export default function BookingPassengers() {
 
                 {!loading && (
                     <div className="flex justify-center mt-8">
-                        <Button variant="outline" onClick={handleBack} className="mr-auto"> Back </Button>
+                        <Button 
+                            variant="outline" 
+                            onClick={handleBack} 
+                            className="mr-auto bg-white/20 text-white border-white/40 hover:bg-white/30 backdrop-blur-sm"> 
+                                Back 
+                            </Button>
                         <Button onClick={handleContinue}>Continue</Button>
                     </div>
                 )}
