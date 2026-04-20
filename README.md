@@ -3,6 +3,93 @@
 A full-stack airline booking system that allows passengers and airline staff to search flights, book tickets, manage reservations, and process payments.
 
 ---
+# Project Structure
+```bash
+|-- client
+|   |-- client
+|   |-- public
+|   `-- src
+|       |-- assets
+|       |-- components
+|       |   |-- auth
+|       |   |-- common
+|       |   |-- flight
+|       |   |-- home
+|       |   |-- layout
+|       |   `-- reports
+|       |-- contexts
+|       |-- dropdownData
+|       |-- pages
+|       |   |-- admin
+|       |   |-- booking
+|       |   |-- employee
+|       |   `-- passenger
+|       |-- services
+|       `-- utils
+|-- db-queries
+|   |-- Tables
+|   |-- Triggers
+|   `-- Views
+`-- server
+`-- AirlineAPI
+    |-- Controllers
+    |-- DTOs
+    |   |-- Auth
+    |   |-- Baggage
+    |   |-- Booking
+    |   |-- Employee
+    |   |-- Flight
+    |   |-- Seating
+    |   `-- User
+|-- Data
+|-- Models
+|-- Properties
+|-- Services
+|-- bin
+|   |-- Debug
+|   |   `-- net9.0
+        |   |       |-- cs
+        |   |       |-- de
+        |   |       |-- es
+        |   |       |-- fr
+        |   |       |-- it
+        |   |       |-- ja
+        |   |       |-- ko
+        |   |       |-- pl
+        |   |       |-- pt-BR
+        |   |       |-- ru
+        |   |       |-- tr
+        |   |       |-- zh-Hans
+        |   |       `-- zh-Hant
+|   `-- Release
+        |       `-- net9.0
+|           |-- cs
+|           |-- de
+|           |-- es
+|           |-- fr
+|           |-- it
+|           |-- ja
+|           |-- ko
+|           |-- pl
+|           |-- pt-BR
+|           |-- ru
+|           |-- tr
+|           |-- zh-Hans
+|           `-- zh-Hant
+        `-- obj
+|-- Debug
+|   `-- net9.0
+            |       |-- ref
+            |       |-- refint
+            |       `-- staticwebassets
+`-- Release
+    `-- net9.0
+|-- ref
+|-- refint
+`-- staticwebassets
+```
+
+---
 
 # Project Setup
 
