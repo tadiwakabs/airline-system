@@ -122,129 +122,66 @@ public async Task<IActionResult> GetActivity([FromQuery] string? startDate, [Fro
 {
     try {
         var sql = @"
-            SELECT 
-                f.departingPort AS origin,
-                f.arrivingPort AS destination,
-                f.aircraftUsed AS tailNumber,
-                COALESCE(a.planeType, f.aircraftUsed) AS planeModel,
-                CAST(ROUND(
-                    COUNT(DISTINCT f.flightNum) / 
-                    NULLIF(COUNT(DISTINCT YEARWEEK(f.departTime, 0)), 0)
-                ) AS SIGNED) AS weeklyFrequency,
-                ROUND(
-                    COALESCE(
-                        (SELECT COUNT(t2.ticketCode) 
-                         FROM Ticket t2 
-                         JOIN Flight f2 ON t2.flightCode = f2.flightNum
-                         WHERE f2.departingPort = f.departingPort 
-                           AND f2.arrivingPort = f.arrivingPort
-                           AND f2.aircraftUsed = f.aircraftUsed
-                           AND t2.status = 'Booked'
-                           AND f2.departTime >= NOW() 
-                           AND f2.departTime <= DATE_ADD(NOW(), INTERVAL 30 DAY)
-                        ), 0
-                    ) /
-                    NULLIF(
-                        (SELECT COUNT(DISTINCT f3.flightNum) * AVG(a3.numSeats)
-                         FROM Flight f3
-                         JOIN Aircraft a3 ON f3.aircraftUsed = a3.tailNumber
-                         WHERE f3.departingPort = f.departingPort
-                           AND f3.arrivingPort = f.arrivingPort
-                           AND f3.aircraftUsed = f.aircraftUsed
-                           AND f3.departTime >= NOW()
-                           AND f3.departTime <= DATE_ADD(NOW(), INTERVAL 30 DAY)
-                        ), 0
-                    ) * 100
-                , 2) AS avgLoadFactorPercent,
-                CASE
-                    WHEN ROUND(
-                        COALESCE(
-                            (SELECT COUNT(t2.ticketCode) 
-                             FROM Ticket t2 
-                             JOIN Flight f2 ON t2.flightCode = f2.flightNum
-                             WHERE f2.departingPort = f.departingPort 
-                               AND f2.arrivingPort = f.arrivingPort
-                               AND f2.aircraftUsed = f.aircraftUsed
-                               AND t2.status = 'Booked'
-                               AND f2.departTime >= NOW() 
-                               AND f2.departTime <= DATE_ADD(NOW(), INTERVAL 30 DAY)
-                            ), 0
-                        ) /
-                        NULLIF(
-                            (SELECT COUNT(DISTINCT f3.flightNum) * AVG(a3.numSeats)
-                             FROM Flight f3
-                             JOIN Aircraft a3 ON f3.aircraftUsed = a3.tailNumber
-                             WHERE f3.departingPort = f.departingPort
-                               AND f3.arrivingPort = f.arrivingPort
-                               AND f3.aircraftUsed = f.aircraftUsed
-                               AND f3.departTime >= NOW()
-                               AND f3.departTime <= DATE_ADD(NOW(), INTERVAL 30 DAY)
-                            ), 0
-                        ) * 100
-                    , 2) >= 95 THEN 'Upsize Aircraft'
-                    WHEN ROUND(
-                        COALESCE(
-                            (SELECT COUNT(t2.ticketCode) 
-                             FROM Ticket t2 
-                             JOIN Flight f2 ON t2.flightCode = f2.flightNum
-                             WHERE f2.departingPort = f.departingPort 
-                               AND f2.arrivingPort = f.arrivingPort
-                               AND f2.aircraftUsed = f.aircraftUsed
-                               AND t2.status = 'Booked'
-                               AND f2.departTime >= NOW() 
-                               AND f2.departTime <= DATE_ADD(NOW(), INTERVAL 30 DAY)
-                            ), 0
-                        ) /
-                        NULLIF(
-                            (SELECT COUNT(DISTINCT f3.flightNum) * AVG(a3.numSeats)
-                             FROM Flight f3
-                             JOIN Aircraft a3 ON f3.aircraftUsed = a3.tailNumber
-                             WHERE f3.departingPort = f.departingPort
-                               AND f3.arrivingPort = f.arrivingPort
-                               AND f3.aircraftUsed = f.aircraftUsed
-                               AND f3.departTime >= NOW()
-                               AND f3.departTime <= DATE_ADD(NOW(), INTERVAL 30 DAY)
-                            ), 0
-                        ) * 100
-                    , 2) BETWEEN 80 AND 94.99 THEN 'Optimal'
-                    WHEN ROUND(
-                        COALESCE(
-                            (SELECT COUNT(t2.ticketCode) 
-                             FROM Ticket t2 
-                             JOIN Flight f2 ON t2.flightCode = f2.flightNum
-                             WHERE f2.departingPort = f.departingPort 
-                               AND f2.arrivingPort = f.arrivingPort
-                               AND f2.aircraftUsed = f.aircraftUsed
-                               AND t2.status = 'Booked'
-                               AND f2.departTime >= NOW() 
-                               AND f2.departTime <= DATE_ADD(NOW(), INTERVAL 30 DAY)
-                            ), 0
-                        ) /
-                        NULLIF(
-                            (SELECT COUNT(DISTINCT f3.flightNum) * AVG(a3.numSeats)
-                             FROM Flight f3
-                             JOIN Aircraft a3 ON f3.aircraftUsed = a3.tailNumber
-                             WHERE f3.departingPort = f.departingPort
-                               AND f3.arrivingPort = f.arrivingPort
-                               AND f3.aircraftUsed = f.aircraftUsed
-                               AND f3.departTime >= NOW()
-                               AND f3.departTime <= DATE_ADD(NOW(), INTERVAL 30 DAY)
-                            ), 0
-                        ) * 100
-                    , 2) BETWEEN 70 AND 79.99 THEN 'Monitor'
-                    ELSE 'Downsize Aircraft'
-                END AS recommendedAction
-            FROM Flight f
-            LEFT JOIN Aircraft a ON f.aircraftUsed = a.tailNumber
-            LEFT JOIN (
-                SELECT flightCode, COUNT(ticketCode) AS passengers
-                FROM Ticket
-                WHERE status = 'Booked'
-                GROUP BY flightCode
-            ) t ON t.flightCode = f.flightNum
-            WHERE (f.departTime >= {0} OR {0} IS NULL) AND (f.departTime <= {1} OR {1} IS NULL)
-            GROUP BY f.departingPort, f.arrivingPort, f.aircraftUsed, a.planeType
-            ORDER BY avgLoadFactorPercent DESC";
+    SELECT 
+        base.origin,
+        base.destination,
+        base.tailNumber,
+        base.planeModel,
+        base.weeklyFrequency,
+        base.avgLoadFactorPercent,
+        CASE
+            WHEN base.avgLoadFactorPercent >= 95 THEN 'Upsize Aircraft'
+            WHEN base.avgLoadFactorPercent BETWEEN 80 AND 94.99 THEN 'Optimal'
+            WHEN base.avgLoadFactorPercent BETWEEN 70 AND 79.99 THEN 'Monitor'
+            ELSE 'Downsize Aircraft'
+        END AS recommendedAction
+    FROM (
+        SELECT 
+            f.departingPort AS origin,
+            f.arrivingPort AS destination,
+            f.aircraftUsed AS tailNumber,
+            COALESCE(a.planeType, f.aircraftUsed) AS planeModel,
+            CAST(ROUND(
+                COUNT(DISTINCT f.flightNum) / 
+                NULLIF(COUNT(DISTINCT YEARWEEK(f.departTime, 0)), 0)
+            ) AS SIGNED) AS weeklyFrequency,
+            ROUND(
+                COALESCE(
+                    (SELECT COUNT(t2.ticketCode) 
+                     FROM Ticket t2 
+                     JOIN Flight f2 ON t2.flightCode = f2.flightNum
+                     WHERE f2.departingPort = f.departingPort 
+                       AND f2.arrivingPort = f.arrivingPort
+                       AND f2.aircraftUsed = f.aircraftUsed
+                       AND t2.status = 'Booked'
+                       AND f2.departTime >= NOW() 
+                       AND f2.departTime <= DATE_ADD(NOW(), INTERVAL 30 DAY)
+                    ), 0
+                ) /
+                NULLIF(
+                    (SELECT COUNT(DISTINCT f3.flightNum) * AVG(a3.numSeats)
+                     FROM Flight f3
+                     JOIN Aircraft a3 ON f3.aircraftUsed = a3.tailNumber
+                     WHERE f3.departingPort = f.departingPort
+                       AND f3.arrivingPort = f.arrivingPort
+                       AND f3.aircraftUsed = f.aircraftUsed
+                       AND f3.departTime >= NOW()
+                       AND f3.departTime <= DATE_ADD(NOW(), INTERVAL 30 DAY)
+                    ), 0
+                ) * 100
+            , 2) AS avgLoadFactorPercent
+        FROM Flight f
+        LEFT JOIN Aircraft a ON f.aircraftUsed = a.tailNumber
+        LEFT JOIN (
+            SELECT flightCode, COUNT(ticketCode) AS passengers
+            FROM Ticket
+            WHERE status = 'Booked'
+            GROUP BY flightCode
+        ) t ON t.flightCode = f.flightNum
+        WHERE (f.departTime >= {0} OR {0} IS NULL) AND (f.departTime <= {1} OR {1} IS NULL)
+        GROUP BY f.departingPort, f.arrivingPort, f.aircraftUsed, a.planeType
+    ) base
+    ORDER BY base.avgLoadFactorPercent DESC";
 
         var data = await _context.Database.SqlQueryRaw<ActivityRow>(sql, startDate, endDate).ToListAsync();
         return Ok(data);
