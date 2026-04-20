@@ -22,6 +22,14 @@ export const createBaggageBulk = (baggageList) =>
 export const attachBaggageToTickets = (updates) =>
     api.put("/baggage/attach-tickets", updates);
 
+export const getPassengerBaggageForFlight = (flightNum) =>
+    api.get(`/baggage/flight/${encodeURIComponent(flightNum)}/passengers`);
+
+export const checkPassengerBagsForFlight = (flightNum, passengerId) =>
+    api.put(`/baggage/flight/${encodeURIComponent(flightNum)}/check-passenger`, {
+        passengerId,
+    });
+
 /**
  * Delete a single baggage record by its ID.
  * DELETE /api/baggage/:id

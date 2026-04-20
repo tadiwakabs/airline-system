@@ -25,11 +25,11 @@ function Employee() {
             description: "View your assigned flights",
         },
         {
-            label: "Passenger List",
-            icon: "👥",
-            path: "/passenger-list",
-            color: "bg-blue-400",
-            description: "View passenger details for assigned flights",
+            label: "Bag Check",
+            icon: "🧳",
+            path: "/cabin-crew/bag-check",
+            color: "bg-emerald-500",
+            description: "Check passenger bags for assigned flights",
         },
     ];
 
@@ -78,7 +78,7 @@ function Employee() {
         <div className="max-w-6xl mx-auto px-4 py-10">
             <header className="mb-8">
                 <h1 className="text-3xl font-bold text-black-900">Employee Dashboard</h1>
-                <p className="font-bold text-gray-500 mt-2">
+                <p className="font-bold text-gray-200 mt-2">
                     Welcome back. Select an operation below to get started.
                 </p>
             </header>
