@@ -35,7 +35,7 @@ namespace AirlineAPI.Controllers
                     GROUP BY f.departingPort, f.arrivingPort
                     ORDER BY totalRevenue DESC";
 
-                var data = await _context.Database.SqlQueryRaw<RevenueRow>(sql, startDate, endDate).ToListAsync();
+                var data = await _context.Database.SqlQueryRaw<RevenueRow>(sql, startDate!, endDate!).ToListAsync();
                 return Ok(data);
             } catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
         }
@@ -68,7 +68,7 @@ namespace AirlineAPI.Controllers
                     GROUP BY f.arrivingPort
                     ORDER BY totalActiveBookings DESC";
         
-                var data = await _context.Database.SqlQueryRaw<PopularityRow>(sql, startDate, endDate).ToListAsync();
+                var data = await _context.Database.SqlQueryRaw<PopularityRow>(sql, startDate!, endDate!).ToListAsync();
                 var sorted = data.OrderByDescending(r => r.networkScore).ToList();
                 double totalRevShare = sorted.Sum(r => r.revenueContributionPercent);
                 double cumulative = 0;
@@ -145,7 +145,7 @@ namespace AirlineAPI.Controllers
                     GROUP BY f.departingPort, f.arrivingPort, f.aircraftUsed, a.planeType
                     ORDER BY avgLoadFactorPercent DESC";
         
-                var data = await _context.Database.SqlQueryRaw<ActivityRow>(sql, startDate, endDate).ToListAsync();
+                var data = await _context.Database.SqlQueryRaw<ActivityRow>(sql, startDate!, endDate!).ToListAsync();
                 return Ok(data);
             } catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
         }

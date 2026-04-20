@@ -8,6 +8,7 @@ import Modal from "../../components/common/Modal";
 import Combobox from "../../components/common/Combobox";
 import { getCountries, getStates } from "../../services/passengerService";
 import { useAuth } from "../../contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 import {
     getAllAirports,
     createAirport,
@@ -41,6 +42,7 @@ export default function Airports() {
     const [states,      setStates]      = useState([]);
     const { errors: serverErrors, setErrors: setServerErrors, clearErrors } = useFormErrors();
     const { user } = useAuth();
+    const navigate = useNavigate();
 
     const canManageAirports = user?.userRole === "Administrator";
 
@@ -117,6 +119,16 @@ export default function Airports() {
             val = null;
         }
         setForm({ ...form, [name]: val });
+    };
+    
+    const handleBack = () => {
+        const role = user?.userRole;
+        
+        if (role == "Administrator"){
+            navigate("/admin/dashboard");
+        } else {
+            navigate("/employee/dashboard")
+        }   
     };
 
     const handleEdit = (airport) => {
@@ -208,11 +220,19 @@ export default function Airports() {
                     <h1 className="text-2xl font-semibold text-gray-800">Airports</h1>
                     <p className="mt-1 text-sm text-gray-200">View and manage airport locations and details.</p>
                 </div>
+                <div className="flex gap-4">
+                <button 
+                    onClick={handleBack}
+                    className="bg-white text-black border border-gray-300 px-6 py-2 rounded-md font-semibold text-sm uppercase tracking-wider hover:bg-gray-50 transition-colors"
+                >
+                    Back
+                </button>
                 {canManageAirports && (
                     <Button onClick={() => { setShowForm(true); setEditingCode(null); setForm(emptyForm); clearErrors(); }}>
                         + Add Airport
                     </Button>
                 )}
+                </div>
             </div>
 
             {/* Main Content Card */}

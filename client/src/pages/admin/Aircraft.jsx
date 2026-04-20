@@ -7,6 +7,9 @@ import Separator from "../../components/common/Separator";
 import Modal from "../../components/common/Modal";
 import Combobox from "../../components/common/Combobox";
 import { getAllAirports } from "../../services/airportService";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
+
 import {
     getAllAircraft,
     createAircraft,
@@ -130,6 +133,8 @@ export default function Aircraft() {
     const [importStatus,   setImportStatus]   = useState(null);
     const [importing,      setImporting]      = useState(false);
     const fileRef = useRef(null);
+    const navigate = useNavigate();
+    const {user} = useAuth();
 
     // ── Load ──────────────────────────────────────────────────────────────────
     useEffect(() => { 
@@ -178,6 +183,16 @@ export default function Aircraft() {
     const handleSort = (field) => {
         if (sortField === field) setSortDir(sortDir === "asc" ? "desc" : "asc");
         else { setSortField(field); setSortDir("asc"); }
+    };
+
+    const handleBack = () => {
+        const role = user?.userRole;
+        
+        if (role == "Administrator"){
+            navigate("/admin/dashboard");
+        } else {
+            navigate("/employee/dashboard")
+        }   
     };
 
     const handleEdit = (aircraft) => {
@@ -301,6 +316,12 @@ export default function Aircraft() {
                     <p className="mt-1 text-sm text-gray-200">Manage and monitor aircraft specifications and locations.</p>
                 </div>
                 <div className="flex gap-4">
+                    <button 
+                    onClick={handleBack}
+                    className="bg-white text-black border border-gray-300 px-6 py-2 rounded-md font-semibold text-sm uppercase tracking-wider hover:bg-gray-50 transition-colors"
+                >
+                    Back
+                </button>
                     <Button onClick={() => { setShowForm(true); setEditingTail(null); setForm(emptyForm); clearErrors(); }}>
                         + Add Aircraft
                     </Button>
