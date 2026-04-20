@@ -12,8 +12,8 @@ const DESTINATION_IMAGES = {
     DEN: "https://images.unsplash.com/photo-1619856699906-09e1f58c98b1?w=600&auto=format&fit=crop", // Denver mountains
     DFW: "https://images.unsplash.com/photo-1545194445-dddb8f4487c6?w=600&auto=format&fit=crop", // Dallas skyline
     JFK: "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=600&auto=format&fit=crop", // New York
-    LAX: "https://images.unsplash.com/photo-1534430480872-3498386e7856?w=600&auto=format&fit=crop", // Los Angeles
-    ORD: "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=600&auto=format&fit=crop", // Chicago
+    LAX: "https://images.unsplash.com/photo-1580655653885-65763b2597d0?w=600&auto=format&fit=crop", // Los Angeles
+    ORD: "https://images.unsplash.com/photo-1494522855154-9297ac14b55f?w=600&auto=format&fit=crop", // Chicago
     PHX: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&auto=format&fit=crop", // Phoenix desert
     SEA: "https://images.unsplash.com/photo-1502175353174-a7a70e73b362?w=600&auto=format&fit=crop", // Seattle
     // International

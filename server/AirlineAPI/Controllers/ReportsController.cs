@@ -224,9 +224,7 @@ namespace AirlineAPI.Controllers
 
                 var data = await _context.Database.SqlQueryRaw<ActivityRow>(sql, startDate, endDate).ToListAsync();
                 return Ok(data);
-            } catch (Exception ex) {
-                return StatusCode(500, new { message = ex.Message });
-            }
+            } catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
         }
     }
 

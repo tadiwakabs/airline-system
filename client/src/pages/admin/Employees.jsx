@@ -689,7 +689,9 @@ export default function Employees() {
 
                         <div className="grid grid-cols-2 gap-4">
                             <TextInput
-                                label="Work Email"
+                                label={
+                                    <>Work Email <span className="text-red-500">*</span></>
+                                }
                                 name="workEmail"
                                 type="email"
                                 value={addForm.workEmail}
@@ -716,7 +718,9 @@ export default function Employees() {
                                 onChange={handleAddFormChange}
                             />
                             <Dropdown
-                                label="Department"
+                                label={
+                                    <>Department <span className="text-red-500">*</span></>
+                                }
                                 value={addForm.department}
                                 onChange={(val) => setAddForm((p) => ({ ...p, department: val }))}
                                 options={deptFormOptions}
@@ -733,7 +737,9 @@ export default function Employees() {
                                 onChange={handleAddFormChange}
                             />
                             <Dropdown
-                                label="Work Location"
+                                label={
+                                    <>Work Location <span className="text-red-500">*</span></>
+                                }
                                 value={addForm.workLocation}
                                 onChange={(val) => setAddForm((p) => ({ ...p, workLocation: val }))}
                                 options={airportDropdownOptions}
@@ -785,7 +791,9 @@ export default function Employees() {
                 <form onSubmit={handleEditSubmit} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                         <TextInput
-                            label="Work Email"
+                            label={
+                                <>Work Email <span className="text-red-500">*</span></>
+                            }
                             name="workEmail"
                             type="email"
                             value={editForm.workEmail}
@@ -810,7 +818,9 @@ export default function Employees() {
                             onChange={handleEditFormChange}
                         />
                         <Dropdown
-                            label="Department"
+                            label={
+                                <>Department <span className="text-red-500">*</span></>
+                            }
                             value={editForm.department}
                             onChange={(val) => setEditForm((p) => ({ ...p, department: val }))}
                             options={deptFormOptions}
@@ -827,7 +837,9 @@ export default function Employees() {
                             onChange={handleEditFormChange}
                         />
                         <Dropdown
-                            label="Work Location"
+                            label={
+                                <>Work Location <span className="text-red-500">*</span></>
+                            }
                             value={editForm.workLocation}
                             onChange={(val) => setEditForm((p) => ({ ...p, workLocation: val }))}
                             options={airportDropdownOptions}
@@ -836,7 +848,9 @@ export default function Employees() {
                     </div>
 
                     <Dropdown
-                        label="Status"
+                        label={
+                            <>Status <span className="text-red-500">*</span></>
+                        }
                         value={editForm.status}
                         onChange={(val) => setEditForm((p) => ({ ...p, status: val }))}
                         options={formStatusOptions}

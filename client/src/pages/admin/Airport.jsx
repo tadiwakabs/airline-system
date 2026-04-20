@@ -370,7 +370,9 @@ export default function Airports() {
                         <FormError errors={serverErrors} />
                         <div className="grid grid-cols-2 gap-4">
                             <TextInput
-                                label="Airport Code"
+                                label={
+                                    <>Airport Code <span className="text-red-500">*</span></>
+                                }
                                 placeholder="e.g. IAH"
                                 value={form.airportCode}
                                 disabled={!!editingCode}
@@ -378,7 +380,9 @@ export default function Airports() {
                                 charLimit={3}
                             />
                             <Combobox
-                                label="Country"
+                                label={
+                                    <>Country <span className="text-red-500">*</span></>
+                                }
                                 value={form.country}
                                 onChange={(val) => setForm({ ...form, country: val })}
                                 options={countryOptions}
@@ -387,14 +391,18 @@ export default function Airports() {
                             />
                         </div>
                         <TextInput
-                            label="Airport Name"
+                            label={
+                                <>Airport Name <span className="text-red-500">*</span></>
+                            }
                             placeholder="e.g. George Bush Intercontinental"
                             value={form.airportName}
                             onChange={(e) => setForm({ ...form, airportName: e.target.value })}
                         />
                         <div className="grid grid-cols-2 gap-4">
                             <TextInput
-                                label="City"
+                                label={
+                                    <>City <span className="text-red-500">*</span></>
+                                }
                                 placeholder="e.g. Houston"
                                 value={form.city}
                                 onChange={(e) => setForm({ ...form, city: e.target.value })}
@@ -417,7 +425,9 @@ export default function Airports() {
                         />
                         <div className="grid grid-cols-2 gap-4">
                             <TextInput
-                                label="Latitude"
+                                label={
+                                    <>Latitude <span className="text-red-500">*</span></>
+                                }
                                 type="number"
                                 placeholder="e.g. 29.9844"
                                 value={form.latitude}
@@ -425,7 +435,9 @@ export default function Airports() {
                                 onChange={handleChange}
                             />
                             <TextInput
-                                label="Longitude"
+                                label={
+                                    <>Longitude <span className="text-red-500">*</span></>
+                                }
                                 type="number"
                                 placeholder="e.g. -95.3414"
                                 value={form.longitude}

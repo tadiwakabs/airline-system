@@ -78,11 +78,7 @@ function calculateTotal(basePrice, passengers) {
     const childFare = basePrice * 0.8;
     const infantFare = basePrice * 0.1;
 
-    return (
-        adults * adultFare +
-        children * childFare +
-        infants * infantFare
-    );
+    return adults * adultFare + children * childFare + infants * infantFare;
 }
 
 function getSelectedQuote(quote, cabinClass) {
@@ -98,14 +94,17 @@ function formatMoney(value) {
 }
 
 export default function FlightCard({
-       type,
-       flights,
-       pricing,
-       quote,
-       cabinClass = "economy",
-       passengers,
-       onSelect,
-    }) {
+                                       type,
+                                       flights,
+                                       pricing,
+                                       quote,
+                                       cabinClass = "economy",
+                                       passengers,
+                                       onSelect,
+                                       isFull = false,
+                                       onJoinStandby,
+                                       joiningStandby = false,
+                                   }) {
     const [expanded, setExpanded] = useState(false);
 
     const first = flights[0];
@@ -179,13 +178,25 @@ export default function FlightCard({
                         </p>
                     )}
                 </div>
-                
             </div>
-            
+
+            {isFull && (
+                <>
+                    <Separator />
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                        <p className="text-sm font-semibold text-amber-900">
+                            This flight is full
+                        </p>
+                        <p className="text-sm text-amber-800">
+                            Join standby to be notified if a seat opens.
+                        </p>
+                    </div>
+                </>
+            )}
 
             <Separator />
 
-            {/* Expand Button */}
+            {/* Bottom Buttons */}
             <div className="flex justify-between items-center">
                 <Button
                     variant="outline"
@@ -195,20 +206,29 @@ export default function FlightCard({
                     {expanded ? "Hide Details" : "View Details"}
                 </Button>
 
-                <Button
-                    onClick={() =>
-                        onSelect?.({
-                            type,
-                            flights,
-                            pricing,
-                            quote,
-                            cabinClass,
-                            passengers,
-                        })
-                    }
-                >
-                    Select
-                </Button>
+                {isFull ? (
+                    <Button
+                        onClick={onJoinStandby}
+                        disabled={joiningStandby}
+                    >
+                        {joiningStandby ? "Joining..." : "Join Standby"}
+                    </Button>
+                ) : (
+                    <Button
+                        onClick={() =>
+                            onSelect?.({
+                                type,
+                                flights,
+                                pricing,
+                                quote,
+                                cabinClass,
+                                passengers,
+                            })
+                        }
+                    >
+                        Select
+                    </Button>
+                )}
             </div>
 
             {/* Expanded Section */}

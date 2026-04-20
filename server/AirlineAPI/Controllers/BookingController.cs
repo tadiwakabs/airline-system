@@ -89,8 +89,7 @@ namespace AirlineAPI.Controllers
                         return BadRequest($"Seat {t.SeatNumber} on flight {t.FlightNum} is currently reserved by another passenger.");
 
                     // Generate a deterministic, readable ticket code
-                    var shortBooking = booking.bookingId.Replace("-", "")[..8].ToUpper();
-                    var ticketCode = $"{shortBooking}-{t.FlightNum}-{t.SeatNumber}-{Guid.NewGuid().ToString()[..4].ToUpper()}";
+                    var ticketCode = GenerateTicketCode();
 
                     var ticket = new Ticket
                     {
@@ -446,6 +445,15 @@ namespace AirlineAPI.Controllers
                 .ToList();
 
             return Ok(results);
+        }
+        
+        private static string GenerateTicketCode()
+        {
+            // 22 chars, URL-safe, derived from full GUID bytes
+            return Convert.ToBase64String(Guid.NewGuid().ToByteArray())
+                .Replace("/", "_")
+                .Replace("+", "-")
+                .Replace("=", "");
         }
 
     }   
