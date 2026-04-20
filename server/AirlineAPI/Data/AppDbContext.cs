@@ -26,6 +26,7 @@ namespace AirlineAPI.Data
         public DbSet<Ticket> Ticket { get; set; }
         public DbSet<Standby> Standby { get; set; }
         public DbSet<Notification> Notification { get; set; }
+        public DbSet<Baggage> Baggage { get; set; }
         public DbSet<FlightCrewAssignment> FlightCrewAssignments { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -405,6 +406,57 @@ namespace AirlineAPI.Data
                     .HasForeignKey(x => x.employeeId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
+
+            modelBuilder.Entity<Baggage>(entity =>
+            {
+                entity.ToTable("Baggage");
+
+                entity.HasKey(b => b.baggageID);
+
+                entity.Property(b => b.baggageID)
+                    .HasColumnName("baggageId")
+                    .HasMaxLength(30)
+                    .IsRequired();
+
+                entity.Property(b => b.PassengerId)
+                    .HasColumnName("passengerId")
+                    .HasMaxLength(50)
+                    .IsRequired();
+
+                entity.Property(b => b.additionalBaggage)
+                    .HasColumnName("additionalBaggage")
+                    .HasDefaultValue(false);
+
+                entity.Property(b => b.additionalFare)
+                    .HasColumnName("additionalFare");
+
+                entity.Property(b => b.isChecked)
+                    .HasColumnName("isChecked")
+                    .IsRequired();
+
+                entity.Property(b => b.ticketCode)
+                    .HasColumnName("ticketCode")
+                    .HasMaxLength(30)
+                    .IsRequired(false);
+
+                entity.HasOne(b => b.Passenger)
+                    .WithMany()
+                    .HasForeignKey(b => b.PassengerId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(b => b.Ticket)
+                    .WithMany()
+                    .HasForeignKey(b => b.ticketCode)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+            
+            modelBuilder.Entity<Payment>()
+                .Property(p => p.paymentStatus)
+                .HasConversion<string>();
+            
+            modelBuilder.Entity<Payment>()
+                .Property(p => p.paymentStatus)
+                .HasConversion<string>();
             
             modelBuilder.Entity<Payment>()
                 .Property(p => p.paymentStatus)
