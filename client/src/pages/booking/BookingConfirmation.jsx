@@ -74,7 +74,7 @@ export default function Confirmation() {
                     </h2>
                     <div className="bg-gray-50 rounded-2xl p-5 space-y-3">
                         <LabelValue label="Transaction ID" value={`TXN-${state.transactionId}`} mono />
-                        <LabelValue label="Booking Ref" value={state.bookingId} mono />
+                        <LabelValue label="Booking Ref" value={state.bookingId?.split("-")[0].toUpperCase()} mono />
                         <LabelValue label="Amount Paid" value={formatCurrency(totalPrice)} />
                         <LabelValue label="Card" value={`${state.cardType} •••• ${state.lastFour}`} />
                     </div>
@@ -102,7 +102,6 @@ export default function Confirmation() {
                                 
                                 <div className="grid grid-cols-1 gap-y-2">
                                     <LabelValue label="Passenger" value={ticket.passengerName} />
-                                    <LabelValue label="Ticket Code" value={ticket.ticketCode} mono />
                                     <LabelValue label="Seat" value={ticket.seatDisplay || ticket.seatNumber} />
                                     
                                     {/* Boarding Section (Time + Date) */}
@@ -113,7 +112,7 @@ export default function Confirmation() {
                                                 {ticket.boardingTime}
                                             </p>
                                             <p className="text-[11px] font-bold text-gray-500 uppercase">
-                                                {formatDate(state.dateDepart || new Date())}
+                                                {formatDate(state.dateDepart)}
                                             </p>
                                         </div>
                                     </div>

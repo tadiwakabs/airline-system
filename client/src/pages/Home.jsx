@@ -7,8 +7,6 @@ import FlightSearchPanel from "../components/home/FlightSearchPanel.jsx";
 import Hero from "../components/home/HeroSection.jsx";
 import FeaturedFlights from "../components/home/FeaturedFlights.jsx";
 import Card from "../components/common/Card.jsx";
-import { getFlightById } from "../services/flightService";
-import { getFlightsByBooking } from "../services/bookingService";
 import { getMyNotifications, markNotificationAsRead } from "../services/notificationService";
 import { getStatusByBooking } from "../services/bookingService";
 
@@ -123,19 +121,17 @@ export default function Home() {
         }
     }, [isAuthenticated]);
 
-    useEffect(() => {
-        if (isAuthenticated) {
-            loadNotifications();
-        }
-    }, [isAuthenticated]);
-
     const loadNotifications = async () => {
         try {
             setNotificationsLoading(true);
             setNotificationsError("");
 
             const data = await getMyNotifications();
-            setNotifications(Array.isArray(data) ? data : []);
+            setNotifications(
+                Array.isArray(data)
+                    ? data.filter(n => n.notificationStatus !== "Read")
+                    : []
+            );
         } catch (err) {
             console.error("Error loading notifications:", err);
             setNotificationsError(
@@ -151,11 +147,7 @@ export default function Home() {
         await markNotificationAsRead(id);
 
         setNotifications((prev) =>
-            prev.map((n) =>
-                n.notificationId === id
-                    ? { ...n, notificationStatus: "Read" }
-                    : n
-            )
+            prev.filter((n) => n.notificationId !== id)
         );
     } catch (err) {
         console.error("Error marking notification as read:", err);
@@ -258,13 +250,13 @@ export default function Home() {
                                                     </p>
                                                 </div>
                                                 {(notification.notificationStatus || "").toLowerCase() === "unread" && (
-        <button
-            onClick={() => handleMarkAsRead(notification.notificationId)}
-            className="mt-2 text-xs text-blue-600 hover:underline"
-        >
-            Mark as Read
-        </button>
-    )}
+                                                    <button
+                                                        onClick={() => handleMarkAsRead(notification.notificationId)}
+                                                        className="mt-2 text-xs text-blue-600 hover:underline"
+                                                    >
+                                                        Mark as Read
+                                                    </button>
+                                                )}
                                             </div>
 
                                             <span
@@ -330,9 +322,6 @@ export default function Home() {
                                                     <p className="text-xs text-gray-500 mt-1">
                                                         {statusResult.departingCity || "—"} →{" "}
                                                         {statusResult.arrivingCity || "—"}
-                                                    </p>
-                                                    <p className="text-xs text-gray-500">
-                                                        {flight.departingCity || "—"} → {flight.arrivingCity || "—"}
                                                     </p>
                                                 </div>
 

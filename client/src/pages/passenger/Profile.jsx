@@ -5,6 +5,7 @@ import Modal from "../../components/common/Modal";
 import FieldLabel from "../../components/common/FieldLabel";
 import Button from "../../components/common/Button";
 import Dropdown from "../../components/common/Dropdown";
+import Combobox from "../../components/common/Combobox";
 import Separator from "../../components/common/Separator";
 import { useLocation, useNavigate } from "react-router-dom";
 import FormError from "../../components/common/FormError";
@@ -824,6 +825,7 @@ export default function Profile() {
                                     <TextInput
                                         label="Phone Number"
                                         name="phoneNumber"
+                                        charLimit={10}
                                         value={passengerData.phoneNumber}
                                         onChange={handlePassengerChange}
                                     />
@@ -836,16 +838,19 @@ export default function Profile() {
                                     <TextInput
                                         label="DL Number"
                                         name="dlNumber"
+                                        charLimit={8}
                                         value={passengerData.dlNumber}
                                         onChange={handlePassengerChange}
                                     />
-                                    <Dropdown
+                                    <Combobox
                                         label="DL State"
                                         value={passengerData.dlState}
                                         onChange={(val) =>
                                             handlePassengerDropdownChange("dlState", val)
                                         }
                                         options={stateOptions}
+                                        placeholder="Search state..."
+                                        emptyMessage="No states found"
                                     />
                                 </div>
 
@@ -859,13 +864,15 @@ export default function Profile() {
                                         value={passengerData.passportNumber}
                                         onChange={handlePassengerChange}
                                     />
-                                    <Dropdown
+                                    <Combobox
                                         label="Passport Country"
                                         value={passengerData.passportCountryCode}
                                         onChange={(val) =>
                                             handlePassengerDropdownChange("passportCountryCode", val)
                                         }
                                         options={countryOptions}
+                                        placeholder="Search country..."
+                                        emptyMessage="No countries found"
                                     />
                                     <TextInput
                                         label="Passport Expiration"
@@ -880,13 +887,15 @@ export default function Profile() {
                                         value={passengerData.placeOfBirth}
                                         onChange={handlePassengerChange}
                                     />
-                                    <Dropdown
+                                    <Combobox
                                         label="Nationality"
                                         value={passengerData.nationality}
                                         onChange={(val) =>
                                             handlePassengerDropdownChange("nationality", val)
                                         }
                                         options={countryOptions}
+                                        placeholder="Search nationality..."
+                                        emptyMessage="No countries found"
                                     />
                                 </div>
 
@@ -1152,6 +1161,7 @@ export default function Profile() {
                                                 <TextInput
                                                     label="Phone Number"
                                                     name="phoneNumber"
+                                                    charLimit={10}
                                                     value={savedPassengerForm.phoneNumber}
                                                     onChange={handleSavedPassengerChange}
                                                 />
@@ -1160,18 +1170,19 @@ export default function Profile() {
                                                 <TextInput
                                                     label="DL Number"
                                                     name="dlNumber"
+                                                    charLimit={8}
                                                     value={savedPassengerForm.dlNumber}
                                                     onChange={handleSavedPassengerChange}
                                                 />
 
-                                                <div>
-                                                    <FieldLabel>DL State</FieldLabel>
-                                                    <Dropdown
-                                                        value={savedPassengerForm.dlState}
-                                                        onChange={(val) => handleSavedPassengerDropdownChange("dlState", val)}
-                                                        options={stateOptions}
-                                                    />
-                                                </div>
+                                                <Combobox
+                                                    label="DL State"
+                                                    value={savedPassengerForm.dlState}
+                                                    onChange={(val) => handleSavedPassengerDropdownChange("dlState", val)}
+                                                    options={stateOptions}
+                                                    placeholder="Search state..."
+                                                    emptyMessage="No states found"
+                                                />
                                             </>
                                         )}
                                     </div>
@@ -1185,14 +1196,14 @@ export default function Profile() {
                                             onChange={handleSavedPassengerChange}
                                         />
 
-                                        <div>
-                                            <FieldLabel>Passport Country</FieldLabel>
-                                            <Dropdown
-                                                value={savedPassengerForm.passportCountryCode}
-                                                onChange={(val) => handleSavedPassengerDropdownChange("passportCountryCode", val)}
-                                                options={countryOptions}
-                                            />
-                                        </div>
+                                        <Combobox
+                                            label="Passport Country"
+                                            value={savedPassengerForm.passportCountryCode}
+                                            onChange={(val) => handleSavedPassengerDropdownChange("passportCountryCode", val)}
+                                            options={countryOptions}
+                                            placeholder="Search country..."
+                                            emptyMessage="No countries found"
+                                        />
 
                                         <TextInput
                                             label="Passport Expiration"
@@ -1209,14 +1220,14 @@ export default function Profile() {
                                             onChange={handleSavedPassengerChange}
                                         />
 
-                                        <div>
-                                            <FieldLabel>Nationality</FieldLabel>
-                                            <Dropdown
-                                                value={savedPassengerForm.nationality}
-                                                onChange={(val) => handleSavedPassengerDropdownChange("nationality", val)}
-                                                options={countryOptions}
-                                            />
-                                        </div>
+                                        <Combobox
+                                            label="Nationality"
+                                            value={savedPassengerForm.nationality}
+                                            onChange={(val) => handleSavedPassengerDropdownChange("nationality", val)}
+                                            options={countryOptions}
+                                            placeholder="Search nationality..."
+                                            emptyMessage="No countries found"
+                                        />
                                     </div>
 
                                     {savedPassengersMessage && (

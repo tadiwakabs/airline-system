@@ -395,6 +395,8 @@ export default function FlightSearch() {
                     </p>
                 )}
 
+                <p className="text-sm font-medium text-gray-600">Times are displayed in local time zones.</p>
+
                 {standbyMessage && (
                     <Card className="p-4 border-green-200">
                         <p className="text-green-600">{standbyMessage}</p>
@@ -406,7 +408,7 @@ export default function FlightSearch() {
                         <p className="text-red-600">{standbyError}</p>
                     </Card>
                 )}
-
+                
                 {activeResults.loading && <Card className="p-6"><p>Loading flights...</p></Card>}
                 {activeResults.error && (
                     <Card className="p-6 border-red-100 bg-red-50 rounded-lg">
