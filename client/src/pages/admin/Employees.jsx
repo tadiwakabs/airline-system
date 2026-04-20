@@ -12,7 +12,7 @@ import {
     updateEmployee,
     lookupUserByIdOrEmail,
 } from "../../services/employeeService";
-import airportOptions from "../../dropdownData/airports.json";
+import { getAllAirports } from "../../services/airportService";
 import { useNavigate } from "react-router-dom";
 
 // ── Static option lists ───────────────────────────────────────────────────────
@@ -52,11 +52,6 @@ const sortOptions = [
     { label: "Work Location", value: "workLocation" },
 ];
 
-// Build airport dropdown options from the JSON (value = IATA code)
-const airportDropdownOptions = [
-    { label: "Select airport...", value: "" },
-    ...airportOptions.map((a) => ({ label: a.label, value: a.value })),
-];
 
 // ── Empty form shapes ─────────────────────────────────────────────────────────
 
@@ -140,6 +135,9 @@ export default function Employees() {
     const [sortBy, setSortBy] = useState("employeeId");
     const [sortDirection, setSortDirection] = useState("asc");
     const [page, setPage] = useState(0);
+    const [airportDropdownOptions, setAirportDropdownOptions] = useState([
+        { label: "Select airport...", value: "" },
+    ]);
 
     // ── Add employee modal ────────────────────────────────────────────────────
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -163,6 +161,14 @@ export default function Employees() {
     // ── Initial load ──────────────────────────────────────────────────────────
     useEffect(() => {
         loadEmployees();
+        getAllAirports()
+            .then((res) =>
+                setAirportDropdownOptions([
+                    { label: "Select airport...", value: "" },
+                    ...res.data.map((a) => ({ label: `${a.airportCode} - ${a.airportName}`, value: a.airportCode })),
+                ])
+            )
+            .catch(() => {});
     }, []);
 
     const loadEmployees = async () => {

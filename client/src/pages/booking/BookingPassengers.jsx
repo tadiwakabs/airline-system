@@ -4,6 +4,7 @@ import Card from "../../components/common/Card.jsx";
 import Button from "../../components/common/Button.jsx";
 import Dropdown from "../../components/common/Dropdown.jsx";
 import Combobox from "../../components/common/Combobox.jsx";
+import TextInput from "../../components/common/TextInput.jsx";
 import {
     getCountries,
     getPassengerByUserId,
@@ -555,9 +556,9 @@ export default function BookingPassengers() {
                                             </div>
 
                                             <div>
-                                                <label className="block text-sm text-gray-600 mb-1">Phone Number</label>
-                                                <input
-                                                    className="w-full border rounded-lg px-3 py-2"
+                                                <TextInput
+                                                    label="Phone Number"
+                                                    charLimit={10}
                                                     value={passenger.phoneNumber}
                                                     onChange={(e) =>
                                                         handlePassengerChange(index, "phoneNumber", e.target.value)
@@ -596,9 +597,9 @@ export default function BookingPassengers() {
                                     {passenger.passengerType === "Adult" && isDomesticItinerary && (
                                         <>
                                             <div>
-                                                <label className="block text-sm text-gray-600 mb-1">DL / ID Number<RequiredMark /></label>
-                                                <input
-                                                    className="w-full border rounded-lg px-3 py-2"
+                                                <TextInput
+                                                    label={<>DL / ID Number<RequiredMark /></>}
+                                                    charLimit={8}
                                                     value={passenger.dlNumber}
                                                     onChange={(e) =>
                                                         handlePassengerChange(index, "dlNumber", e.target.value)

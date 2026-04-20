@@ -6,7 +6,7 @@ import RadioGroup from "../common/RadioGroup.jsx";
 import { useMemo, useState, useEffect } from "react";
 import PassengerSelector from "./PassengerSelector.jsx";
 
-import AIRPORTS from "../../dropdownData/airports.json";
+import { getAllAirports } from "../../services/airportService";
 
 const CLASSES = [
     { label: "Economy", value: "economy" },
@@ -38,6 +38,13 @@ export default function FlightSearchPanel({ onSearch, initialValues }) {
     );
     const [cabinClass, setCabinClass] = useState(initialValues?.cabinClass || "economy");
     const [errors, setErrors] = useState({});
+    const [airportList, setAirportList] = useState([]);
+
+    useEffect(() => {
+        getAllAirports()
+            .then((res) => setAirportList(res.data))
+            .catch((err) => console.error("Failed to load airports:", err));
+    }, []);
 
     useEffect(() => {
         if (!initialValues) return;
@@ -56,11 +63,11 @@ export default function FlightSearchPanel({ onSearch, initialValues }) {
 
     const airportOptions = useMemo(
         () =>
-            AIRPORTS.map((a) => ({
-                label: `${a.city} (${a.value})`,
-                value: a.value,
+            airportList.map((a) => ({
+                label: `${a.city} (${a.airportCode})`,
+                value: a.airportCode,
             })),
-        []
+        [airportList]
     );
 
     const filteredDeparture = airportOptions.filter(
