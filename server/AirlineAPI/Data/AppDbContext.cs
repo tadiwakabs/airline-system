@@ -454,6 +454,10 @@ namespace AirlineAPI.Data
                 .Property(p => p.paymentStatus)
                 .HasConversion<string>();
             
+            modelBuilder.Entity<Payment>()
+                .Property(p => p.paymentStatus)
+                .HasConversion<string>();
+            
         }
 
         private static string? ConvertTitleToDb(UserTitle? title)

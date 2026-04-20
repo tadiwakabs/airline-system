@@ -402,9 +402,9 @@ export default function BookingSeats() {
     if (!selectedItinerary || !searchParams || !currentFlight || !currentPassenger) return null;
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen">
             <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
-                <h1 className="text-2xl font-semibold text-gray-900">Choose Seats</h1>
+                <h1 className="text-3xl font-black text-white drop-shadow-md">Choose Seats</h1>
 
                 <Card className="p-5 space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -554,8 +554,12 @@ export default function BookingSeats() {
                 </div>
 
                 <div className="flex justify-between items-center">
-                    <Button variant="outline" onClick={handleBack}>
-                        Back
+                    <Button 
+                        variant="outline" 
+                        onClick={handleBack} 
+                        className="mr-auto bg-white/20 text-white border-white/40 hover:bg-white/30 backdrop-blur-sm"
+                        >
+                            Back
                     </Button>
 
                     <Button onClick={handleContinue} disabled={saving || loading}>

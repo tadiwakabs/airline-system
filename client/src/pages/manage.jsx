@@ -42,6 +42,7 @@ function seatClassMatches(seatClass, cabinClass) {
 function getSeatVisualState(seat, allowedClass, selectedPassengerId, selectedSeatNumber) {
     const seatClass = seat.seatclass;
     const status = seat.seatStatus;
+
     if (!seatClassMatches(seatClass, allowedClass)) return "wrong-class";
     if (status === "Occupied") return "occupied";
     if (status === "Reserved" && seat.passengerId !== selectedPassengerId) return "reserved";
@@ -106,10 +107,12 @@ function SeatMap({ seats, allowedClass, selectedPassengerId, selectedSeatNumber,
             <div className="mx-auto mb-6 w-40 rounded-t-full border border-gray-200 bg-gray-50 py-2 text-center text-xs font-medium text-gray-500">
                 Front of aircraft
             </div>
+
             <div className="space-y-2">
                 {rows.map((row, index) => {
                     const previousRowNumber = index > 0 ? rows[index - 1].rowNumber : null;
                     const showDivider = shouldShowSectionDivider(row.rowNumber, previousRowNumber);
+
                     const seatLetters = row.seats.map((s) => s.letter);
                     const left = row.seats.filter((s) => ["A", "B", "C"].includes(s.letter));
                     const right = row.seats.filter((s) => ["D", "E", "F"].includes(s.letter));
@@ -126,10 +129,12 @@ function SeatMap({ seats, allowedClass, selectedPassengerId, selectedSeatNumber,
                                     <div className="h-px flex-1 bg-gray-200" />
                                 </div>
                             )}
+
                             <div className="flex items-center justify-center gap-3">
                                 <div className="w-8 text-right text-xs font-medium text-gray-400">
                                     {row.rowNumber}
                                 </div>
+
                                 <div className="flex items-center gap-2">
                                     {(compact ? row.seats.slice(0, 2) : left).map((seat) => {
                                         const state = getSeatVisualState(seat, allowedClass, selectedPassengerId, selectedSeatNumber);
@@ -243,6 +248,8 @@ const ManageBooking = () => {
     const [error, setError]                   = useState("");
 
     const navigate = useNavigate();
+    const isErrorModalOpen = Boolean(error); 
+    const closeErrorModal = () => setError("");
 
     // ── Fetch bookings ──────────────────────────────────────────────────────
     const fetchBookings = async () => {
@@ -765,6 +772,19 @@ const ManageBooking = () => {
             </Modal>
         </div>
     );
+    <Modal
+        isOpen={isErrorModalOpen}
+        onClose={closeErrorModal}
+        title="Action Failed"
+        className="max-w-md border-t-4 border-red-500"
+        footer={
+            <button onClick={closeErrorModal} className="px-6 py-2 bg-gray-900 text-white rounded-xl">
+                Close
+            </button>
+        }
+    >
+        <p className="text-gray-600 py-4">{error}</p>
+    </Modal>
 };
 
 export default ManageBooking;
