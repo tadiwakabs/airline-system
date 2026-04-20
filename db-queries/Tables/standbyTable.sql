@@ -3,7 +3,7 @@
        `flightNum` int NOT NULL,
        `passengerId` varchar(50) NOT NULL,
        `requestTime` datetime NOT NULL,
-       `standbyStatus` varchar(20) NOT NULL DEFAULT 'Waiting',
+       `standbyStatus` enum('Waiting','Offered','Accepted','Rejected') NOT NULL,
        `offerExpiresAt` datetime DEFAULT NULL,
        PRIMARY KEY (`standbyId`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB AUTO_INCREMENT=29 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

@@ -21,14 +21,4 @@
      CONSTRAINT `fk_rs_aircraft` FOREIGN KEY (`aircraftUsed`) REFERENCES `Aircraft` (`tailNumber`) ON DELETE RESTRICT ON UPDATE CASCADE,
      CONSTRAINT `fk_rs_arrive_airport` FOREIGN KEY (`arrivingPort`) REFERENCES `Airport` (`airportCode`) ON DELETE RESTRICT ON UPDATE CASCADE,
      CONSTRAINT `fk_rs_depart_airport` FOREIGN KEY (`departingPort`) REFERENCES `Airport` (`airportCode`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=603 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
--- Link Flight rows to their schedule (nullable — one-off flights have NULL)
-ALTER TABLE `Flight`
-    ADD COLUMN `recurringScheduleId` INT DEFAULT NULL AFTER `flightChange`,
-    ADD KEY `fk_flight_schedule` (`recurringScheduleId`),
-    ADD CONSTRAINT `fk_flight_schedule`
-        FOREIGN KEY (`recurringScheduleId`)
-        REFERENCES `RecurringSchedule` (`id`)
-        ON DELETE SET NULL   -- schedule deleted → flights stay but are unlinked
-        ON UPDATE CASCADE;
+) ENGINE=InnoDB AUTO_INCREMENT=607 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
