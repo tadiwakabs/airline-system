@@ -335,7 +335,7 @@ export default function PassengerList() {
 
             {/* Page header */}
             <div className="mb-4 flex justify-between items-start">
-                <h1 className="text-2xl font-semibold text-gray-900">Passenger List</h1>
+                <h1 className="text-2xl font-semibold text-gray-200">Passenger List</h1>
                 <p className="mt-1 text-sm text-gray-500">
                     Enter a flight number to view all booked passengers and seat assignments.
                 </p>

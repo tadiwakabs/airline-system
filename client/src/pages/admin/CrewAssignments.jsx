@@ -302,8 +302,8 @@ export default function CrewAssignments() {
             <div className="mb-4 flex justify-between items-start">
             {/* Left Side: Title and Description */}
             <div>
-                <h1 className="text-2xl font-semibold text-gray-900">Crew Assignments</h1>
-                <p className="mt-1 text-sm text-gray-500">
+                <h1 className="text-2xl font-semibold text-gray-200">Crew Assignments</h1>
+                <p className="mt-1 text-sm text-gray-200">
                     Assign Cabin Crew employees to flights.
                 </p>
             </div>

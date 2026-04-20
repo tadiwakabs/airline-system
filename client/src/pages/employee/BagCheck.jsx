@@ -332,7 +332,7 @@ export default function BagCheck() {
         <div className="mx-auto max-w-7xl px-4 py-10">
             <div className="mb-4 flex justify-between items-start">
                 <div>
-                    <h1 className="text-2xl font-semibold text-gray-900">Bag Check</h1>
+                    <h1 className="text-2xl font-semibold text-gray-200">Bag Check</h1>
                     <p className="mt-1 text-sm text-gray-200">
                         Check bags for passengers on your assigned flights.
                     </p>

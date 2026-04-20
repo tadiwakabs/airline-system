@@ -434,8 +434,8 @@ export default function Employees() {
             {/* Page header */}
             <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
-                    <h1 className="text-2xl font-semibold text-gray-900">Employees</h1>
-                    <p className="mt-1 text-sm text-gray-500">Manage employee records and access.</p>
+                    <h1 className="text-2xl font-semibold text-gray-200">Employees</h1>
+                    <p className="mt-1 text-sm text-gray-200">Manage employee records and access.</p>
                 </div>
                 
                 <div className="flex gap-3">
