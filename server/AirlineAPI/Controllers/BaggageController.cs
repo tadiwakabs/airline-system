@@ -99,6 +99,90 @@ namespace AirlineAPI.Controllers
             await _context.SaveChangesAsync();
             return Ok(new { message = "Baggage updated successfully." });
         }
+        
+        [HttpGet("flight/{flightNum}/passengers")]
+        public async Task<ActionResult<IEnumerable<FlightPassengerBaggageDto>>> GetPassengerBaggageForFlight(int flightNum)
+        {
+            var passengers = await (
+                from t in _context.Ticket
+                join p in _context.Passenger on t.passengerId equals p.PassengerId
+                where t.flightCode == flightNum
+                      && t.status != TicketStatus.Cancelled
+                select new
+                {
+                    PassengerId = p.PassengerId,
+                    TicketCode = t.ticketCode,
+                    SeatNumber = t.seatNumber,
+                    FirstName = p.FirstName,
+                    LastName = p.LastName,
+                    TicketClass = t.ticketClass.HasValue ? t.ticketClass.Value.ToString() : ""
+                }
+            ).ToListAsync();
+
+            var ticketCodes = passengers
+                .Select(x => x.TicketCode)
+                .Distinct()
+                .ToList();
+
+            var baggage = await _context.Baggage
+                .Where(b => b.ticketCode != null && ticketCodes.Contains(b.ticketCode))
+                .ToListAsync();
+
+            var result = passengers
+                .GroupJoin(
+                    baggage,
+                    p => p.TicketCode,
+                    b => b.ticketCode!,
+                    (p, bags) => new FlightPassengerBaggageDto
+                    {
+                        PassengerId = p.PassengerId,
+                        TicketCode = p.TicketCode,
+                        SeatNumber = p.SeatNumber,
+                        FirstName = p.FirstName,
+                        LastName = p.LastName,
+                        TicketClass = p.TicketClass,
+                        TotalBags = bags.Count(),
+                        CheckedBags = bags.Count(x => x.isChecked),
+                        UncheckedBags = bags.Count(x => !x.isChecked),
+                        AllChecked = bags.Any() && bags.All(x => x.isChecked)
+                    }
+                )
+                .OrderBy(x => x.SeatNumber)
+                .ToList();
+
+            return Ok(result);
+        }
+
+        [HttpPut("flight/{flightNum}/check-passenger")]
+        public async Task<IActionResult> CheckPassengerBagsForFlight(int flightNum, [FromBody] CheckPassengerBagsDto dto)
+        {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.PassengerId))
+                return BadRequest(new { message = "PassengerId is required." });
+
+            var baggageRows = await (
+                from b in _context.Baggage
+                join t in _context.Ticket on b.ticketCode equals t.ticketCode
+                where t.flightCode == flightNum
+                      && b.PassengerId == dto.PassengerId
+                select b
+            ).ToListAsync();
+
+            if (!baggageRows.Any())
+                return NotFound(new { message = "No bags found for this passenger on the selected flight." });
+
+            foreach (var bag in baggageRows)
+            {
+                bag.isChecked = true;
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Bags checked successfully.",
+                updated = baggageRows.Count
+            });
+        }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteBaggage(string id)
